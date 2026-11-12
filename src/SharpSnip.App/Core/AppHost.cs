@@ -17,6 +17,8 @@ internal sealed class AppHost : IDisposable
     private Preferences _prefs;
     private string? _lastPath;
     private SettingsWindow? _settings;
+    private WinForms.ToolStripMenuItem? _intervalItem;
+    private CancellationTokenSource? _interval;
 
     public AppHost()
     {
@@ -39,6 +41,7 @@ internal sealed class AppHost : IDisposable
             else if (id == HotkeyManager.IdFullScreen) _ = _router.RunInstantFullScreenAsync();
             else if (id == HotkeyManager.IdActiveWindow) _ = _router.RunActiveWindowAsync();
             else if (id == HotkeyManager.IdRepeatLast) _ = _router.RunRepeatLastAsync();
+            else if (id >= HotkeyManager.IdMonitorBase) _ = _router.RunMonitorAsync(id - HotkeyManager.IdMonitorBase + 1);
         };
         RegisterHotkeys(_prefs, notifyOnFailure: true);
         if (warn is not null) Notify("SharpSnip", warn, null);
@@ -58,6 +61,7 @@ internal sealed class AppHost : IDisposable
         }
         Item("Capture…", "Open the mode menu (same as the menu hotkey).", () => _ = _router.RunSessionAsync());
         Item("Full screen now", "Capture the configured monitor straight to the clipboard.", () => _ = _router.RunInstantFullScreenAsync());
+        _intervalItem = Item("Start interval capture", "Capture the configured monitor every N seconds into a new folder. Click again to stop.", () => _ = ToggleIntervalAsync());
         Item("Repeat last capture", "Capture the same screen rectangle as the previous capture.", () => _ = _router.RunRepeatLastAsync());
         m.Items.Add(new WinForms.ToolStripSeparator());
         Item("Open output folder", "Open the folder where captures are saved.", () => OpenFolder(Exporter.OutputFolder(_prefs)));
@@ -68,19 +72,40 @@ internal sealed class AppHost : IDisposable
         return m;
     }
 
-    private static readonly (int Id, Func<Preferences, string> Get)[] HotkeySlots =
+    /// <summary>Every hotkey the app wants: the four fixed ones plus one per monitor entry.</summary>
+    private static List<(int Id, string Text)> Slots(Preferences p)
     {
-        (HotkeyManager.IdMenu, p => p.HotkeyMenu),
-        (HotkeyManager.IdFullScreen, p => p.HotkeyFullScreen),
-        (HotkeyManager.IdActiveWindow, p => p.HotkeyActiveWindow),
-        (HotkeyManager.IdRepeatLast, p => p.HotkeyRepeatLast),
-    };
+        var list = new List<(int, string)>
+        {
+            (HotkeyManager.IdMenu, p.HotkeyMenu), (HotkeyManager.IdFullScreen, p.HotkeyFullScreen),
+            (HotkeyManager.IdActiveWindow, p.HotkeyActiveWindow), (HotkeyManager.IdRepeatLast, p.HotkeyRepeatLast),
+        };
+        int i = 0;
+        foreach (var part in p.HotkeyMonitors.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            list.Add((HotkeyManager.IdMonitorBase + i++, part));
+        return list;
+    }
+
+    private void UnregisterAll()
+    {
+        foreach (int id in new[] { HotkeyManager.IdMenu, HotkeyManager.IdFullScreen, HotkeyManager.IdActiveWindow, HotkeyManager.IdRepeatLast })
+            _hotkeys.Unregister(id);
+        for (int i = 0; i < HotkeyList.Max; i++) _hotkeys.Unregister(HotkeyManager.IdMonitorBase + i);
+    }
+
+    /// <summary>Registers everything; returns the texts that could not be registered.</summary>
+    private List<string> RegisterAll(Preferences p)
+    {
+        UnregisterAll();
+        var failed = new List<string>();
+        foreach (var (id, text) in Slots(p))
+            if (!(HotkeySpec.TryParse(text, out var spec) && _hotkeys.Register(id, spec))) failed.Add(text);
+        return failed;
+    }
 
     private void RegisterHotkeys(Preferences p, bool notifyOnFailure)
     {
-        var failed = new List<string>();
-        foreach (var (id, get) in HotkeySlots)
-            if (!(HotkeySpec.TryParse(get(p), out var spec) && _hotkeys.Register(id, spec))) failed.Add(get(p));
+        var failed = RegisterAll(p);
         if (notifyOnFailure && failed.Count > 0)
             Notify("SharpSnip", $"Hotkey already in use: {string.Join(", ", failed)}. Change it in Settings, or start from the tray icon.", null);
     }
@@ -97,18 +122,61 @@ internal sealed class AppHost : IDisposable
     private string? Apply(Preferences p)
     {
         var old = _prefs;
-        foreach (var (id, get) in HotkeySlots)
+        var failed = RegisterAll(p);
+        if (failed.Count > 0)
         {
-            HotkeySpec.TryParse(get(p), out var spec);
-            if (_hotkeys.Register(id, spec)) continue;
-            foreach (var (rid, rget) in HotkeySlots)
-                if (HotkeySpec.TryParse(rget(old), out var o)) _hotkeys.Register(rid, o);
-            return $"{get(p)} is already used by another program.";
+            RegisterAll(old);
+            return $"{string.Join(", ", failed)} is already used by another program.";
         }
         _prefs = p.Sanitize();
         _router.Prefs = _prefs;
         SavePrefs();
         return null;
+    }
+
+    // ---- interval capture ----------------------------------------------------------------------
+
+    private async Task ToggleIntervalAsync()
+    {
+        if (_interval is not null) { _interval.Cancel(); return; }
+        if (_router.IsBusy) { Notify("SharpSnip", "Finish the current capture first.", null); return; }
+
+        var prefs = _prefs;
+        int seconds = IntervalPlan.SanitizeSeconds(prefs.IntervalSeconds);
+        var target = IntervalCapture.ResolveStartTarget(FullScreenTarget.Parse(prefs.FullScreenTarget));
+        string folder = Path.Combine(Exporter.OutputFolder(prefs), IntervalPlan.FolderName(DateTime.Now));
+        _interval = new CancellationTokenSource();
+        var ct = _interval.Token;
+        if (_intervalItem is not null) _intervalItem.Text = "Stop interval capture";
+        Notify("Interval capture started", $"Every {seconds} s into {folder}. Stop it from the tray menu.", folder);
+
+        int shots = 0, failures = 0;
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(seconds));
+            do
+            {
+                if (!_router.IsBusy)   // never fight an interactive capture; that tick is skipped
+                {
+                    try { IntervalCapture.CaptureOnce(prefs, target, folder, shots + 1); shots++; failures = 0; }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        Log.Error("Interval frame failed", ex);
+                        if (++failures >= 3) { Notify("Interval capture stopped", "Three frames in a row failed. See the log.", null); break; }
+                    }
+                }
+                if (shots >= IntervalPlan.MaxShots) { Notify("Interval capture stopped", $"Reached {IntervalPlan.MaxShots} frames.", folder); break; }
+            }
+            while (await timer.WaitForNextTickAsync(ct));
+        }
+        catch (OperationCanceledException) { /* user stopped it */ }
+        finally
+        {
+            _interval.Dispose();
+            _interval = null;
+            if (_intervalItem is not null) _intervalItem.Text = "Start interval capture";
+            Notify("Interval capture finished", $"{shots} frame(s) in {folder}", folder);
+        }
     }
 
     private void SavePrefs()
@@ -140,6 +208,7 @@ internal sealed class AppHost : IDisposable
 
     public void Dispose()
     {
+        _interval?.Cancel();
         _tray.Visible = false;
         _tray.Dispose();
         _hotkeys.Dispose();

@@ -44,3 +44,10 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 5. `countdown.png` — delay chip in the corner.
 6. `editor.png` — editor with annotations and the metadata panel.
 7. `settings.png` — settings window.
+
+## v0.3.0 manual rows (deferred by owner)
+- [ ] `S` in menu: frame follows cursor, arrows nudge, Shift = 10 px, click/Enter saves exact W×H.
+- [ ] Tray "Start interval capture": frames appear every N s; Stop ends it; summary toast shows count.
+- [ ] `--interval 2 --count 3`: three files written, exit 0.
+- [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
+- [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.

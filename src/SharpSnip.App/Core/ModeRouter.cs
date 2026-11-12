@@ -56,6 +56,7 @@ internal sealed class ModeRouter
                 {
                     PickMode.Element => new ElementPicker(ctx),
                     PickMode.Region => new RegionPicker(ctx),
+                    PickMode.FixedRegion => new FixedRegionPicker(ctx),
                     PickMode.Window => new WindowPicker(ctx),
                     PickMode.FullScreen => new FullScreenPicker(ctx),
                     _ => new MenuPicker(ctx),
@@ -158,6 +159,18 @@ internal sealed class ModeRouter
         await RunInstantAsync(ms => VirtualDesktop.ResolveTarget(target, ms, 0, 0)
                                     ?? (ms.FirstOrDefault(m => m.IsPrimary) ?? ms[0]).Bounds,
                               overrideDelay ?? Prefs.DefaultDelaySeconds, "Instant full-screen capture");
+    }
+
+    /// <summary>Capture monitor N (1-based) straight to clipboard + file; refuses if it is not connected.</summary>
+    public async Task RunMonitorAsync(int n)
+    {
+        if (IsBusy) return;
+        if (VirtualDesktop.ByIndex(MonitorEnumerator.Refresh(), n) is null)
+        {
+            _notify("SharpSnip", $"Monitor {n} is not connected.", null);
+            return;
+        }
+        await RunInstantAsync(ms => VirtualDesktop.ByIndex(ms, n)?.Bounds, Prefs.DefaultDelaySeconds, $"Monitor {n} capture");
     }
 
     /// <summary>Capture the foreground window (frame bounds) straight to clipboard + file.</summary>

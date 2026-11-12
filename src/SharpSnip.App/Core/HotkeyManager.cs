@@ -8,6 +8,8 @@ namespace SharpSnip;
 internal sealed class HotkeyManager : IDisposable
 {
     public const int IdMenu = 1, IdFullScreen = 2, IdActiveWindow = 3, IdRepeatLast = 4;
+    /// <summary>Ids 10..18 are "capture monitor 1..9".</summary>
+    public const int IdMonitorBase = 10;
 
     private readonly HwndSource _source;
     private readonly HashSet<int> _registered = new();

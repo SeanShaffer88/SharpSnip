@@ -139,6 +139,34 @@ var migrated = PrefsStore.Load(oldFile, out var wOld);
 Check(wOld is null && migrated.ImageFormat == "jpg" && migrated.HotkeyActiveWindow == "Win+Shift+W", "v0.1 settings file loads and gains new defaults");
 File.Delete(oldFile);
 
+Console.WriteLine("FixedRegion");
+var desk = new RectPx(0, -300, 4480, 1440);
+Check(FixedRegion.Place(1280, 720, 2000, 400, desk) == new RectPx(1360, 40, 1280, 720), "centred on cursor");
+Check(FixedRegion.Place(1280, 720, 0, -300, desk) == new RectPx(0, -300, 1280, 720), "clamped to top-left corner");
+Check(FixedRegion.Place(1280, 720, 99999, 99999, desk) == new RectPx(3200, 420, 1280, 720), "clamped to bottom-right corner");
+Check(FixedRegion.Place(9000, 9000, 10, 10, desk) == desk, "oversized request shrinks to the desktop");
+Check(FixedRegion.ClampSize(1) == 16 && FixedRegion.ClampSize(99999) == 16384 && FixedRegion.ClampSize(800) == 800, "size clamp");
+
+Console.WriteLine("IntervalPlan");
+Check(IntervalPlan.SanitizeSeconds(0) == 1 && IntervalPlan.SanitizeSeconds(999999) == 86400 && IntervalPlan.SanitizeSeconds(30) == 30, "seconds clamp");
+Check(IntervalPlan.FolderName(new DateTime(2026, 11, 12, 9, 8, 7)) == "Interval-20261112-090807", "folder name");
+Check(IntervalPlan.FrameName(7, ".png") == "frame-00007.png", "frame name");
+Check(string.CompareOrdinal(IntervalPlan.FrameName(9, "png"), IntervalPlan.FrameName(10, "png")) < 0, "frames sort in order");
+
+Console.WriteLine("HotkeyList");
+Check(HotkeyList.TryParse(HotkeyList.Default, out var hl) && hl.Count == 4, "default list parses to 4");
+Check(HotkeyList.TryParse("", out hl) && hl.Count == 0, "empty list is valid");
+Check(!HotkeyList.TryParse("Ctrl+Alt+1;Ctrl+Alt+1", out _), "duplicates rejected");
+Check(!HotkeyList.TryParse("Ctrl+Alt+1;nonsense", out hl) && hl.Count == 0, "bad entry rejected");
+Check(!HotkeyList.TryParse(string.Join(';', Enumerable.Range(1, 10).Select(i => "Ctrl+Alt+Shift+F" + i)), out _), "more than 9 rejected");
+Check(HotkeyList.TryParse(" Ctrl+Alt+1 ; Ctrl+Alt+2 ;", out hl) && hl.Count == 2, "spaces and trailing separator tolerated");
+var pk = new Preferences { HotkeyMonitors = "junk", FixedWidth = 1, FixedHeight = 99999, IntervalSeconds = 0 }.Sanitize();
+Check(pk.HotkeyMonitors == HotkeyList.Default && pk.FixedWidth == 16 && pk.FixedHeight == 16384 && pk.IntervalSeconds == 1, "sanitize new fields");
+var allKeys = new[] { defs.HotkeyMenu, defs.HotkeyFullScreen, defs.HotkeyActiveWindow, defs.HotkeyRepeatLast }
+    .Concat(HotkeyList.Default.Split(';')).Select(k => { HotkeySpec.TryParse(k, out var sp); return sp; });
+Check(allKeys.Distinct().Count() == 8, "monitor hotkey defaults do not clash with the other four");
+Check(AppStateMachine.ForMode(PickMode.FixedRegion) == AppState.RegionPicking, "fixed region counts as region picking");
+
 Console.WriteLine("OutputNaming");
 Check(OutputNaming.FileName(new DateTime(2026, 11, 12, 9, 8, 7, 6), "png") == "20261112-090807-006.png", "timestamp name");
 Check(OutputNaming.ResolveFolder("", @"C:\Users\x").EndsWith("SharpSnip") && OutputNaming.ResolveFolder("D:\\shots", "x") == "D:\\shots", "output folder resolution");
