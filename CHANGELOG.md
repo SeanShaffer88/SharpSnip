@@ -1,0 +1,23 @@
+# Changelog
+
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
+
+## [0.1.0] - 2026-11-12
+
+First build, implementing blueprint v2.
+
+### Added
+- Element picker on UI Automation with sibling/parent/child/container navigation and region fallback.
+- Region picker: 8 handles, move/resize, size read-out, magnifier, window-edge snapping.
+- Window picker with client-area toggle.
+- Full-screen picker (current / all / numbered monitor) and one-shot full-screen hotkey.
+- Capture delay 0/3/5/10 s with cancellable countdown chip excluded from capture.
+- Multi-monitor, mixed-DPI stitching in physical pixels; matte fill for L-shaped layouts.
+- Editor: pen, highlighter, arrow, rectangle, ellipse, text, blur, crop, undo/redo, copy, save, metadata panel.
+- Clipboard (PNG + bitmap), atomic PNG/JPEG export, timestamped file names.
+- Tray icon, settings window, JSON settings with quarantine of corrupt files, portable mode, local logs.
+- Command line: `--fullscreen`, `--clean`, `--verbose`, `--version`, `--help`.
+- Dependency-free self-test project (76 checks) for all pure logic.
+
+### Known gaps
+See [AUDIT.md](AUDIT.md): Windows.Graphics.Capture, WebP, HDR badge, DRM detection, Windows share sheet.

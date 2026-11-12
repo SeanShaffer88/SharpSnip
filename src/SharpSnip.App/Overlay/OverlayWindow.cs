@@ -1,0 +1,314 @@
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
+using SharpSnip.Core;
+using SharpSnip.Native;
+
+namespace SharpSnip;
+
+/// <summary>
+/// Transparent, click-through, topmost window covering exactly one monitor. It only draws; all input
+/// arrives through <see cref="InputHook"/>. State is stored and re-rendered so DPI changes are harmless.
+/// </summary>
+internal sealed class OverlayWindow : Window
+{
+    private const int LoupePixels = 15, LoupeZoom = 8;
+
+    private readonly OverlayStyle _style;
+    private readonly Canvas _canvas = new() { IsHitTestVisible = false };
+    private readonly System.Windows.Shapes.Path _dim = new();
+    private readonly Rectangle _highlight = new() { Visibility = Visibility.Collapsed };
+    private readonly Rectangle _outline = new() { Visibility = Visibility.Collapsed };
+    private readonly List<Rectangle> _handles = new();
+    private readonly Border _hint, _hud, _chip, _sizeTag, _loupe;
+    private readonly TextBlock _hintText, _hudText, _chipText, _sizeText;
+    private readonly Image _loupeImage = new() { Width = LoupePixels * LoupeZoom, Height = LoupePixels * LoupeZoom };
+
+    // Stored state (physical pixels).
+    private bool _dimmed = true;
+    private RectPx? _hole, _highlightRect, _adornRect;
+    private bool _outlineOn, _handlesOn;
+    private string? _hintMsg, _hudMsg, _chipMsg, _sizeMsg;
+    private int _hudX, _hudY, _loupeX, _loupeY;
+    private BitmapSource? _loupeSrc;
+
+    public MonitorInfo Monitor { get; }
+    public bool ExcludedFromCapture { get; private set; }
+
+    public OverlayWindow(MonitorInfo monitor, OverlayStyle style)
+    {
+        Monitor = monitor;
+        _style = style;
+
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        AllowsTransparency = true;
+        Background = Brushes.Transparent;
+        ShowInTaskbar = false;
+        ShowActivated = false;
+        Topmost = true;
+        Focusable = false;
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = 0; Top = 0;
+        Width = monitor.Bounds.Width / monitor.Scale;
+        Height = monitor.Bounds.Height / monitor.Scale;
+        Title = "SharpSnip overlay";
+
+        var accent = new SolidColorBrush(style.Accent);
+        _dim.Fill = new SolidColorBrush(Color.FromArgb(style.DimAlpha, 0, 0, 0));
+        _highlight.Stroke = accent;
+        _highlight.Fill = new SolidColorBrush(Color.FromArgb(28, style.Accent.R, style.Accent.G, style.Accent.B));
+        _outline.Stroke = accent;
+
+        (_hint, _hintText) = MakeBubble(style.HighContrast);
+        (_hud, _hudText) = MakeBubble(style.HighContrast);
+        (_chip, _chipText) = MakeBubble(style.HighContrast);
+        (_sizeTag, _sizeText) = MakeBubble(style.HighContrast);
+        AutomationProperties.SetLiveSetting(_hintText, AutomationLiveSetting.Polite);
+        AutomationProperties.SetName(_hintText, "SharpSnip hint");
+
+        var loupeGrid = new Grid();
+        RenderOptions.SetBitmapScalingMode(_loupeImage, BitmapScalingMode.NearestNeighbor);
+        loupeGrid.Children.Add(_loupeImage);
+        loupeGrid.Children.Add(new Rectangle
+        {
+            Width = LoupeZoom, Height = LoupeZoom, Stroke = Brushes.White, StrokeThickness = 1,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+        });
+        _loupe = new Border
+        {
+            BorderBrush = accent, BorderThickness = new Thickness(2), Background = Brushes.Black,
+            Child = loupeGrid, Visibility = Visibility.Collapsed,
+        };
+
+        for (int i = 0; i < 8; i++)
+            _handles.Add(new Rectangle { Width = 8, Height = 8, Fill = Brushes.White, Stroke = accent, StrokeThickness = 1, Visibility = Visibility.Collapsed });
+
+        _canvas.Children.Add(_dim);
+        _canvas.Children.Add(_highlight);
+        _canvas.Children.Add(_outline);
+        foreach (var h in _handles) _canvas.Children.Add(h);
+        foreach (var b in new[] { _hint, _hud, _chip, _sizeTag, _loupe }) _canvas.Children.Add(b);
+        Content = _canvas;
+    }
+
+    private static (Border, TextBlock) MakeBubble(bool highContrast)
+    {
+        var tb = new TextBlock
+        {
+            Foreground = highContrast ? Brushes.Black : Brushes.White,
+            FontFamily = new FontFamily("Segoe UI"), FontSize = 13, TextWrapping = TextWrapping.NoWrap,
+        };
+        var b = new Border
+        {
+            Background = highContrast ? new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0x00)) : new SolidColorBrush(Color.FromArgb(0xE6, 0x14, 0x14, 0x14)),
+            CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 6, 10, 6), Child = tb, Visibility = Visibility.Collapsed,
+        };
+        return (b, tb);
+    }
+
+    private double Scale => IsLoaded ? VisualTreeHelper.GetDpi(this).DpiScaleX : Monitor.Scale;
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        NativeMethods.AddExStyle(hwnd, NativeMethods.WS_EX_TRANSPARENT | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_LAYERED);
+        // Keeps the overlay out of captured frames on Windows 10 2004+. Older builds fall back to hide-before-capture.
+        ExcludedFromCapture = NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
+        Place();
+    }
+
+    protected override void OnContentRendered(EventArgs e)
+    {
+        base.OnContentRendered(e);
+        Place();
+        Render();
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        Place(); // WPF resizes on WM_DPICHANGED; force the exact physical bounds back.
+        Render();
+    }
+
+    private void Place()
+    {
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        var b = Monitor.Bounds;
+        NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOPMOST, b.X, b.Y, b.Width, b.Height, NativeMethods.SWP_NOACTIVATE);
+    }
+
+    // ---- state setters -------------------------------------------------------------------------
+
+    public void SetDim(bool dimmed, RectPx? hole) { _dimmed = dimmed; _hole = hole; Render(); }
+    public void SetHighlight(RectPx? r) { _highlightRect = r; Render(); }
+    public void SetOutline(bool on) { _outlineOn = on; Render(); }
+    public void SetHint(string? text) { _hintMsg = text; Render(); AnnounceHint(); }
+    public void SetHud(string? text, int cx, int cy) { _hudMsg = text; _hudX = cx; _hudY = cy; Render(); }
+    public void SetChip(string? text) { _chipMsg = text; Render(); }
+    public void SetAdorn(RectPx? r, bool handles, string? sizeText) { _adornRect = r; _handlesOn = handles; _sizeMsg = sizeText; Render(); }
+    public void SetLoupe(BitmapSource? src, int cx, int cy) { _loupeSrc = src; _loupeX = cx; _loupeY = cy; Render(); }
+
+    private void AnnounceHint()
+    {
+        if (_hintMsg is null || !AutomationPeer.ListenerExists(AutomationEvents.LiveRegionChanged)) return;
+        UIElementAutomationPeer.CreatePeerForElement(_hintText)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+    }
+
+    // ---- rendering -----------------------------------------------------------------------------
+
+    private Rect Local(RectPx r)
+    {
+        double s = Scale; var b = Monitor.Bounds;
+        return new Rect((r.X - b.X) / s, (r.Y - b.Y) / s, r.Width / s, r.Height / s);
+    }
+
+    private Point Local(int px, int py)
+    {
+        double s = Scale; var b = Monitor.Bounds;
+        return new Point((px - b.X) / s, (py - b.Y) / s);
+    }
+
+    private void Render()
+    {
+        double s = Scale;
+        var b = Monitor.Bounds;
+        double w = b.Width / s, h = b.Height / s;
+        double thick = _style.ThicknessPx / s;
+
+        // dimmer with optional hole
+        if (_dimmed)
+        {
+            Geometry g = new RectangleGeometry(new Rect(0, 0, w, h));
+            if (_hole is { } hole)
+            {
+                var inter = hole.Intersect(b);
+                if (!inter.IsEmpty) g = new CombinedGeometry(GeometryCombineMode.Exclude, g, new RectangleGeometry(Local(inter)));
+            }
+            _dim.Data = g;
+            _dim.Visibility = Visibility.Visible;
+        }
+        else _dim.Visibility = Visibility.Collapsed;
+
+        // highlight rectangle
+        if (_highlightRect is { } hr && hr.IntersectsWith(b))
+        {
+            var lr = Local(hr);
+            _highlight.StrokeThickness = thick;
+            _highlight.Width = Math.Max(lr.Width, 1); _highlight.Height = Math.Max(lr.Height, 1);
+            Canvas.SetLeft(_highlight, lr.X); Canvas.SetTop(_highlight, lr.Y);
+            _highlight.Visibility = Visibility.Visible;
+        }
+        else _highlight.Visibility = Visibility.Collapsed;
+
+        // full-monitor outline (full-screen picker)
+        if (_outlineOn)
+        {
+            _outline.StrokeThickness = thick;
+            _outline.Width = Math.Max(w - thick, 1); _outline.Height = Math.Max(h - thick, 1);
+            Canvas.SetLeft(_outline, thick / 2); Canvas.SetTop(_outline, thick / 2);
+            _outline.Visibility = Visibility.Visible;
+        }
+        else _outline.Visibility = Visibility.Collapsed;
+
+        // region handles + size tag
+        RenderAdorn(s, w, h);
+
+        // bubbles
+        Place(_hint, _hintText, _hintMsg, null, w, h, bottomCenter: true);
+        Place(_chip, _chipText, _chipMsg, new Point(16, 16), w, h);
+        if (_hudMsg is not null && Monitor.Bounds.Contains(_hudX, _hudY))
+        {
+            var p = Local(_hudX, _hudY);
+            Place(_hud, _hudText, _hudMsg, new Point(p.X + 18, p.Y + 22), w, h, clampFlip: true);
+        }
+        else _hud.Visibility = Visibility.Collapsed;
+
+        // magnifier
+        if (_loupeSrc is not null && Monitor.Bounds.Contains(_loupeX, _loupeY))
+        {
+            _loupeImage.Source = _loupeSrc;
+            var p = Local(_loupeX, _loupeY);
+            _loupe.Visibility = Visibility.Visible;
+            _loupe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var sz = _loupe.DesiredSize;
+            double x = p.X + 24, y = p.Y + 24;
+            if (x + sz.Width > w) x = p.X - 24 - sz.Width;
+            if (y + sz.Height > h) y = p.Y - 24 - sz.Height;
+            Canvas.SetLeft(_loupe, x); Canvas.SetTop(_loupe, y);
+        }
+        else _loupe.Visibility = Visibility.Collapsed;
+    }
+
+    private void RenderAdorn(double s, double w, double h)
+    {
+        var b = Monitor.Bounds;
+        if (_adornRect is { } r && r.IntersectsWith(b))
+        {
+            var lr = Local(r);
+            if (_handlesOn)
+            {
+                double[] xs = { lr.Left, lr.Left + lr.Width / 2, lr.Right };
+                double[] ys = { lr.Top, lr.Top + lr.Height / 2, lr.Bottom };
+                int i = 0;
+                for (int yi = 0; yi < 3; yi++)
+                    for (int xi = 0; xi < 3; xi++)
+                    {
+                        if (xi == 1 && yi == 1) continue;
+                        var hd = _handles[i++];
+                        Canvas.SetLeft(hd, xs[xi] - 4); Canvas.SetTop(hd, ys[yi] - 4);
+                        hd.Visibility = Visibility.Visible;
+                    }
+            }
+            else foreach (var hd in _handles) hd.Visibility = Visibility.Collapsed;
+
+            if (_sizeMsg is not null)
+            {
+                _sizeText.Text = _sizeMsg;
+                _sizeTag.Visibility = Visibility.Visible;
+                _sizeTag.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                var sz = _sizeTag.DesiredSize;
+                double x = Math.Clamp(lr.Left, 0, Math.Max(0, w - sz.Width));
+                double y = lr.Top - sz.Height - 6;
+                if (y < 0) y = Math.Min(lr.Top + 6, Math.Max(0, h - sz.Height));
+                Canvas.SetLeft(_sizeTag, x); Canvas.SetTop(_sizeTag, y);
+            }
+            else _sizeTag.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            foreach (var hd in _handles) hd.Visibility = Visibility.Collapsed;
+            _sizeTag.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private static void Place(Border bubble, TextBlock tb, string? msg, Point? at, double w, double h,
+                              bool bottomCenter = false, bool clampFlip = false)
+    {
+        if (msg is null) { bubble.Visibility = Visibility.Collapsed; return; }
+        tb.Text = msg;
+        bubble.Visibility = Visibility.Visible;
+        bubble.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var sz = bubble.DesiredSize;
+        double x, y;
+        if (bottomCenter) { x = (w - sz.Width) / 2; y = h - sz.Height - 48; }
+        else
+        {
+            x = at!.Value.X; y = at.Value.Y;
+            if (clampFlip)
+            {
+                if (x + sz.Width > w) x = Math.Max(0, at.Value.X - 36 - sz.Width);
+                if (y + sz.Height > h) y = Math.Max(0, at.Value.Y - 44 - sz.Height);
+            }
+        }
+        Canvas.SetLeft(bubble, Math.Max(0, x)); Canvas.SetTop(bubble, Math.Max(0, y));
+    }
+}
