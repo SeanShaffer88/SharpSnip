@@ -90,6 +90,7 @@ internal abstract class PickerBase
             case VkSpace: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); return true;
             case 0x45: if (Mode != PickMode.Element) Finish(PickOutcome.SwitchTo(PickMode.Element)); return true;
             case 0x52: if (Mode != PickMode.Region) Finish(PickOutcome.SwitchTo(PickMode.Region)); return true;
+            case 0x53: if (Mode != PickMode.FixedRegion) Finish(PickOutcome.SwitchTo(PickMode.FixedRegion)); return true;
             case 0x57: if (Mode != PickMode.Window) Finish(PickOutcome.SwitchTo(PickMode.Window)); return true;
             case 0x46: if (Mode != PickMode.FullScreen) Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current)); return true;
             // bare modifiers pass through

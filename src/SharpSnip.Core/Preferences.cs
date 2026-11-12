@@ -14,6 +14,10 @@ public sealed class Preferences
     public string HotkeyFullScreen { get; set; } = "Win+Shift+F";
     public string HotkeyActiveWindow { get; set; } = "Win+Shift+W";
     public string HotkeyRepeatLast { get; set; } = "Win+Shift+R";
+    public string HotkeyMonitors { get; set; } = HotkeyList.Default;
+    public int FixedWidth { get; set; } = 1280;
+    public int FixedHeight { get; set; } = 720;
+    public int IntervalSeconds { get; set; } = 5;
     public string FullScreenTarget { get; set; } = "CurrentMonitor";
     public int DefaultDelaySeconds { get; set; }
     public bool OpenEditorAfterCapture { get; set; } = true;
@@ -45,6 +49,10 @@ public sealed class Preferences
         if (!HotkeySpec.TryParse(HotkeyFullScreen, out _)) HotkeyFullScreen = "Win+Shift+F";
         if (!HotkeySpec.TryParse(HotkeyActiveWindow, out _)) HotkeyActiveWindow = "Win+Shift+W";
         if (!HotkeySpec.TryParse(HotkeyRepeatLast, out _)) HotkeyRepeatLast = "Win+Shift+R";
+        if (!HotkeyList.TryParse(HotkeyMonitors, out _)) HotkeyMonitors = HotkeyList.Default;
+        FixedWidth = FixedRegion.ClampSize(FixedWidth);
+        FixedHeight = FixedRegion.ClampSize(FixedHeight);
+        IntervalSeconds = IntervalPlan.SanitizeSeconds(IntervalSeconds);
         FullScreenTarget = SharpSnip.Core.FullScreenTarget.Parse(FullScreenTarget).Format();
         if (FullScreenTarget.StartsWith("Monitor:", StringComparison.Ordinal)) FullScreenTarget = "CurrentMonitor";
         DefaultDelaySeconds = DelayCycle.Sanitize(DefaultDelaySeconds);

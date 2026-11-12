@@ -15,10 +15,10 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Full-screen / multi-monitor / monitor-specific capture | ✅ (per-monitor *hotkeys* 🔜) |
 | Active-window capture hotkey | ✅ v0.2 (untested on Windows) |
 | Rectangular region | ✅ |
-| Fixed-size / exact-dimension region | 🔜 |
+| Fixed-size / exact-dimension region | ✅ v0.3 |
 | Repeat last capture / last region | ✅ v0.2 (session only; untested on Windows) |
 | Delayed capture | ✅ |
-| Interval capture (every N s) | 🔜 |
+| Interval capture (every N s) | ✅ v0.3 |
 | Object / element / window capture | ✅ |
 | Window-control capture | ✅ (element picker) |
 | Menu capture (disappearing menus) | ✅ via delay; hotkey-while-menu-open 🔜 |

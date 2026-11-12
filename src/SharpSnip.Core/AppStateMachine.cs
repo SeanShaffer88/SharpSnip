@@ -6,7 +6,7 @@ public enum AppState
     FullScreenInstant, Captured, Editing, Exporting,
 }
 
-public enum PickMode { Menu, Element, Region, Window, FullScreen }
+public enum PickMode { Menu, Element, Region, FixedRegion, Window, FullScreen }
 
 /// <summary>The blueprint state machine (§1). Illegal transitions are refused, never thrown.</summary>
 public sealed class AppStateMachine
@@ -47,7 +47,7 @@ public sealed class AppStateMachine
     {
         PickMode.Menu => AppState.ModeMenu,
         PickMode.Element => AppState.ElementPicking,
-        PickMode.Region => AppState.RegionPicking,
+        PickMode.Region or PickMode.FixedRegion => AppState.RegionPicking,
         PickMode.Window => AppState.WindowPicking,
         _ => AppState.FullScreenPicking,
     };

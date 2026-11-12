@@ -24,6 +24,7 @@ internal sealed class MenuPicker : PickerBase
         string text =
             "SharpSnip — choose a mode\n" +
             "[E] Element    [R] Region    [W] Window\n" +
+            $"[S] Fixed-size region ({Ctx.Prefs.FixedWidth}×{Ctx.Prefs.FixedHeight})\n" +
             "[F] Full screen (all monitors)\n" +
             "[D] Full screen (this monitor)\n" +
             "[1..9] Full screen (monitor N)\n" +

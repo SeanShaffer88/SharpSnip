@@ -29,6 +29,9 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 | Full screen now | `Win+Shift+F` |
 | Active window now | `Win+Shift+W` |
 | Repeat last capture | `Win+Shift+R` |
+| Capture monitor 1..4 | `Ctrl+Alt+Shift+1..4` (configurable, up to 9) |
+| Fixed-size region | `S` in the menu |
+| Interval capture | tray menu, or `--interval N --count M` |
 
 In the menu: `E` element, `R` region, `W` window, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`.
 
