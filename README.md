@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.1.0, first build.** Compiles cleanly and the pure-logic layer is tested (76 checks), but it has **not yet been run on a real Windows machine**. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.2.0.** Compiles cleanly and the pure-logic layer is tested (80 checks), but it has **not yet been run on a real Windows machine**. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
@@ -15,6 +15,7 @@ Offline only. No telemetry, no accounts, no network code.
 | Window | Window under cursor, full frame or client area only (`C`). |
 | Full screen | One monitor, all monitors, or a chosen monitor (`1`..`9`). Mixed DPI and L-shaped layouts are stitched 1:1 in physical pixels. |
 | One-shot full screen | Dedicated hotkey, no UI: capture straight to clipboard and file. |
+| Active window / repeat last | Two more one-shot hotkeys: foreground window, or the previous rectangle again. |
 | Delay | 0 / 3 / 5 / 10 s countdown for menus and tooltips. `Esc` cancels. The countdown chip never appears in the image. |
 | Editor | Pen, highlighter, arrow, rectangle, ellipse, text, blur (pixelate), crop, undo/redo, copy, save, capture metadata panel. |
 
@@ -26,6 +27,8 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 |---|---|
 | Open mode menu | `Win+Shift+X` (or left-click the tray icon) |
 | Full screen now | `Win+Shift+F` |
+| Active window now | `Win+Shift+W` |
+| Repeat last capture | `Win+Shift+R` |
 
 In the menu: `E` element, `R` region, `W` window, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`.
 

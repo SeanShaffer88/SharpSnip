@@ -12,6 +12,8 @@ public sealed class Preferences
     public string ImageFormat { get; set; } = "png";
     public string HotkeyMenu { get; set; } = "Win+Shift+X";
     public string HotkeyFullScreen { get; set; } = "Win+Shift+F";
+    public string HotkeyActiveWindow { get; set; } = "Win+Shift+W";
+    public string HotkeyRepeatLast { get; set; } = "Win+Shift+R";
     public string FullScreenTarget { get; set; } = "CurrentMonitor";
     public int DefaultDelaySeconds { get; set; }
     public bool OpenEditorAfterCapture { get; set; } = true;
@@ -41,6 +43,8 @@ public sealed class Preferences
         ImageFormat = ImageFormat is "png" or "jpg" ? ImageFormat : "png";
         if (!HotkeySpec.TryParse(HotkeyMenu, out _)) HotkeyMenu = "Win+Shift+X";
         if (!HotkeySpec.TryParse(HotkeyFullScreen, out _)) HotkeyFullScreen = "Win+Shift+F";
+        if (!HotkeySpec.TryParse(HotkeyActiveWindow, out _)) HotkeyActiveWindow = "Win+Shift+W";
+        if (!HotkeySpec.TryParse(HotkeyRepeatLast, out _)) HotkeyRepeatLast = "Win+Shift+R";
         FullScreenTarget = SharpSnip.Core.FullScreenTarget.Parse(FullScreenTarget).Format();
         if (FullScreenTarget.StartsWith("Monitor:", StringComparison.Ordinal)) FullScreenTarget = "CurrentMonitor";
         DefaultDelaySeconds = DelayCycle.Sanitize(DefaultDelaySeconds);

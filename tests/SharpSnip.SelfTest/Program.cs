@@ -126,6 +126,19 @@ try
 }
 finally { try { Directory.Delete(dir, true); } catch (IOException) { } }
 
+Console.WriteLine("Hotkey defaults");
+var defs = new Preferences();
+var all4 = new[] { defs.HotkeyMenu, defs.HotkeyFullScreen, defs.HotkeyActiveWindow, defs.HotkeyRepeatLast };
+Check(all4.All(k => HotkeySpec.TryParse(k, out _)), "all four default hotkeys parse");
+Check(all4.Select(k => { HotkeySpec.TryParse(k, out var sp); return sp; }).Distinct().Count() == 4, "default hotkeys are all different");
+var bad = new Preferences { HotkeyActiveWindow = "x", HotkeyRepeatLast = "" }.Sanitize();
+Check(bad.HotkeyActiveWindow == "Win+Shift+W" && bad.HotkeyRepeatLast == "Win+Shift+R", "bad new hotkeys fall back to defaults");
+string oldFile = Path.Combine(Path.GetTempPath(), "sharpsnip-v01-" + Guid.NewGuid().ToString("N") + ".json");
+File.WriteAllText(oldFile, "{ \"SchemaVersion\": 1, \"HotkeyMenu\": \"Win+Shift+X\", \"ImageFormat\": \"jpg\" }");
+var migrated = PrefsStore.Load(oldFile, out var wOld);
+Check(wOld is null && migrated.ImageFormat == "jpg" && migrated.HotkeyActiveWindow == "Win+Shift+W", "v0.1 settings file loads and gains new defaults");
+File.Delete(oldFile);
+
 Console.WriteLine("OutputNaming");
 Check(OutputNaming.FileName(new DateTime(2026, 11, 12, 9, 8, 7, 6), "png") == "20261112-090807-006.png", "timestamp name");
 Check(OutputNaming.ResolveFolder("", @"C:\Users\x").EndsWith("SharpSnip") && OutputNaming.ResolveFolder("D:\\shots", "x") == "D:\\shots", "output folder resolution");

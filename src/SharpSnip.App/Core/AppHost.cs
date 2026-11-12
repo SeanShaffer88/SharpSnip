@@ -37,6 +37,8 @@ internal sealed class AppHost : IDisposable
         {
             if (id == HotkeyManager.IdMenu) _ = _router.RunSessionAsync();
             else if (id == HotkeyManager.IdFullScreen) _ = _router.RunInstantFullScreenAsync();
+            else if (id == HotkeyManager.IdActiveWindow) _ = _router.RunActiveWindowAsync();
+            else if (id == HotkeyManager.IdRepeatLast) _ = _router.RunRepeatLastAsync();
         };
         RegisterHotkeys(_prefs, notifyOnFailure: true);
         if (warn is not null) Notify("SharpSnip", warn, null);
@@ -56,6 +58,7 @@ internal sealed class AppHost : IDisposable
         }
         Item("Capture…", "Open the mode menu (same as the menu hotkey).", () => _ = _router.RunSessionAsync());
         Item("Full screen now", "Capture the configured monitor straight to the clipboard.", () => _ = _router.RunInstantFullScreenAsync());
+        Item("Repeat last capture", "Capture the same screen rectangle as the previous capture.", () => _ = _router.RunRepeatLastAsync());
         m.Items.Add(new WinForms.ToolStripSeparator());
         Item("Open output folder", "Open the folder where captures are saved.", () => OpenFolder(Exporter.OutputFolder(_prefs)));
         Item("Open log folder", "Logs stay on this computer.", () => OpenFolder(AppPaths.LogDir));
@@ -65,12 +68,21 @@ internal sealed class AppHost : IDisposable
         return m;
     }
 
+    private static readonly (int Id, Func<Preferences, string> Get)[] HotkeySlots =
+    {
+        (HotkeyManager.IdMenu, p => p.HotkeyMenu),
+        (HotkeyManager.IdFullScreen, p => p.HotkeyFullScreen),
+        (HotkeyManager.IdActiveWindow, p => p.HotkeyActiveWindow),
+        (HotkeyManager.IdRepeatLast, p => p.HotkeyRepeatLast),
+    };
+
     private void RegisterHotkeys(Preferences p, bool notifyOnFailure)
     {
-        bool ok1 = HotkeySpec.TryParse(p.HotkeyMenu, out var a) && _hotkeys.Register(HotkeyManager.IdMenu, a);
-        bool ok2 = HotkeySpec.TryParse(p.HotkeyFullScreen, out var b) && _hotkeys.Register(HotkeyManager.IdFullScreen, b);
-        if (notifyOnFailure && (!ok1 || !ok2))
-            Notify("SharpSnip", $"Hotkey already in use: {(ok1 ? "" : p.HotkeyMenu)} {(ok2 ? "" : p.HotkeyFullScreen)}. Change it in Settings, or start from the tray icon.".Replace("  ", " "), null);
+        var failed = new List<string>();
+        foreach (var (id, get) in HotkeySlots)
+            if (!(HotkeySpec.TryParse(get(p), out var spec) && _hotkeys.Register(id, spec))) failed.Add(get(p));
+        if (notifyOnFailure && failed.Count > 0)
+            Notify("SharpSnip", $"Hotkey already in use: {string.Join(", ", failed)}. Change it in Settings, or start from the tray icon.", null);
     }
 
     private void ShowSettings()
@@ -81,22 +93,17 @@ internal sealed class AppHost : IDisposable
         _settings.Show();
     }
 
-    /// <summary>Returns an error message, or null on success.</summary>
+    /// <summary>Returns an error message, or null on success. Old hotkeys are restored if any new one is taken.</summary>
     private string? Apply(Preferences p)
     {
-        // Register new hotkeys first; keep the old ones if that fails.
-        var oldMenu = _prefs.HotkeyMenu; var oldFull = _prefs.HotkeyFullScreen;
-        HotkeySpec.TryParse(p.HotkeyMenu, out var a); HotkeySpec.TryParse(p.HotkeyFullScreen, out var b);
-        if (!_hotkeys.Register(HotkeyManager.IdMenu, a))
+        var old = _prefs;
+        foreach (var (id, get) in HotkeySlots)
         {
-            if (HotkeySpec.TryParse(oldMenu, out var o)) _hotkeys.Register(HotkeyManager.IdMenu, o);
-            return $"{p.HotkeyMenu} is already used by another program.";
-        }
-        if (!_hotkeys.Register(HotkeyManager.IdFullScreen, b))
-        {
-            if (HotkeySpec.TryParse(oldMenu, out var o1)) _hotkeys.Register(HotkeyManager.IdMenu, o1);
-            if (HotkeySpec.TryParse(oldFull, out var o2)) _hotkeys.Register(HotkeyManager.IdFullScreen, o2);
-            return $"{p.HotkeyFullScreen} is already used by another program.";
+            HotkeySpec.TryParse(get(p), out var spec);
+            if (_hotkeys.Register(id, spec)) continue;
+            foreach (var (rid, rget) in HotkeySlots)
+                if (HotkeySpec.TryParse(rget(old), out var o)) _hotkeys.Register(rid, o);
+            return $"{get(p)} is already used by another program.";
         }
         _prefs = p.Sanitize();
         _router.Prefs = _prefs;
