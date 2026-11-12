@@ -2,6 +2,18 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.2.0] - 2026-11-12
+
+### Added
+- Active-window hotkey (`Win+Shift+W`): foreground window frame straight to clipboard and file.
+- Repeat-last hotkey (`Win+Shift+R`, also in the tray menu): same screen rectangle as the previous capture (kept for the session).
+- Both honour the default delay and re-read the target after the countdown.
+- Settings: two new hotkey fields; all four hotkeys are checked for validity and duplicates, and a taken hotkey restores the previous set.
+- Self-test: 4 new checks (80 total), including loading a v0.1 settings file.
+
+### Changed
+- Instant full-screen, active-window and repeat-last share one capture pipeline.
+
 ## [0.1.0] - 2026-11-12
 
 First build, implementing blueprint v2.

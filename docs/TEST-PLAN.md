@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-76 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine and file naming. Last result: **76 passed, 0 failed**.
+80 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine and file naming. Last result: **80 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware — not yet done)
 Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Partially verified / Unverified.
@@ -31,6 +31,8 @@ Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Part
 | 18 | `data` folder next to exe | Nothing written to `%APPDATA%` |
 | 19 | Idle: 10 minutes in the tray | ~0% CPU, working set < 15 MB target |
 | 20 | Screen reader (Narrator) on hint bar and countdown | Announcements heard |
+| 22 | `Win+Shift+W` on Notepad, then on a window with an open menu and delay 3 | Window frame captured; own tray menu refused with a message |
+| 23 | `Win+Shift+R` before any capture, then after a region capture | Message first; then same rectangle, even if windows moved |
 | 21 | Windows 10 and 11, 100–200% scaling, light/dark/high contrast | Usable everywhere |
 
 ## Screenshots to capture

@@ -20,6 +20,9 @@ internal sealed class ModeRouter
     public Preferences Prefs { get; set; }
     public bool IsBusy => _sm.State != AppState.Idle;
 
+    /// <summary>Rectangle of the most recent capture (physical px), for "repeat last". Session only.</summary>
+    public RectPx? LastRect { get; private set; }
+
     // ---- full session (hotkey 1 / tray) --------------------------------------------------------
 
     public async Task RunSessionAsync()
@@ -114,6 +117,7 @@ internal sealed class ModeRouter
 
         await overlays.HideForCaptureAsync();
         var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
+        LastRect = rect;
         ClipboardWriter.SetImage(cap.Image);
         if (cap.Megapixels > 100) _notify("SharpSnip", $"Large capture ({cap.Megapixels:F0} MP). Saving may be slow.", null);
 
@@ -144,19 +148,56 @@ internal sealed class ModeRouter
     public async Task RunInstantFullScreenAsync(FullScreenTarget? overrideTarget = null, int? overrideDelay = null)
     {
         if (IsBusy) return;
+        var monitors = MonitorEnumerator.Current;
+        var (cx, cy) = MonitorEnumerator.CursorPos();
+        var target = overrideTarget ?? FullScreenTarget.Parse(Prefs.FullScreenTarget);
+        // "Current monitor" is fixed now, at hotkey time, not after the countdown.
+        if (target.Kind == FullScreenKind.CurrentMonitor && VirtualDesktop.MonitorAt(monitors, cx, cy) is { } cur)
+            target = FullScreenTarget.Monitor(cur.Index);
+
+        await RunInstantAsync(ms => VirtualDesktop.ResolveTarget(target, ms, 0, 0)
+                                    ?? (ms.FirstOrDefault(m => m.IsPrimary) ?? ms[0]).Bounds,
+                              overrideDelay ?? Prefs.DefaultDelaySeconds, "Instant full-screen capture");
+    }
+
+    /// <summary>Capture the foreground window (frame bounds) straight to clipboard + file.</summary>
+    public async Task RunActiveWindowAsync()
+    {
+        if (IsBusy) return;
+        IntPtr hwnd = NativeMethods.GetForegroundWindow();
+        NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
+        if (hwnd == IntPtr.Zero || pid == (uint)Environment.ProcessId)
+        {
+            _notify("SharpSnip", "No active window to capture.", null);
+            return;
+        }
+        // Re-read the frame after any countdown: the window may have moved or opened a menu.
+        await RunInstantAsync(_ => WindowEnumerator.FrameOf(hwnd) is { IsEmpty: false } f ? f : null,
+                              Prefs.DefaultDelaySeconds, "Active-window capture");
+    }
+
+    /// <summary>Capture the same screen rectangle as the previous capture.</summary>
+    public async Task RunRepeatLastAsync()
+    {
+        if (IsBusy) return;
+        if (LastRect is not { } last)
+        {
+            _notify("SharpSnip", "Nothing to repeat yet. Take a capture first.", null);
+            return;
+        }
+        await RunInstantAsync(_ => last, Prefs.DefaultDelaySeconds, "Repeat-last capture");
+    }
+
+    /// <summary>Shared one-shot pipeline: countdown → resolve → capture → clipboard → file → toast.</summary>
+    private async Task RunInstantAsync(Func<IReadOnlyList<MonitorInfo>, RectPx?> resolve, int delay, string label)
+    {
         _sm.TryTransition(AppState.FullScreenInstant);
         try
         {
             var monitors = MonitorEnumerator.Current;
-            var (cx, cy) = MonitorEnumerator.CursorPos();
-            var target = overrideTarget ?? FullScreenTarget.Parse(Prefs.FullScreenTarget);
-            // "Current monitor" is fixed now, at hotkey time, not after the countdown.
-            if (target.Kind == FullScreenKind.CurrentMonitor && VirtualDesktop.MonitorAt(monitors, cx, cy) is { } cur)
-                target = FullScreenTarget.Monitor(cur.Index);
-
-            int delay = overrideDelay ?? Prefs.DefaultDelaySeconds;
             if (delay > 0)
             {
+                var (cx, cy) = MonitorEnumerator.CursorPos();
                 using var hook = new InputHook();
                 hook.Start();
                 var where = VirtualDesktop.MonitorAt(monitors, cx, cy) ?? monitors[0];
@@ -164,9 +205,16 @@ internal sealed class ModeRouter
             }
 
             monitors = MonitorEnumerator.Refresh();
-            RectPx rect = VirtualDesktop.ResolveTarget(target, monitors, 0, 0)
-                          ?? (monitors.FirstOrDefault(m => m.IsPrimary) ?? monitors[0]).Bounds;
+            if (resolve(monitors) is not { } raw)
+            {
+                _notify("SharpSnip", "The capture target is gone.", null);
+                return;
+            }
+            RectPx rect = raw.Intersect(VirtualDesktop.Union(monitors));
+            if (rect.IsEmpty) { _notify("SharpSnip", "The capture target is off screen.", null); return; }
+
             var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
+            LastRect = rect;
             ClipboardWriter.SetImage(cap.Image);       // clipboard first: the latency target is hotkey → clipboard
 
             _sm.TryTransition(AppState.Exporting);
@@ -175,7 +223,7 @@ internal sealed class ModeRouter
         }
         catch (Exception ex)
         {
-            Log.Error("Instant full-screen capture failed", ex);
+            Log.Error(label + " failed", ex);
             _notify("SharpSnip", "Capture failed: " + ex.Message, null);
         }
         finally { _sm.ForceIdle(); }

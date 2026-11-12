@@ -1,10 +1,10 @@
-# Audit — v0.1.0 against blueprint v2
+# Audit — v0.2.0 (blueprint v2 + roadmap phase 1 slice)
 
 Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed, not run), **Unverified** (not run, depends on real Windows), **Not implemented**.
 
 ## What was actually done
 - Compiled for `net8.0-windows10.0.19041.0` (cross-build on Linux): 0 errors, 0 warnings, warnings-as-errors on.
-- Ran the self-test project: 76 passed, 0 failed (Linux).
+- Ran the self-test project: 80 passed, 0 failed (Linux).
 - **Nothing in the Windows layer has been executed.** No overlay, hook, UI Automation, capture, clipboard or editor code has run on a real machine.
 
 ## Blueprint coverage
@@ -34,6 +34,13 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | §11 security / privacy | Partial | no network code, no UIA tree persisted, SetWindowDisplayAffinity on overlays and chip |
 | §11 accessibility | Partial | keyboard-only flow, high-contrast mode, UIA live regions on hint and countdown; screen-reader behaviour of a non-activating window is unverified |
 | §13 acceptance criteria (latency, ±1 px, Chrome/VS Code/etc.) | Unverified | see docs/TEST-PLAN.md |
+
+## Added after the blueprint (v0.2)
+| Item | State | Note |
+|---|---|---|
+| Active-window hotkey | Unverified | `GetForegroundWindow` + extended frame bounds; refuses SharpSnip's own windows; no check for fullscreen/exclusive apps |
+| Repeat-last hotkey | Unverified | stores last physical rectangle in memory only; lost on restart; ignores display changes except clipping to the current desktop |
+| Default hotkeys Win+Shift+W / Win+Shift+R | Unverified | may be taken by other software; failure is reported and Settings can change them |
 
 ## Deviations from the blueprint
 1. **Capture uses GDI BitBlt only; Windows.Graphics.Capture is not implemented.** WGC needs D3D11 interop and a frame pool; it was left out of v0.1 rather than shipped untested. Effects: no DRM-aware black-region detection (protected windows may capture as black without a warning), no HDR "converted" badge, hardware-accelerated or exclusive-fullscreen content may not capture. Planned for Phase 1.

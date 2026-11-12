@@ -9,7 +9,7 @@ internal sealed class SettingsWindow : Window
 {
     private readonly Preferences _prefs;
     private readonly Func<Preferences, string?> _apply;
-    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new();
+    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new();
     private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new();
     private readonly CheckBox _editor = new() { Content = "Open the editor after a capture" };
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
@@ -33,6 +33,8 @@ internal sealed class SettingsWindow : Window
         _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. JPEG drops transparency.";
         _hkMenu.Text = prefs.HotkeyMenu; _hkMenu.ToolTip = "Opens the mode menu. Example: Win+Shift+X. Needs at least one modifier.";
         _hkFull.Text = prefs.HotkeyFullScreen; _hkFull.ToolTip = "One-shot full-screen capture straight to clipboard. Print Screen alone is allowed.";
+        _hkWin.Text = prefs.HotkeyActiveWindow; _hkWin.ToolTip = "Captures the foreground window straight to clipboard and file.";
+        _hkRepeat.Text = prefs.HotkeyRepeatLast; _hkRepeat.ToolTip = "Captures the same screen rectangle as the previous capture.";
         _target.SelectedIndex = prefs.FullScreenTarget == "AllMonitors" ? 1 : 0; _target.ToolTip = "What the one-shot hotkey captures.";
         _delay.SelectedItem = prefs.DefaultDelaySeconds; _delay.ToolTip = "Countdown before every capture, in seconds. Useful for menus and tooltips.";
         _matte.SelectedItem = prefs.MatteColor; _matte.ToolTip = "Fill for empty corners when monitors form an L-shape.";
@@ -55,6 +57,7 @@ internal sealed class SettingsWindow : Window
         }
         Add("Output folder", _folder); Add("Image format", _format);
         Add("Menu hotkey", _hkMenu); Add("Full-screen hotkey", _hkFull);
+        Add("Active-window hotkey", _hkWin); Add("Repeat-last hotkey", _hkRepeat);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim);
         Add("", _editor); Add("", _toasts); Add("", _contrast);
@@ -75,16 +78,19 @@ internal sealed class SettingsWindow : Window
         {
             OutputFolder = _folder.Text.Trim(), ImageFormat = (string)_format.SelectedItem,
             HotkeyMenu = _hkMenu.Text.Trim(), HotkeyFullScreen = _hkFull.Text.Trim(),
+            HotkeyActiveWindow = _hkWin.Text.Trim(), HotkeyRepeatLast = _hkRepeat.Text.Trim(),
             FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor",
             DefaultDelaySeconds = (int)_delay.SelectedItem, MatteColor = (string)_matte.SelectedItem,
             OpenEditorAfterCapture = _editor.IsChecked == true, ShowToasts = _toasts.IsChecked == true,
             HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
             EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
         };
-        // Reject bad hotkeys with a message instead of silently falling back to defaults.
-        if (!HotkeySpec.TryParse(p.HotkeyMenu, out _)) { _error.Text = "Menu hotkey is not valid. Example: Win+Shift+X"; return; }
-        if (!HotkeySpec.TryParse(p.HotkeyFullScreen, out _)) { _error.Text = "Full-screen hotkey is not valid. Example: Win+Shift+F"; return; }
-        if (p.HotkeyMenu.Equals(p.HotkeyFullScreen, StringComparison.OrdinalIgnoreCase)) { _error.Text = "The two hotkeys must differ."; return; }
+        // Reject bad or duplicate hotkeys with a message instead of silently falling back to defaults.
+        var keys = new[] { ("Menu", p.HotkeyMenu), ("Full-screen", p.HotkeyFullScreen), ("Active-window", p.HotkeyActiveWindow), ("Repeat-last", p.HotkeyRepeatLast) };
+        foreach (var (name, text) in keys)
+            if (!HotkeySpec.TryParse(text, out _)) { _error.Text = $"{name} hotkey is not valid. Example: Win+Shift+X"; return; }
+        if (keys.Select(k => HotkeySpec.TryParse(k.Item2, out var s) ? s : default).Distinct().Count() != keys.Length)
+        { _error.Text = "Each hotkey must be different."; return; }
         string? problem = _apply(p);
         if (problem is not null) { _error.Text = problem; return; }
         DialogResult = true;
