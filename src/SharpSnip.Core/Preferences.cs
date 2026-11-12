@@ -15,6 +15,9 @@ public sealed class Preferences
     public string HotkeyActiveWindow { get; set; } = "Win+Shift+W";
     public string HotkeyRepeatLast { get; set; } = "Win+Shift+R";
     public string HotkeyMonitors { get; set; } = HotkeyList.Default;
+    public string FileNamePattern { get; set; } = NamePattern.DefaultFile;
+    public string FolderPattern { get; set; } = NamePattern.DefaultFolder;
+    public int JpegQuality { get; set; } = 92;
     public int FixedWidth { get; set; } = 1280;
     public int FixedHeight { get; set; } = 720;
     public int IntervalSeconds { get; set; } = 5;
@@ -37,14 +40,17 @@ public sealed class Preferences
         _ => 0x00000000u,
     };
 
-    public string Extension => ImageFormat == "jpg" ? "jpg" : "png";
+    public string Extension => ImageFormats.Extension(ImageFormat);
 
     /// <summary>Clamp every field to a legal value. Never throws.</summary>
     public Preferences Sanitize()
     {
         SchemaVersion = CurrentSchema;
         OutputFolder ??= "";
-        ImageFormat = ImageFormat is "png" or "jpg" ? ImageFormat : "png";
+        ImageFormat = ImageFormats.Sanitize(ImageFormat);
+        if (!NamePattern.IsValid(FileNamePattern) || string.IsNullOrWhiteSpace(FileNamePattern)) FileNamePattern = NamePattern.DefaultFile;
+        if (!NamePattern.IsValid(FolderPattern)) FolderPattern = NamePattern.DefaultFolder;
+        JpegQuality = Math.Clamp(JpegQuality, 10, 100);
         if (!HotkeySpec.TryParse(HotkeyMenu, out _)) HotkeyMenu = "Win+Shift+X";
         if (!HotkeySpec.TryParse(HotkeyFullScreen, out _)) HotkeyFullScreen = "Win+Shift+F";
         if (!HotkeySpec.TryParse(HotkeyActiveWindow, out _)) HotkeyActiveWindow = "Win+Shift+W";

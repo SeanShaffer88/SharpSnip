@@ -51,3 +51,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] `--interval 2 --count 3`: three files written, exit 0.
 - [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
+
+## v0.4.0 manual rows (deferred by owner)
+- [ ] Save one capture in each format; open each. PDF opens in a viewer and shows the image.
+- [ ] Pattern `{yyyy}/{MM}` + `shot-{n}`: folders made, numbers count up.
+- [ ] Two captures in the same millisecond name: second gets ` (2)`.

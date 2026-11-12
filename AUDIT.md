@@ -78,3 +78,9 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 - Fixed-size region picker: unverified on hardware (cursor follow, arrow nudge, clamp across mixed DPI).
 - Interval capture: unverified on hardware (PeriodicTimer loop, 3-failure stop, tick skipped while a capture is open). "Current monitor" is fixed at start.
 - Per-monitor hotkeys: default `Ctrl+Alt+Shift+1..4` chosen because `Win+Shift+digit` is reserved by Windows. Registration conflicts unverified.
+
+## v0.4.0 additions (compile-verified on Linux; encoders not run)
+- PDF structure (header, xref offsets, MediaBox) is checked by the self-test, but no PDF viewer has opened a file yet.
+- BMP/TIFF/GIF go through WPF encoders on Windows only. GIF is 256 colours (WPF quantizes). Alpha kept only for PNG and TIFF.
+- Name patterns: reserved-name and `..` handling tested on Linux; Windows path rules (long paths, trailing dots) unverified.
+- Colour formats exist in Core only; no eyedropper UI yet.

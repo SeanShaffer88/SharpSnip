@@ -9,7 +9,7 @@ internal sealed class SettingsWindow : Window
 {
     private readonly Preferences _prefs;
     private readonly Func<Preferences, string?> _apply;
-    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new(), _hkMon = new(), _fixW = new(), _fixH = new(), _interval = new();
+    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new(), _hkMon = new(), _namePat = new(), _folderPat = new(), _jpegQ = new(), _fixW = new(), _fixH = new(), _interval = new();
     private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new();
     private readonly CheckBox _editor = new() { Content = "Open the editor after a capture" };
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
@@ -24,17 +24,20 @@ internal sealed class SettingsWindow : Window
         SizeToContent = SizeToContent.WidthAndHeight; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-        _format.ItemsSource = new[] { "png", "jpg" };
+        _format.ItemsSource = ImageFormats.All;
         _target.ItemsSource = new[] { "Current monitor", "All monitors" };
         _delay.ItemsSource = DelayCycle.Steps;
         _matte.ItemsSource = new[] { "Transparent", "Black", "White" };
 
         _folder.Text = prefs.OutputFolder; _folder.ToolTip = "Where captures are saved. Empty = Pictures\\SharpSnip.";
-        _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. JPEG drops transparency.";
+        _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. Only PNG and TIFF keep transparency. PDF holds one JPEG page.";
         _hkMenu.Text = prefs.HotkeyMenu; _hkMenu.ToolTip = "Opens the mode menu. Example: Win+Shift+X. Needs at least one modifier.";
         _hkFull.Text = prefs.HotkeyFullScreen; _hkFull.ToolTip = "One-shot full-screen capture straight to clipboard. Print Screen alone is allowed.";
         _hkWin.Text = prefs.HotkeyActiveWindow; _hkWin.ToolTip = "Captures the foreground window straight to clipboard and file.";
         _hkRepeat.Text = prefs.HotkeyRepeatLast; _hkRepeat.ToolTip = "Captures the same screen rectangle as the previous capture.";
+        _namePat.Text = prefs.FileNamePattern; _namePat.ToolTip = "File name without extension. Tokens: {yyyy} {MM} {dd} {HH} {mm} {ss} {ms} {date} {time} {n}. {n} = lowest unused number.";
+        _folderPat.Text = prefs.FolderPattern; _folderPat.ToolTip = "Optional sub-folders under the output folder, e.g. {yyyy}/{MM}. Empty = none.";
+        _jpegQ.Text = prefs.JpegQuality.ToString(); _jpegQ.ToolTip = "JPEG and PDF quality, 10 to 100.";
         _hkMon.Text = prefs.HotkeyMonitors; _hkMon.ToolTip = "Capture monitor 1, 2, 3... one hotkey each, separated by semicolons. Empty = none. Up to 9.";
         _fixW.Text = prefs.FixedWidth.ToString(); _fixW.ToolTip = "Width in pixels of the fixed-size region (16 to 16384).";
         _fixH.Text = prefs.FixedHeight.ToString(); _fixH.ToolTip = "Height in pixels of the fixed-size region (16 to 16384).";
@@ -60,6 +63,7 @@ internal sealed class SettingsWindow : Window
             grid.Children.Add(l); grid.Children.Add(c); row++;
         }
         Add("Output folder", _folder); Add("Image format", _format);
+        Add("File name pattern", _namePat); Add("Sub-folder pattern", _folderPat); Add("JPEG/PDF quality", _jpegQ);
         Add("Menu hotkey", _hkMenu); Add("Full-screen hotkey", _hkFull);
         Add("Active-window hotkey", _hkWin); Add("Repeat-last hotkey", _hkRepeat);
         Add("Monitor hotkeys (1;2;3…)", _hkMon);
@@ -86,6 +90,7 @@ internal sealed class SettingsWindow : Window
             HotkeyMenu = _hkMenu.Text.Trim(), HotkeyFullScreen = _hkFull.Text.Trim(),
             HotkeyActiveWindow = _hkWin.Text.Trim(), HotkeyRepeatLast = _hkRepeat.Text.Trim(),
             HotkeyMonitors = _hkMon.Text.Trim(),
+            FileNamePattern = _namePat.Text.Trim(), FolderPattern = _folderPat.Text.Trim(),
             FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor",
             DefaultDelaySeconds = (int)_delay.SelectedItem, MatteColor = (string)_matte.SelectedItem,
             OpenEditorAfterCapture = _editor.IsChecked == true, ShowToasts = _toasts.IsChecked == true,
@@ -99,6 +104,11 @@ internal sealed class SettingsWindow : Window
         if (!int.TryParse(_interval.Text, out int iv) || iv is < IntervalPlan.MinSeconds or > IntervalPlan.MaxSeconds)
         { _error.Text = $"Interval must be {IntervalPlan.MinSeconds} to {IntervalPlan.MaxSeconds} seconds."; return; }
         p.FixedWidth = fw; p.FixedHeight = fh; p.IntervalSeconds = iv;
+        if (!int.TryParse(_jpegQ.Text, out int jq) || jq is < 10 or > 100)
+        { _error.Text = "JPEG/PDF quality must be 10 to 100."; return; }
+        p.JpegQuality = jq;
+        if (!NamePattern.IsValid(p.FileNamePattern) || string.IsNullOrWhiteSpace(p.FileNamePattern) || !NamePattern.IsValid(p.FolderPattern))
+        { _error.Text = $"Name patterns: at most {NamePattern.MaxLength} characters; file name cannot be empty."; return; }
         if (!HotkeyList.TryParse(p.HotkeyMonitors, out var monKeys))
         { _error.Text = "Monitor hotkeys: invalid or duplicate entry. Example: Ctrl+Alt+Shift+1;Ctrl+Alt+Shift+2"; return; }
         var keys = new[] { ("Menu", p.HotkeyMenu), ("Full-screen", p.HotkeyFullScreen), ("Active-window", p.HotkeyActiveWindow), ("Repeat-last", p.HotkeyRepeatLast) };

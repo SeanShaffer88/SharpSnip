@@ -35,7 +35,7 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
 In the menu: `E` element, `R` region, `W` window, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`.
 
-Hotkeys, output folder, format (PNG/JPEG), delay and more are in tray → Settings. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
+Hotkeys, output folder, format (PNG, JPG, BMP, TIFF, GIF, PDF), file-name and sub-folder patterns, delay and more are in tray → Settings. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
 
 ### Command line
 
