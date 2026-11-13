@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.17.0] - 2026-11-13
+
+### Added
+- **Effects… button in the editor**: set the Frame width and colour, the Shadow blur and strength, and the Torn/Wave depth. Zero means automatic by image size, which is exactly how the buttons behaved before, so nothing changes until you set a value. Settings are validated (bad numbers or colours show a message and nothing is saved) and remembered between runs.
+- Core: `EffectSettings` resolves each setting to pixels for a given image, with clamps; new `Preferences` fields `FrameThickness`, `FrameColor`, `ShadowBlur`, `ShadowOpacityPercent`, `EdgeDepth`, all clamped on load. 14 new self-test checks (440 total).
+
 ## [0.16.0] - 2026-11-13
 
 ### Changed

@@ -185,18 +185,26 @@ internal sealed class EditorWindow : Window
         bar.Children.Add(new Separator { Margin = new Thickness(6, 0, 6, 0) });
         Act("Invert", "Invert the colours of the whole image. Annotations are baked in; Undo restores.", () => TransformBase("Invert", (px, w, h) => { PixelAdjust.Invert(px); return (px, w, h); }));
         Act("Grayscale", "Convert the whole image to grey. Annotations are baked in; Undo restores.", () => TransformBase("Grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); }));
-        Act("Frame", "Add a solid border around the whole image (grows the canvas). Annotations are baked in; Undo restores.", () =>
-            TransformBase("Frame", (px, w, h) => ImageFrames.AddBorder(px, w, h, Math.Max(2, Math.Min(w, h) / 60), 0x1B, 0x1B, 0x1D)));
-        Act("Shadow", "Add a soft drop shadow under the image on a transparent margin (keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+        Act("Frame", "Add a solid border around the whole image (grows the canvas). Size and colour: Effects…. Annotations are baked in; Undo restores.", () =>
+            TransformBase("Frame", (px, w, h) =>
+            {
+                var c = EffectSettings.FrameRgb(_prefs.FrameColor);
+                return ImageFrames.AddBorder(px, w, h, EffectSettings.FrameThickness(_prefs.FrameThickness, w, h), c.R, c.G, c.B);
+            }));
+        Act("Shadow", "Add a soft drop shadow under the image on a transparent margin (keep PNG to preserve it). Size and strength: Effects…. Annotations are baked in; Undo restores.", () =>
             TransformBase("Shadow", (px, w, h) =>
             {
-                int blur = Math.Clamp(Math.Min(w, h) / 40, 4, 24);
-                return ImageFrames.AddShadow(px, w, h, blur, blur / 2 + 2, blur / 2 + 2, 0.45);
+                int blur = EffectSettings.ShadowBlur(_prefs.ShadowBlur, w, h), off = EffectSettings.ShadowOffset(blur);
+                return ImageFrames.AddShadow(px, w, h, blur, off, off, EffectSettings.ShadowOpacity(_prefs.ShadowOpacityPercent));
             }));
-        Act("Torn", "Rip the edges of the whole image like torn paper (cut area becomes transparent; keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
-            TransformBase("Torn edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Torn, EdgeSides.All, Math.Max(4, Math.Min(w, h) / 40), Environment.TickCount), w, h)));
-        Act("Wave", "Give the edges of the whole image a smooth wave (cut area becomes transparent; keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
-            TransformBase("Wave edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Wave, EdgeSides.All, Math.Max(4, Math.Min(w, h) / 40), 0), w, h)));
+        Act("Torn", "Rip the edges of the whole image like torn paper (cut area becomes transparent; keep PNG to preserve it). Depth: Effects…. Annotations are baked in; Undo restores.", () =>
+            TransformBase("Torn edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Torn, EdgeSides.All, EffectSettings.EdgeDepth(_prefs.EdgeDepth, w, h), Environment.TickCount), w, h)));
+        Act("Wave", "Give the edges of the whole image a smooth wave (cut area becomes transparent; keep PNG to preserve it). Depth: Effects…. Annotations are baked in; Undo restores.", () =>
+            TransformBase("Wave edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Wave, EdgeSides.All, EffectSettings.EdgeDepth(_prefs.EdgeDepth, w, h), 0), w, h)));
+        Act("Effects…", "Set the Frame width and colour, Shadow blur and strength, and Torn/Wave depth. 0 = automatic by image size. Saved for next time.", () =>
+        {
+            if (EditorDialogs.Effects(this, _prefs)) { _persist(); _status.Text = "Effect settings saved"; }
+        });
         Act("Flip ↔", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
         Act("Flip ↕", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
         Act("Rotate", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));
