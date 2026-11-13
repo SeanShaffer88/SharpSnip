@@ -105,6 +105,10 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
 
+## Unreleased manual rows (post-v0.8.0 fix)
+- [ ] Mode bar: click **Window** — nothing captures; the window under the NEXT click is captured. Same for Element, Full screen and (via S) Fixed size: the bar click only arms the tool.
+- [ ] Mode bar: click **Region**, then drag a rectangle — the drag works normally (the fix must not eat genuine clicks).
+
 ## Unreleased manual rows (v0.8.0)
 - [ ] Settings: create a workflow (copy + format + run steps), assign it under "After capture", take a capture — every step runs in order; a failing step toasts its reason and stops the chain.
 - [ ] Manage workflows window: rename/reassign a workflow, delete one that is assigned — the assignment clears instead of dangling.
