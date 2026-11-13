@@ -168,3 +168,11 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Tray > Pick colour…: magnifier follows the cursor; clicking a known colour (e.g. a pure red rectangle) copies the exact value; 1-5 and Tab change the format; the format is remembered next time.
 - [ ] Pick a colour on a second monitor and across a mixed-DPI boundary: the value matches what is shown.
 - [ ] Editor: Frame adds a visible border and the canvas grows; Shadow shows a soft shadow on transparent PNG; Undo restores both.
+
+## v0.20.0 manual rows (deferred by owner)
+- [ ] Open the editor: tools row shows 10 icon cells with key hints plus Undo, Redo, Copy and a Carmine Save; the active tool has a Carmine underline.
+- [ ] Press P, H, A, R, O, T, N, B, C, X: the matching tool activates; typing in a text box or dialog does not switch tools.
+- [ ] Colour swatches: the chosen one shows a ring; drawing uses it. Width slider changes stroke.
+- [ ] Text, Effects, Adjust, More menus open under their button, are dark, and every item works (incl. Adjust > Brightness / contrast…).
+- [ ] Status bar, side panel and dialogs (Resize, Watermark, Replace text, Effects settings) are themed.
+- [ ] High Contrast: editor is black and white, hover inverts, focus ring visible on every control.

@@ -17,6 +17,7 @@ internal static class EditorDialogs
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = content,
         };
+        w.Loaded += (_, _) => TesselTheme.Apply(w);
         return w;
     }
 
@@ -157,6 +158,22 @@ internal static class EditorDialogs
                 win.DialogResult = true;
             }
         }));
+        win.Owner = owner;
+        return win.ShowDialog() == true ? result : null;
+    }
+
+    /// <summary>Returns brightness (-100..100) and contrast factor (0.5..2), or null when cancelled.</summary>
+    public static (int Brightness, double Contrast)? BrightContrast(Window owner)
+    {
+        var (grid, add) = Grid2();
+        var bright = new Slider { Minimum = -100, Maximum = 100, Value = 0, ToolTip = "Brightness. 0 = unchanged." };
+        var contrast = new Slider { Minimum = 50, Maximum = 200, Value = 100, ToolTip = "Contrast in percent. 100 = unchanged." };
+        add("Brightness", bright); add("Contrast", contrast);
+        (int, double)? result = null;
+        var win = Base("Brightness / contrast", new StackPanel());
+        var stack = (StackPanel)win.Content;
+        stack.Children.Add(grid);
+        stack.Children.Add(Buttons(win, () => { result = ((int)bright.Value, contrast.Value / 100.0); win.DialogResult = true; }));
         win.Owner = owner;
         return win.ShowDialog() == true ? result : null;
     }

@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.20.0] - 2026-11-13
+
+### Changed
+- **Editor redesigned to match the capture mode bar** (TesselGUI revision 3, Carmine). Tools row: line-and-dot icons over labels with key hints, a Carmine underline on the active tool, Undo / Redo / Copy, and a single Carmine **Save** button. Options row: colour swatches (the chosen one wears a ring), a thin width slider, and **Text / Effects / Adjust / More** dropdown menus that replace the old wall of buttons. Dark canvas, status bar, side panel and editor dialogs. High Contrast is black and white; animations follow the system setting.
+- Brightness / contrast moved to an **Adjust > Brightness / contrast…** dialog (was two sliders plus Apply B/C).
+
+### Added
+- Tool hotkeys in the editor: P pen, H highlight, A arrow, R rect, O ellipse, T text, N step, B blur, C crop, X cut out (ignored while typing).
+
 ## [0.19.0] - 2026-11-13
 
 ### Added
