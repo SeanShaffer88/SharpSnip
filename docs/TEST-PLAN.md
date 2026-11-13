@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-339 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing and the FFmpeg export plans. Last result: **339 passed, 0 failed**.
+343 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing and the FFmpeg export plans. Last result: **343 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
@@ -69,6 +69,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## Unreleased manual rows (mode bar)
 - [ ] Open the menu (hotkey or Print Screen with takeover on): the bar slides down from the top-centre of the monitor the cursor is on; hovering a button highlights it; clicking Element/Region/Window/Full screen/Scrolling starts that mode; clicking Delay cycles off → 3s → 5s → 10s and the label follows; ✕, Esc and right-click all cancel; on a second monitor the bar follows the cursor's monitor; at 150–200% scaling the bar is centred and its buttons hit where they are drawn.
+- [ ] Clicking a tool in the bar NEVER captures by itself (Snipping Tool contract): click Window — nothing is captured; move over another window and click once — that window is captured. Same for Element and Full screen (this monitor). Repeat with a very fast click on the tool and with a slow press-and-hold release: neither captures. Keyboard switching (W with the bar open) followed by one click also captures normally.
 
 ## Unreleased manual rows (Snipping Tool replacement)
 - [ ] Settings → tick "Print Screen replaces Snipping Tool" and Save: the menu hotkey becomes Print Screen, pressing Print Screen opens SharpSnip's menu (not Snipping Tool), and Windows Settings → Accessibility → Keyboard shows the Print-screen switch off.
