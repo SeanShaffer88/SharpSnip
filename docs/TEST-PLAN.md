@@ -46,6 +46,11 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 6. `editor.png` — editor with annotations and the metadata panel.
 7. `settings.png` — settings window.
 
+## Unreleased manual rows (owner's v0.6.0 field fixes)
+- [ ] Fresh profile (delete `%APPDATA%\SharpSnip\settings.json` first): starting SharpSnip applies the Print Screen takeover by itself — Print Screen opens the menu, the Windows switch is off, and unticking in Settings restores both.
+- [ ] With no output folder set, a capture lands in the Pictures folder itself.
+- [ ] Settings: Cancel closes the window; Esc closes it; Save applies and closes. The window renders in the dark TesselGUI theme (inputs, dropdowns, checkboxes, green Save) with readable text throughout.
+
 ## Unreleased manual rows (mode bar)
 - [ ] Open the menu (hotkey or Print Screen with takeover on): the bar slides down from the top-centre of the monitor the cursor is on; hovering a button highlights it; clicking Element/Region/Window/Full screen/Scrolling starts that mode; clicking Delay cycles off → 3s → 5s → 10s and the label follows; ✕, Esc and right-click all cancel; on a second monitor the bar follows the cursor's monitor; at 150–200% scaling the bar is centred and its buttons hit where they are drawn.
 
