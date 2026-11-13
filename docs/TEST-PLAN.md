@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-361 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing, the FFmpeg export plans, the click gate and recording-region resolution. Last result: **361 passed, 0 failed**.
+345 checks over geometry, monitor stitching, target resolution, delay cycle, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), the Print Screen override record, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing, the FFmpeg export plans, the click gate, recording-region resolution, pause timing and WAV segment joining. Last result: **345 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
@@ -21,13 +21,13 @@ Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Part
 | 7 | Full screen: `Tab`, `A`, `1`..`9`, `Enter` on 2 monitors | Correct monitor highlighted and captured only |
 | 8 | All-monitors capture at 100% + 150% | One image, no gaps/overlap; pixel test at monitor seam |
 | 9 | L-shaped arrangement | Union rect correct, gap filled with matte |
-| 10 | One-shot hotkey `Win+Shift+F` | Clipboard image in < 250 ms, no UI flash |
+| 10 | One-shot CLI `SharpSnip --fullscreen` | Clipboard image in < 250 ms, no UI flash |
 | 11 | Delay 3/5/10 s, open a menu during countdown, `Esc` | Menu captured; `Esc` cancels; chip not in image |
 | 12 | Unplug a monitor during countdown | No crash; capture continues |
 | 13 | `Esc` from every picker, right-click | No leaked hook/timer/overlay (check Task Manager, input stays normal) |
 | 14 | 60 s idle in the menu | Watchdog closes the session |
 | 15 | Editor: each tool, undo/redo, crop+undo, blur, save, copy | Output matches canvas |
-| 16 | Settings: bad hotkey, taken hotkey | Clear message, old hotkey keeps working — and every other setting in the same save still applies and persists (a bad field never discards the save) |
+| 16 | Settings: invalid fixed size or interval | The saved-with-notes toast names the field and its previous value is kept — and every other setting in the same save still applies and persists (a bad field never discards the save). The window has no hotkey fields and no error text about other programs' keys |
 | 17 | Corrupt `settings.json` | Moved to `.bad-*`, defaults load, balloon shown |
 | 18 | `data` folder next to exe | Nothing written to `%APPDATA%` |
 | 19 | Idle: 10 minutes in the tray | ~0% CPU, working set < 15 MB target |
@@ -55,7 +55,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Record 5 s in GIF format (window and `--record 5 --gif`): the GIF plays back animated at a sensible speed in a browser.
 - [ ] While recording, click Draw on screen and scribble: the strokes show in the playback; Esc ends drawing; colours change with 1–5 and C clears.
 - [ ] Editor pack: Step clicks drop 1, 2, 3 badges (Undo removes them); Resize to half keeps the aspect and Undo restores; Watermark corner and tiled both stamp visibly; Bright/Contrast sliders + Apply B/C change the image; Replace text on a screenshot containing a repeated word covers and rewrites every occurrence; set Auto effect = Border in Settings, take a capture — the saved file and the clipboard image already carry the frame (captures never open the editor), and the recording preferences (fps/audio) survive a Settings save.
-- [ ] Capture pack: draw a freehand outline around an icon — the saved PNG is transparent outside the outline; the loupe shows a changing #hex readout that matches the pixel under the cursor; set a preset region + hotkey in Settings — the hotkey captures exactly that rectangle.
+- [ ] Capture pack: draw a freehand outline around an icon — the saved PNG is transparent outside the outline; the loupe shows a changing #hex readout that matches the pixel under the cursor; set a preset region in Settings — the tray's "Capture preset region" captures exactly that rectangle.
 - [ ] Integration: tray → Recent captures lists the newest captures; a still reopens in the editor, a recording opens in the default player; with an external editor path set in Settings, the editor's External editor… button opens the saved capture in that program.
 
 ## Unreleased manual rows (WGC backend)
@@ -63,16 +63,16 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Ordinary desktop capture on each monitor (incl. mixed DPI): pixel-correct, no offset or tearing; a capture spanning two monitors stitches at the seam.
 
 ## Unreleased manual rows (owner's v0.6.0 field fixes)
-- [ ] Fresh profile (delete `%APPDATA%\SharpSnip\settings.json` first): starting SharpSnip applies the Print Screen takeover by itself — Print Screen opens the menu, the Windows switch is off, and unticking in Settings restores both.
+- [ ] Fresh profile (delete `%APPDATA%\SharpSnip\settings.json` first): with the Windows Print-screen switch ON beforehand, starting SharpSnip turns it off and Print Screen opens SharpSnip's menu; quitting SharpSnip from the tray restores the switch to on. With the switch absent beforehand, quitting removes the value SharpSnip wrote. Settings contains no Print Screen option and no hotkey fields at all.
 - [ ] With no output folder set, a capture lands in the Pictures folder itself.
 - [ ] Settings: Cancel closes the window; Esc closes it; Save applies and closes. The window renders in the dark TesselGUI theme (inputs, dropdowns, checkboxes, green Save) with readable text throughout.
 
 ## Unreleased manual rows (mode bar)
-- [ ] Open the menu (hotkey or Print Screen with takeover on): the bar slides down from the top-centre of the monitor the cursor is on; hovering a button highlights it; clicking Element/Region/Window/Full screen/Scrolling starts that mode; clicking Delay cycles off → 3s → 5s → 10s and the label follows; ✕, Esc and right-click all cancel; on a second monitor the bar follows the cursor's monitor; at 150–200% scaling the bar is centred and its buttons hit where they are drawn.
+- [ ] Open the menu (Print Screen or the tray's Capture… item): the bar slides down from the top-centre of the monitor the cursor is on; hovering a button highlights it; clicking Element/Region/Window/Full screen/Scrolling starts that mode; clicking Delay cycles off → 3s → 5s → 10s and the label follows; ✕, Esc and right-click all cancel; on a second monitor the bar follows the cursor's monitor; at 150–200% scaling the bar is centred and its buttons hit where they are drawn.
 - [ ] Clicking a tool in the bar NEVER captures by itself (Snipping Tool contract): click Window — nothing is captured; move over another window and click once — that window is captured. Same for Element and Full screen (this monitor). Repeat with a very fast click on the tool and with a slow press-and-hold release: neither captures. Keyboard switching (W with the bar open) followed by one click also captures normally.
 
 ## Unreleased manual rows (Snipping Tool replacement)
-- [ ] Settings → tick "Print Screen replaces Snipping Tool" and Save: the menu hotkey becomes Print Screen, pressing Print Screen opens SharpSnip's menu (not Snipping Tool), and Windows Settings → Accessibility → Keyboard shows the Print-screen switch off.
+- [ ] While SharpSnip runs, Windows Settings → Accessibility → Keyboard shows the Print-screen switch off and pressing Print Screen opens SharpSnip's menu (not Snipping Tool); kill SharpSnip from Task Manager, start it again and quit normally — the switch still ends at its original state (the crash could not corrupt the record).
 - [ ] Untick it and Save: the Windows switch is back to its previous state and the menu hotkey is the key from before the takeover.
 - [ ] With takeover on, run `SharpSnip.exe --clean` from a portable copy: the Windows Print-screen switch is restored before the settings are deleted.
 - [ ] Tray menu → Hide tray icon: the icon disappears and captures still work from the hotkeys; running SharpSnip again from the Start menu brings the icon back and opens Settings.
@@ -107,6 +107,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
 
 ## Unreleased manual rows (workflow recording conversion)
+- [ ] Pause/resume: record 5 s with system audio on, Pause for 5 s (move windows, make noise — none of it may appear), Resume for 5 s, Stop — the MP4 plays ≈10 s (not 15), the paused sounds are absent, and speech before/after the pause stays in sync with the picture; same check for a GIF recording (plays ≈10 s).
 - [ ] Recording workflow with `format: webm` then `copy: <folder>`: after a recording stops, the WebM appears in the folder and the toast reports both steps.
 - [ ] Recording workflow with `format: jpg`: stops with the plain "recordings convert with an FFmpeg preset" reason.
 - [ ] Capture workflow with `format: webm`: stops with the "applies to recordings" reason.
