@@ -1155,5 +1155,18 @@ Console.WriteLine("AreaMask");
     Check(thrownSh, "sharpen: buffer/size mismatch rejected");
 }
 
+
+{
+    var z = LoupeView.Zoom(100, 100, 80, 60, 500, 400, 2.0);
+    Check(z == (120, 115, 40, 30), "loupe: 2x shows the centred half-size window");
+    var zc = LoupeView.Zoom(-20, 380, 80, 60, 500, 400, 2.0);
+    Check(zc.X == 0 && zc.Y + zc.Height == 400 && zc.Width == 40 && zc.Height == 30, "loupe: window shifted back inside the image");
+    Check(LoupeView.Zoom(0, 0, 80, 60, 500, 400, 1.0) == (0, 0, 80, 60), "loupe: factor 1 shows the same area");
+    var bigLp = LoupeView.Zoom(0, 0, 900, 900, 100, 100, 2.0);
+    Check(bigLp.Width == 100 && bigLp.Height == 100 && bigLp.X == 0 && bigLp.Y == 0, "loupe: window never larger than the image");
+    var thrownLp = false; try { LoupeView.Zoom(0, 0, 1, 1, 10, 10, 0.5); } catch (ArgumentOutOfRangeException) { thrownLp = true; }
+    Check(thrownLp, "loupe: factor below 1 rejected");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
