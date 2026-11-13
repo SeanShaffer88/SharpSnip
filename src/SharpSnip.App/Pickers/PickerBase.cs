@@ -42,6 +42,7 @@ internal abstract class PickerBase
     protected const int VkTab = 0x09, VkEnter = 0x0D, VkEsc = 0x1B, VkSpace = 0x20, VkPgUp = 0x21, VkPgDn = 0x22;
 
     private TaskCompletionSource<PickOutcome>? _tcs;
+    private bool _strandedUp;
 
     protected PickerBase(PickerContext ctx) => Ctx = ctx;
 
@@ -55,8 +56,15 @@ internal abstract class PickerBase
         var h = Ctx.Hook;
         h.ClearHandlers();
         h.KeyDown = HandleKey;
-        h.LeftDown = OnLeftDown;
-        h.LeftUp = OnLeftUp;
+        // Pickers confirm on button-UP, and the click that switched to this picker
+        // (a mode-bar button above all) is still physically held when we take over —
+        // its release would land here as a phantom capture (owner field report on
+        // v0.8.0: choosing Window in the bar instantly "captured" the window under
+        // the bar). If the button is down at takeover, swallow the release that
+        // ends that held click; the next full click belongs to this picker.
+        _strandedUp = Native.NativeMethods.KeyDown(Native.NativeMethods.VK_LBUTTON);
+        h.LeftDown = (x, y) => { _strandedUp = false; return OnLeftDown(x, y); };
+        h.LeftUp = (x, y) => { if (_strandedUp) { _strandedUp = false; return true; } return OnLeftUp(x, y); };
         h.RightDown = (_, _) => { Finish(PickOutcome.Cancel()); return true; };
         h.Move = OnMove;
         h.Wheel = OnWheel;
