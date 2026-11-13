@@ -52,7 +52,7 @@ SharpSnip.exe --verbose | --version | --help
 
 ## Build
 
-Needs the .NET 8 SDK on Windows 10 1809 or later (x64).
+Needs the .NET 10 SDK on Windows 10 1809 or later (x64).
 
 ```
 dotnet build src/SharpSnip.App -c Release

@@ -228,7 +228,7 @@ internal static class WgcCapture
         try
         {
             var dxgiIid = new Guid("54EC77FA-1377-44E6-8C32-88FD5F44C84C"); // IDXGIDevice
-            if (Marshal.QueryInterface(d3dDevice, ref dxgiIid, out dxgi) < 0 || dxgi == IntPtr.Zero) return null;
+            if (Marshal.QueryInterface(d3dDevice, in dxgiIid, out dxgi) < 0 || dxgi == IntPtr.Zero) return null;
             if (CreateDirect3D11DeviceFromDXGIDevice(dxgi, out inspectable) < 0 || inspectable == IntPtr.Zero) return null;
             return MarshalInspectable<IDirect3DDevice>.FromAbi(inspectable);
         }
@@ -242,7 +242,7 @@ internal static class WgcCapture
         try
         {
             var iid = typeof(T).GUID;
-            if (Marshal.QueryInterface(unk, ref iid, out IntPtr ptr) < 0 || ptr == IntPtr.Zero) return null;
+            if (Marshal.QueryInterface(unk, in iid, out IntPtr ptr) < 0 || ptr == IntPtr.Zero) return null;
             try { return (T)Marshal.GetTypedObjectForIUnknown(ptr, typeof(T)); }
             finally { Marshal.Release(ptr); }
         }

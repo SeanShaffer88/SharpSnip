@@ -1,7 +1,7 @@
 # Third-party notices
 
 SharpSnip's own code uses **no third-party packages** — it is written
-against the .NET 8 base libraries, WPF, Windows Forms (tray icon), UI
+against the .NET 10 base libraries, WPF, Windows Forms (tray icon), UI
 Automation and Win32/WinRT in-box APIs only.
 
 Release builds bundle one third-party tool:

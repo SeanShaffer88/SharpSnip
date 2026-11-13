@@ -3,7 +3,7 @@
 Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed, not run), **Unverified** (not run, depends on real Windows), **Not implemented**.
 
 ## What was actually done
-- Compiled for `net8.0-windows10.0.19041.0` (cross-build on Linux): 0 errors, 0 warnings, warnings-as-errors on.
+- Compiled for `net10.0-windows10.0.19041.0` (cross-build on Linux): 0 errors, 0 warnings, warnings-as-errors on.
 - Ran the self-test project: 80 passed, 0 failed (Linux).
 - **Nothing in the Windows layer has been executed.** No overlay, hook, UI Automation, capture, clipboard or editor code has run on a real machine.
 
