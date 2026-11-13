@@ -161,6 +161,7 @@ internal sealed class ModeRouter
             _sm.TryTransition(AppState.Exporting);
             string path = Exporter.Save(cap.Image, Prefs);
             _notify("Copied to clipboard", "Saved " + path, path);
+            WorkflowRunner.MaybeRun(Prefs, "Capture", path, _notify);
         }
     }
 
@@ -281,6 +282,7 @@ internal sealed class ModeRouter
             _sm.TryTransition(AppState.Exporting);
             string path = Exporter.Save(cap.Image, Prefs);
             _notify("Copied to clipboard", "Saved " + path, path);
+            WorkflowRunner.MaybeRun(Prefs, "Capture", path, _notify);
         }
         catch (Exception ex)
         {

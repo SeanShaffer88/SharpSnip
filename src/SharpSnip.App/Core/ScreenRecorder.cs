@@ -16,7 +16,7 @@ namespace SharpSnip;
 internal sealed record AudioOptions(bool System, bool Mic);
 
 /// <summary>Everything the Recorder window asks the host to start — one object so the surface and the host stay in step.</summary>
-internal sealed record RecordRequest(MonitorInfo Monitor, bool UseRegion, int Fps, bool SystemAudio, bool Mic, string Quality, bool Webcam, string WebcamCorner, int MaxMinutes, int MaxMb, bool Gif);
+internal sealed record RecordRequest(MonitorInfo Monitor, bool UseRegion, int Fps, bool SystemAudio, bool Mic, string Quality, bool Webcam, string WebcamCorner, int MaxMinutes, int MaxMb, bool Gif, string SizeName);
 
 /// <summary>Webcam picture-in-picture: the overlay forces the pixel path so frames can be composited.</summary>
 internal sealed record WebcamOptions(bool Enabled, string Corner);
@@ -72,7 +72,7 @@ internal sealed class ScreenRecorder : IRecording
     }
 
     /// <summary>crop, when given, is a monitor-relative rectangle recorded through the pixel path.</summary>
-    public static async Task<ScreenRecorder?> StartAsync(MonitorInfo monitor, string outputPath, int fps, RectPx? crop = null, AudioOptions? audio = null, string? qualityName = null, WebcamOptions? webcam = null, int maxSeconds = 0, long maxBytes = 0)
+    public static async Task<ScreenRecorder?> StartAsync(MonitorInfo monitor, string outputPath, int fps, RectPx? crop = null, AudioOptions? audio = null, string? qualityName = null, WebcamOptions? webcam = null, int maxSeconds = 0, long maxBytes = 0, string? sizeName = null)
     {
         var stream = WgcStream.StartMonitor(monitor);
         if (stream is null) return null;
@@ -117,10 +117,18 @@ internal sealed class ScreenRecorder : IRecording
             crop = new RectPx(clipped.X, clipped.Y, ew, eh);
         }
         var (w, h) = crop is { } cp ? (cp.Width, cp.Height) : RecordingPlan.EvenSize(stream.Size.Width, stream.Size.Height);
+        var (tw, th) = RecordingSize.Target(w, h, sizeName);
+        // The stream descriptor declares the SOURCE size; the transcode profile
+        // carries the TARGET size, so the transcoder scales either path (GPU
+        // surfaces or composed pixel frames) down to the requested output size.
         var props = VideoEncodingProperties.CreateH264();
         props.Width = (uint)w; props.Height = (uint)h;
         props.FrameRate.Numerator = (uint)RecordingPlan.ClampFps(fps); props.FrameRate.Denominator = 1;
-        props.Bitrate = RecordingPlan.Bitrate(w, h, fps, RecordingQuality.Factor(qualityName));
+        props.Bitrate = RecordingPlan.Bitrate(tw, th, fps, RecordingQuality.Factor(qualityName));
+        var outProps = VideoEncodingProperties.CreateH264();
+        outProps.Width = (uint)tw; outProps.Height = (uint)th;
+        outProps.FrameRate.Numerator = (uint)RecordingPlan.ClampFps(fps); outProps.FrameRate.Denominator = 1;
+        outProps.Bitrate = props.Bitrate;
         var descriptor = new VideoStreamDescriptor(props);
         var source = new MediaStreamSource(descriptor) { BufferTime = TimeSpan.Zero };
         var recorder = new ScreenRecorder(stream, source, outputPath, videoPath, RecordingPlan.ClampFps(fps), crop, audioDir, cam, camCorner);
@@ -130,7 +138,7 @@ internal sealed class ScreenRecorder : IRecording
         try
         {
             var profile = MediaEncodingProfile.CreateMp4(VideoEncodingQuality.HD1080p);
-            profile.Video = props;
+            profile.Video = outProps;
             profile.Audio = null;
             recorder._profile = profile;
             var transcoder = new MediaTranscoder { HardwareAccelerationEnabled = true };

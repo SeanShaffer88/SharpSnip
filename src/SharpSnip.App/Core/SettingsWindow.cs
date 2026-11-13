@@ -9,10 +9,13 @@ internal sealed class SettingsWindow : Window
 {
     private readonly Preferences _prefs;
     private readonly Func<Preferences, string?> _apply;
-    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new(), _hkMon = new(), _fixW = new(), _fixH = new(), _interval = new(), _hkPreset = new(), _extEditor = new();
+    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new(), _hkMon = new(), _fixW = new(), _fixH = new(), _interval = new(), _hkPreset = new(), _extEditor = new(), _ffmpeg = new();
     private readonly TextBlock _presetInfo = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _useLast = new() { Content = "Use last capture region", Padding = new Thickness(8, 3, 8, 3) };
     private int[]? _presetRect;
+    private readonly ComboBox _wfCapture = new(), _wfRecording = new();
+    private readonly Button _wfManage = new() { Content = "Manage workflows…", Padding = new Thickness(8, 3, 8, 3) };
+    private List<WorkflowDef> _workflows = new();
     private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new(), _effect = new();
     private readonly CheckBox _editor = new() { Content = "Open the editor after a capture" };
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
@@ -36,6 +39,7 @@ internal sealed class SettingsWindow : Window
 
         _folder.Text = prefs.OutputFolder; _folder.ToolTip = "Where captures are saved. Empty = your Pictures folder.";
         _extEditor.Text = prefs.ExternalEditorPath; _extEditor.ToolTip = "Path to an image editor program (for example paint.net or GIMP). The editor window's External editor button opens the saved capture in it. Empty = none.";
+        _ffmpeg.Text = prefs.FfmpegPath; _ffmpeg.ToolTip = "Path to your own ffmpeg.exe, used instead of the bundled FFmpeg for exports. Empty = the bundled copy.";
         _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. PNG and TIFF keep transparency; JPEG, BMP, GIF and PDF drop it. A still GIF is a single frame; interval captures in GIF become one animated file. PDF holds one image, losslessly.";
         _hkMenu.Text = prefs.HotkeyMenu; _hkMenu.ToolTip = "Opens the mode menu. Example: Win+Shift+X. Needs at least one modifier.";
         _hkFull.Text = prefs.HotkeyFullScreen; _hkFull.ToolTip = "One-shot full-screen capture straight to clipboard. Print Screen alone is allowed.";
@@ -51,6 +55,18 @@ internal sealed class SettingsWindow : Window
             UpdatePresetLabel();
         };
         UpdatePresetLabel();
+        _workflows = prefs.Workflows.Select(w => new WorkflowDef { Name = w.Name, ApplyTo = w.ApplyTo, Steps = new List<string>(w.Steps) }).ToList();
+        RefreshWorkflowCombos(prefs.CaptureWorkflow, prefs.RecordingWorkflow);
+        _wfManage.ToolTip = "Create and edit the named workflows that can run after a capture or a recording.";
+        _wfManage.Click += (_, _) =>
+        {
+            var win = new WorkflowWindow(_workflows) { Owner = this };
+            if (win.ShowDialog() == true)
+            {
+                _workflows = win.Result;
+                RefreshWorkflowCombos(SelectedWorkflow(_wfCapture), SelectedWorkflow(_wfRecording));
+            }
+        };
         _fixW.Text = prefs.FixedWidth.ToString(); _fixW.ToolTip = "Width in pixels of the fixed-size region (16 to 16384).";
         _fixH.Text = prefs.FixedHeight.ToString(); _fixH.ToolTip = "Height in pixels of the fixed-size region (16 to 16384).";
         _interval.Text = prefs.IntervalSeconds.ToString(); _interval.ToolTip = "Seconds between frames for interval capture (1 to 86400). Start it from the tray menu.";
@@ -76,11 +92,12 @@ internal sealed class SettingsWindow : Window
             if (c is FrameworkElement fe) fe.Margin = new Thickness(0, 4, 0, 4);
             grid.Children.Add(l); grid.Children.Add(c); row++;
         }
-        Add("Output folder", _folder); Add("Image format", _format); Add("External editor", _extEditor);
+        Add("Output folder", _folder); Add("Image format", _format); Add("External editor", _extEditor); Add("FFmpeg override", _ffmpeg);
         Add("Menu hotkey", _hkMenu); Add("Full-screen hotkey", _hkFull);
         Add("Active-window hotkey", _hkWin); Add("Repeat-last hotkey", _hkRepeat);
         Add("Monitor hotkeys (1;2;3…)", _hkMon);
         Add("Preset hotkey", _hkPreset); Add("Preset region", _presetInfo); Add("", _useLast);
+        Add("After capture", _wfCapture); Add("After recording", _wfRecording); Add("Workflows", _wfManage);
         Add("Fixed region width", _fixW); Add("Fixed region height", _fixH); Add("Interval (seconds)", _interval);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim); Add("Auto effect", _effect);
@@ -104,6 +121,20 @@ internal sealed class SettingsWindow : Window
     private void UpdatePresetLabel() =>
         _presetInfo.Text = _presetRect is { Length: 4 } r ? $"{r[0]}, {r[1]} · {r[2]} × {r[3]} px" : "Not set";
 
+    private void RefreshWorkflowCombos(string? capture, string? recording)
+    {
+        foreach (var (combo, selected) in new[] { (_wfCapture, capture), (_wfRecording, recording) })
+        {
+            combo.Items.Clear();
+            combo.Items.Add("(none)");
+            foreach (var w in _workflows) combo.Items.Add(w.Name);
+            combo.SelectedItem = selected is not null && combo.Items.Contains(selected) ? selected : "(none)";
+        }
+    }
+
+    private static string SelectedWorkflow(ComboBox combo) =>
+        combo.SelectedItem as string is { } s && s != "(none)" ? s : "";
+
     private void Commit()
     {
         var p = new Preferences
@@ -114,6 +145,8 @@ internal sealed class SettingsWindow : Window
             HotkeyMonitors = _hkMon.Text.Trim(),
             HotkeyPreset = _hkPreset.Text.Trim(), PresetRect = _presetRect,
             ExternalEditorPath = _extEditor.Text.Trim(),
+            FfmpegPath = _ffmpeg.Text.Trim(),
+            Workflows = _workflows, CaptureWorkflow = SelectedWorkflow(_wfCapture), RecordingWorkflow = SelectedWorkflow(_wfRecording),
             FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor",
             DefaultDelaySeconds = (int)_delay.SelectedItem, MatteColor = (string)_matte.SelectedItem,
             OpenEditorAfterCapture = _editor.IsChecked == true, ShowToasts = _toasts.IsChecked == true,
@@ -126,7 +159,7 @@ internal sealed class SettingsWindow : Window
             AutoEffect = (string)_effect.SelectedItem,
             // Recording preferences are edited in the Recorder window; carry them over untouched.
             RecordingFps = _prefs.RecordingFps, RecordSystemAudio = _prefs.RecordSystemAudio,
-            RecordMic = _prefs.RecordMic, RecordingQualityName = _prefs.RecordingQualityName,
+            RecordMic = _prefs.RecordMic, RecordingQualityName = _prefs.RecordingQualityName, RecordingSizeName = _prefs.RecordingSizeName,
             RecordWebcam = _prefs.RecordWebcam, WebcamCorner = _prefs.WebcamCorner,
             RecordMaxMinutes = _prefs.RecordMaxMinutes, RecordMaxMb = _prefs.RecordMaxMb,
         };

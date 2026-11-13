@@ -22,6 +22,8 @@ internal sealed class GifRecorder : IRecording
     private readonly WebcamCapture? _webcam;
     private readonly PipCorner _corner;
     private readonly TimeSpan _interval;
+    private readonly string _sizeName;
+    private (int W, int H)? _target;
     private readonly object _gate = new();
     private GifWriter? _writer;
     private FileStream? _file;
@@ -35,14 +37,14 @@ internal sealed class GifRecorder : IRecording
     public TimeSpan Elapsed => _lastTs;
     public event Action? LimitReached;
 
-    private GifRecorder(WgcStream stream, string outputPath, int fps, RectPx? crop, WebcamCapture? webcam, PipCorner corner)
+    private GifRecorder(WgcStream stream, string outputPath, int fps, RectPx? crop, WebcamCapture? webcam, PipCorner corner, string sizeName)
     {
-        _stream = stream; OutputPath = outputPath; _crop = crop; _webcam = webcam; _corner = corner;
+        _stream = stream; OutputPath = outputPath; _crop = crop; _webcam = webcam; _corner = corner; _sizeName = sizeName;
         _interval = TimeSpan.FromSeconds(1.0 / fps);
     }
 
     public static async Task<GifRecorder?> StartAsync(MonitorInfo monitor, string outputPath, int fps, RectPx? crop = null,
-        WebcamOptions? webcam = null, int maxSeconds = 0, long maxBytes = 0)
+        WebcamOptions? webcam = null, int maxSeconds = 0, long maxBytes = 0, string? sizeName = null)
     {
         var stream = WgcStream.StartMonitor(monitor);
         if (stream is null) return null;
@@ -54,7 +56,7 @@ internal sealed class GifRecorder : IRecording
             if (cam is null) Log.Warn("Webcam overlay was requested but no camera opened; recording without it.");
             else corner = PipLayout.ParseCorner(webcam.Corner);
         }
-        var rec = new GifRecorder(stream, outputPath, Math.Min(RecordingPlan.ClampFps(fps), RecordingPlan.MaxGifFps), crop, cam, corner);
+        var rec = new GifRecorder(stream, outputPath, Math.Min(RecordingPlan.ClampFps(fps), RecordingPlan.MaxGifFps), crop, cam, corner, RecordingSize.Sanitize(sizeName));
         stream.FrameReady += rec.OnFrame;
         if (maxSeconds > 0 || maxBytes > 0)
         {
@@ -76,6 +78,13 @@ internal sealed class GifRecorder : IRecording
                 if (_writer is not null && ts - _lastTs < _interval * 0.9) return;
                 var canvas = PixelCanvas.Compose(_stream, frame, _crop, _webcam, _corner, out int w, out int h);
                 if (canvas is null) return;
+                _target ??= RecordingSize.Target(w, h, _sizeName);
+                if (_target.Value.W != w || _target.Value.H != h)
+                {
+                    var scaled = new byte[_target.Value.W * _target.Value.H * 4];
+                    PixelBlit.ScaleCopy(canvas, w * 4, w, h, scaled, _target.Value.W * 4, 0, 0, _target.Value.W, _target.Value.H);
+                    canvas = scaled; w = _target.Value.W; h = _target.Value.H;
+                }
                 if (_writer is null)
                 {
                     _file = new FileStream(OutputPath + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None);

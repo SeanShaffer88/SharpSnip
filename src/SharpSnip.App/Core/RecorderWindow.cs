@@ -24,7 +24,7 @@ internal sealed class RecorderWindow : Window
     private readonly Button _drawBtn = new() { Content = "Draw on screen", Padding = new Thickness(14, 5, 14, 5) };
     private readonly TextBox _maxMin = new(), _maxMb = new(), _at = new(), _dur = new();
     private readonly Button _scheduleBtn = new() { Content = "Schedule", Padding = new Thickness(14, 5, 14, 5) };
-    private readonly ComboBox _monitor = new(), _fps = new(), _quality = new(), _format = new();
+    private readonly ComboBox _monitor = new(), _fps = new(), _quality = new(), _format = new(), _size = new();
     private readonly CheckBox _region = new() { Content = "Record the last capture region instead" };
     private readonly CheckBox _sysAudio = new() { Content = "System sound" };
     private readonly CheckBox _mic = new() { Content = "Microphone" };
@@ -60,6 +60,9 @@ internal sealed class RecorderWindow : Window
         _quality.ItemsSource = RecordingQuality.All;
         _quality.SelectedItem = RecordingQuality.Sanitize(prefs.RecordingQualityName);
         _quality.ToolTip = "Encoding quality. Higher looks better and makes bigger files.";
+        _size.ItemsSource = RecordingSize.All;
+        _size.SelectedItem = RecordingSize.Sanitize(prefs.RecordingSizeName);
+        _size.ToolTip = "Output size cap. Smaller sizes make smaller files; the recording is never upscaled.";
         _format.ItemsSource = new[] { "MP4", "GIF" };
         _format.SelectedItem = "MP4";
         _format.ToolTip = "GIF is silent, limited to 20 frames per second, and much larger per second — for short clips and sharing in chat.";
@@ -115,6 +118,7 @@ internal sealed class RecorderWindow : Window
         Add("Format", _format);
         Add("Frame rate", _fps);
         Add("Quality", _quality);
+        Add("Output size", _size);
         Add("Audio", _sysAudio);
         Add("", _mic);
         Add("", _webcam);
@@ -149,7 +153,8 @@ internal sealed class RecorderWindow : Window
             _sysAudio.IsChecked == true, _mic.IsChecked == true,
             _quality.SelectedItem as string ?? RecordingQuality.Default,
             _webcam.IsChecked == true, _corner.SelectedItem as string ?? "BottomRight",
-            maxMin, maxMb, _format.SelectedItem as string == "GIF");
+            maxMin, maxMb, _format.SelectedItem as string == "GIF",
+            _size.SelectedItem as string ?? RecordingSize.Default);
     }
 
     private void OnSchedule()

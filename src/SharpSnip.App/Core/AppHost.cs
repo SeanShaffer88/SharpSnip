@@ -106,6 +106,12 @@ internal sealed class AppHost : IDisposable
         Item("Record screen…", "Record a monitor (or the last capture region) to an MP4 video.", ShowRecorder);
         Item("Draw on screen", "Draw over the screen with the mouse (1-5 change colour, C clears, Esc finishes). Strokes are captured and recorded like anything else on screen.", () => ToggleDrawOverlay());
         _stopRecordItem = Item("Stop recording", "Finish the current recording and save the MP4.", () => _ = StopRecordingAsync());
+        Item("Export with FFmpeg…", "Convert a recording or GIF to WebM, AV1, MKV, a palette GIF or audio-only, using the bundled FFmpeg.", () =>
+        {
+            var win = new ExportWindow(_recordPath, _prefs, Notify);
+            win.Show();
+            win.Activate();
+        });
         _stopRecordItem.Enabled = false;
         Item("Repeat last capture", "Capture the same screen rectangle as the previous capture.", () => _ = _router.RunRepeatLastAsync());
         Item("Capture preset region", "Capture the preset region set in Settings.", () => _ = _router.RunPresetAsync());
@@ -279,15 +285,16 @@ internal sealed class AppHost : IDisposable
             req.Gif ? RecordingPlan.GifFileName(DateTime.Now) : RecordingPlan.FileName(DateTime.Now));
         IRecording? rec = req.Gif
             ? await GifRecorder.StartAsync(target, path, req.Fps, crop,
-                new WebcamOptions(req.Webcam, req.WebcamCorner), req.MaxMinutes * 60, req.MaxMb * 1_000_000L)
+                new WebcamOptions(req.Webcam, req.WebcamCorner), req.MaxMinutes * 60, req.MaxMb * 1_000_000L, req.SizeName)
             : await ScreenRecorder.StartAsync(target, path, req.Fps, crop, new AudioOptions(req.SystemAudio, req.Mic), req.Quality,
-                new WebcamOptions(req.Webcam, req.WebcamCorner), req.MaxMinutes * 60, req.MaxMb * 1_000_000L);
+                new WebcamOptions(req.Webcam, req.WebcamCorner), req.MaxMinutes * 60, req.MaxMb * 1_000_000L, req.SizeName);
         if (rec is null) return "Recording could not start (capture or encoder unavailable).";
         rec.LimitReached += OnRecordingLimit;
         _recorder = rec; _recordPath = path;
         _prefs.RecordingFps = RecordingPlan.ClampFps(req.Fps);
         _prefs.RecordSystemAudio = req.SystemAudio; _prefs.RecordMic = req.Mic;
         _prefs.RecordingQualityName = RecordingQuality.Sanitize(req.Quality);
+        _prefs.RecordingSizeName = RecordingSize.Sanitize(req.SizeName);
         _prefs.RecordWebcam = req.Webcam; _prefs.WebcamCorner = PipLayout.ParseCorner(req.WebcamCorner).ToString();
         _prefs.RecordMaxMinutes = Math.Clamp(req.MaxMinutes, 0, 1440); _prefs.RecordMaxMb = Math.Clamp(req.MaxMb, 0, 102400); SavePrefs();
         if (_stopRecordItem is not null) _stopRecordItem.Enabled = true;
@@ -390,6 +397,7 @@ internal sealed class AppHost : IDisposable
         string path = rec.OutputPath;
         rec.Dispose();
         Notify("Recording saved", Path.GetFileName(path), path);
+        WorkflowRunner.MaybeRun(_prefs, "Recording", path, Notify);
     }
 
     private void HideTrayIcon()
@@ -469,9 +477,10 @@ internal sealed class AppHost : IDisposable
         Notify("Interval capture started", $"Every {seconds} s into {folder}. Stop it from the tray menu.", folder);
 
         int shots = 0, failures = 0;
-        // GIF runs become ONE animated file (looping, frame delay = the interval), not stills.
+        // GIF/APNG runs become ONE animated file (looping, frame delay = the interval), not stills.
         // Disposed explicitly in finally, before the completion notice, so the file is final by then.
-        var gif = GifPlan.IsAnimatedFormat(prefs.ImageFormat) ? new AnimatedGifSink(folder) : null;
+        var gif = AnimationPlan.Kind(prefs.ImageFormat) == "gif" ? new AnimatedGifSink(folder) : null;
+        var apng = AnimationPlan.Kind(prefs.ImageFormat) == "apng" ? new AnimatedApngSink(folder) : null;
         try
         {
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(seconds));
@@ -485,6 +494,12 @@ internal sealed class AppHost : IDisposable
                         {
                             var cap = IntervalCapture.CaptureBitmap(prefs, target);
                             if (!gif.Add(cap, GifPlan.DelayHundredths(seconds)))
+                                throw new InvalidOperationException("Frame size changed during the run (display layout changed).");
+                        }
+                        else if (apng is not null)
+                        {
+                            var cap = IntervalCapture.CaptureBitmap(prefs, target);
+                            if (!apng.Add(cap, GifPlan.DelayHundredths(seconds)))
                                 throw new InvalidOperationException("Frame size changed during the run (display layout changed).");
                         }
                         else IntervalCapture.CaptureOnce(prefs, target, folder, shots + 1);
@@ -504,12 +519,14 @@ internal sealed class AppHost : IDisposable
         finally
         {
             gif?.Dispose();
+            apng?.Dispose();
             _interval.Dispose();
             _interval = null;
             if (_intervalItem is not null) _intervalItem.Text = "Start interval capture";
+            string? animPath = gif is not null && gif.Frames > 0 ? gif.FinalPath : apng is not null && apng.Frames > 0 ? apng.FinalPath : null;
             Notify("Interval capture finished",
-                   gif is not null && gif.Frames > 0 ? $"{shots} frame(s) animated in {gif.FinalPath}" : $"{shots} frame(s) in {folder}",
-                   gif is not null && gif.Frames > 0 ? gif.FinalPath : folder);
+                   animPath is not null ? $"{shots} frame(s) animated in {animPath}" : $"{shots} frame(s) in {folder}",
+                   animPath ?? folder);
         }
     }
 
