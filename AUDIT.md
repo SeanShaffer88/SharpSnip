@@ -115,7 +115,7 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 ## v0.12.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - `ColorFormat` and `ImageFrames` (border, shadow) are **Verified (logic)**: exact bytes, margins, clamping, determinism and the opacity-0 and transparent-image cases are in the self-test.
-- Colour picker overlay, magnifier, key handling, clipboard text and the "monitor captured once, then sampled" approach are **unverified on hardware**. Assumes overlays stay out of the capture (as for the loupe). The colour comes from the capture backend, so HDR or colour-managed displays may differ slightly from what the eye sees; there is no HDR handling.
+- Colour picker overlay, magnifier, key handling, clipboard text and sampling a desktop snapshot taken before the overlays open are **unverified on hardware**. The colour comes from the capture backend, so HDR or colour-managed displays may differ slightly from what the eye sees; there is no HDR handling.
 - Editor Frame / Shadow buttons use fixed proportions (border ≈ 1/60 of the short side; blur ≈ 1/40, 4-24 px, offset about half the blur plus 2); no dialog yet. Shadow on a JPG flattens to black.
 
 ## v0.11.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
