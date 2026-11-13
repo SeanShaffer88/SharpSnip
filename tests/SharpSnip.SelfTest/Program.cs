@@ -818,5 +818,19 @@ Console.WriteLine("FfmpegPlan");
     Check(WorkflowPlan.IsRecordingFile("a/b.MP4") && WorkflowPlan.IsRecordingFile("x.gif") && !WorkflowPlan.IsRecordingFile("x.png") && !WorkflowPlan.IsRecordingFile(null), "workflow: recording-file detection");
 }
 
+Console.WriteLine("ClickGate (tool selection never captures)");
+var gate = new ClickGate();
+gate.Arm(true);
+Check(!gate.Release(), "gate: the release ending the arming click is swallowed");
+gate.Press();
+Check(gate.Release(), "gate: the next full click of the user's own may confirm");
+var gate2 = new ClickGate();
+gate2.Arm(false);
+Check(gate2.Release(), "gate: keyboard-armed picker confirms on its first release");
+var gate3 = new ClickGate();
+gate3.Arm(true);
+gate3.Press();   // the inherited release was consumed by the old handler; a fresh press starts a fresh gesture
+Check(gate3.Release(), "gate: a fresh press before any release clears the wait");
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
