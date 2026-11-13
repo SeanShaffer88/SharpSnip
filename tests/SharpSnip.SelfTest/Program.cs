@@ -418,5 +418,140 @@ Console.WriteLine("PdfWriter");
     Check(new Preferences { ImageFormat = "pdf" }.Sanitize().Extension == "pdf" && ImageFormats.FlattensAlpha("pdf"), "pdf is a save format and flattens alpha");
 }
 
+Console.WriteLine("ScrollStitch");
+{
+    Check(ScrollStitch.Plan(100, 100).SequenceEqual(new[] { 0 }), "plan: content fits viewport -> single strip");
+    Check(ScrollStitch.Plan(100, 90).SequenceEqual(new[] { 0 }), "plan: short content -> single strip");
+    Check(ScrollStitch.Plan(100, 250, 20).SequenceEqual(new[] { 0, 80, 150 }), "plan: steps of viewport-overlap, final strip anchored to the end");
+    Check(ScrollStitch.Plan(100, 180, 20).SequenceEqual(new[] { 0, 80 }), "plan: final anchor replaces an overshooting step");
+    var tiny = ScrollStitch.Plan(10, 25, 64);
+    Check(tiny[0] == 0 && tiny[^1] == 15 && tiny.Zip(tiny.Skip(1), (a, b) => b - a).All(d => d >= 1), "plan: an oversized overlap still steps at least 1px and anchors the end");
+    bool sThrew = false;
+    try { ScrollStitch.Plan(0, 100); } catch (ArgumentException) { sThrew = true; }
+    Check(sThrew, "plan: zero viewport rejected");
+
+    // Compose: source image where every byte encodes its (row, col) so provenance is checkable.
+    byte[] Src(int w, int h) { var b = new byte[w * h * 4]; for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) { int i = (y * w + x) * 4; b[i] = (byte)x; b[i + 1] = (byte)y; b[i + 2] = (byte)(x + y); b[i + 3] = 255; } return b; }
+    byte[] Slice(byte[] img, int w, int y0, int h) => img.AsSpan(y0 * w * 4, h * w * 4).ToArray();
+    var full = Src(3, 10);
+    var composed = ScrollStitch.Compose(3, 10, new[]
+    {
+        new ScrollStrip(0, 6, Slice(full, 3, 0, 6)),
+        new ScrollStrip(4, 6, Slice(full, 3, 4, 6)),
+    });
+    Check(composed.SequenceEqual(full), "compose: overlapping strips reproduce the source image exactly");
+    var clamped = ScrollStitch.Compose(3, 8, new[]
+    {
+        new ScrollStrip(0, 6, Slice(full, 3, 0, 6)),
+        new ScrollStrip(4, 6, Slice(full, 3, 4, 6)),
+    });
+    Check(clamped.SequenceEqual(Slice(full, 3, 0, 8)), "compose: a strip past the content end is clamped");
+    sThrew = false;
+    try { ScrollStitch.Compose(3, 10, new[] { new ScrollStrip(2, 4, Slice(full, 3, 2, 4)) }); } catch (ArgumentException) { sThrew = true; }
+    Check(sThrew, "compose: first strip must start at 0");
+    sThrew = false;
+    try { ScrollStitch.Compose(3, 10, new[] { new ScrollStrip(0, 4, Slice(full, 3, 0, 4)), new ScrollStrip(7, 3, Slice(full, 3, 7, 3)) }); } catch (ArgumentException) { sThrew = true; }
+    Check(sThrew, "compose: a gap between strips is rejected");
+    sThrew = false;
+    try { ScrollStitch.Compose(3, 10, new[] { new ScrollStrip(0, 4, new byte[10]) }); } catch (ArgumentException) { sThrew = true; }
+    Check(sThrew, "compose: wrong strip size is rejected");
+
+    var acc = Slice(full, 3, 0, 6);
+    Check(ScrollStitch.FindOverlap(acc, 6, Slice(full, 3, 4, 6), 6, 3) == 2, "overlap: bottom of accumulated matches top of next strip");
+    Check(ScrollStitch.FindOverlap(acc, 6, Slice(full, 3, 6, 4), 4, 3) == 0, "overlap: abutting strips have zero overlap");
+    Check(ScrollStitch.FindOverlap(acc, 6, Slice(full, 3, 0, 6), 6, 3) == 6, "overlap: a repeated strip reports full overlap (zero new rows) — the caller's stop signal");
+}
+
+Console.WriteLine("OcrText");
+{
+    OcrWord W(string t, int x, int y, int w = 30, int h = 10) => new(t, new RectPx(x, y, w, h));
+    Check(OcrText.Assemble(Array.Empty<OcrWord>()) == "", "ocr: no words -> empty text");
+    Check(OcrText.Assemble(new[] { W("hello", 0, 0) }) == "hello", "ocr: single word");
+    Check(OcrText.Assemble(new[] { W("world", 40, 0), W("hello", 0, 0) }) == "hello world", "ocr: words ordered left to right within a line");
+    Check(OcrText.Assemble(new[] { W("second", 0, 30), W("line", 40, 30), W("first", 0, 0), W("row", 40, 1) }) == "first row\nsecond line",
+        "ocr: lines ordered top to bottom, small y jitter stays on the line");
+    Check(OcrText.Assemble(new[] { W("a", 0, 0), W("b", 0, 14, 30, 10) }) == "a\nb", "ocr: a gap beyond half the line height starts a new line");
+    Check(OcrText.Assemble(new[] { W("  ", 0, 0), W("kept", 40, 0), W("", 80, 0) }) == "kept", "ocr: blank words dropped");
+    Check(OcrText.Assemble(new[] { W("one", 0, 0), W("two", 0, 100), W("three", 0, 200) }) == "one\ntwo\nthree", "ocr: three separated lines");
+}
+
+Console.WriteLine("Redactor");
+{
+    OcrWord W(string t, int x, int y, int w = 30, int h = 10) => new(t, new RectPx(x, y, w, h));
+    var hits = Redactor.Find(new[] { W("Contact", 0, 0, 45), W("john@example.com", 50, 0, 110), W("today", 170, 0, 35) });
+    Check(hits.Count == 1 && hits[0].Kind == "email" && hits[0].Rect == new RectPx(49, -1, 112, 12), "redact: email in a line -> its word box, inflated 1px");
+    hits = Redactor.Find(new[] { W("john.doe", 0, 0, 55), W("@example.com", 60, 0, 80) });
+    Check(hits.Count == 1 && hits[0].Rect == new RectPx(-1, -1, 142, 12), "redact: email split across words -> union box");
+    hits = Redactor.Find(new[] { W("see", 0, 0, 20), W("https://example.com/x.", 25, 0, 130) });
+    Check(hits.Count == 1 && hits[0].Kind == "url", "redact: url detected (trailing punctuation tolerated)");
+    hits = Redactor.Find(new[] { W("4242", 0, 0, 30), W("4242", 35, 0, 30), W("4242", 70, 0, 30), W("4242", 105, 0, 30) });
+    Check(hits.Count == 1 && hits[0].Kind == "card" && hits[0].Rect == new RectPx(-1, -1, 137, 12), "redact: luhn-valid card across four words -> one union box");
+    Check(Redactor.Find(new[] { W("4242", 0, 0, 30), W("4242", 35, 0, 30), W("4242", 70, 0, 30), W("4241", 105, 0, 30) }).Count == 0, "redact: luhn-invalid number is not a card");
+    Check(Redactor.Find(new[] { W("10.0.0.25", 0, 0, 60) }).Count == 1, "redact: ipv4 detected");
+    Check(Redactor.Find(new[] { W("999.1.1.1", 0, 0, 60) }).Count == 0, "redact: out-of-range ipv4 rejected");
+    hits = Redactor.Find(new[] { W("(555)", 0, 0, 35), W("123-4567", 40, 0, 60) });
+    Check(hits.Count == 1 && hits[0].Kind == "phone" && hits[0].Rect == new RectPx(-1, -1, 102, 12), "redact: phone across words -> union box");
+    Check(Redactor.Find(new[] { W("sk-9f8e7d6c5b4a39281706fedcba", 0, 0, 200) }).Count == 1, "redact: long mixed token (api-key shape) detected");
+    Check(Redactor.Find(new[] { W("internationalisation", 0, 0, 130) }).Count == 0, "redact: a long plain word is not a secret");
+    Check(Redactor.Find(new[] { W("The", 0, 0, 20), W("quick", 25, 0, 35), W("brown", 65, 0, 35), W("fox", 105, 0, 20) }).Count == 0, "redact: ordinary sentence -> no hits");
+    hits = Redactor.Find(new[]
+    {
+        W("mail", 0, 0, 30), W("john@example.com", 35, 0, 110),
+        W("or", 0, 30, 15), W("https://example.com/?u=john@example.com", 20, 30, 260),
+    });
+    Check(hits.Count == 2 && hits[0].Kind == "email" && hits[1].Kind == "url", "redact: email and url on separate lines, no double-claim inside the url");
+    Check(Redactor.Find(Array.Empty<OcrWord>()).Count == 0, "redact: no words -> no hits");
+}
+
+Console.WriteLine("PixelAdjust");
+{
+    bool Throws(Action a) { try { a(); return false; } catch (ArgumentException) { return true; } }
+    byte[] Ids(params int[] ids) { var b = new byte[ids.Length * 4]; for (int i = 0; i < ids.Length; i++) { b[i * 4] = b[i * 4 + 1] = b[i * 4 + 2] = (byte)ids[i]; b[i * 4 + 3] = 255; } return b; }
+    bool Same(byte[] a, byte[] b) => a.SequenceEqual(b);
+
+    var inv = new byte[] { 10, 20, 30, 40 };
+    PixelAdjust.Invert(inv);
+    Check(Same(inv, new byte[] { 245, 235, 225, 40 }), "invert: channels flip, alpha untouched");
+    PixelAdjust.Invert(inv);
+    Check(Same(inv, new byte[] { 10, 20, 30, 40 }), "invert: twice is identity");
+
+    var grey = new byte[] { 0, 0, 255, 255, 0, 255, 0, 255, 255, 0, 0, 255, 255, 255, 255, 200 };
+    PixelAdjust.Grayscale(grey);
+    Check(grey[0] == 76 && grey[4] == 150 && grey[8] == 29 && grey[12] == 255, "grayscale: Rec.601 luma for red/green/blue/white");
+    Check(grey[0] == grey[1] && grey[1] == grey[2] && grey[15] == 200, "grayscale: channels equalised, alpha untouched");
+
+    var bc = Ids(100, 200, 28);
+    PixelAdjust.BrightnessContrast(bc, 0, 1.0);
+    Check(Same(bc, Ids(100, 200, 28)), "brightness/contrast: (0, 1.0) is identity");
+    PixelAdjust.BrightnessContrast(bc, 0, 2.0);
+    Check(Same(bc, Ids(72, 255, 0)), "brightness/contrast: contrast 2 about midpoint, clamped both ends");
+    var flatBc = Ids(10, 250);
+    PixelAdjust.BrightnessContrast(flatBc, 0, 0.0);
+    Check(Same(flatBc, Ids(128, 128)), "brightness/contrast: contrast 0 -> flat mid-grey");
+    var bright = Ids(100);
+    PixelAdjust.BrightnessContrast(bright, 999, 1.0);
+    Check(Same(bright, Ids(255)), "brightness/contrast: brightness input clamps to +255");
+    Check(Throws(() => PixelAdjust.BrightnessContrast(Ids(1), 0, -0.5)), "brightness/contrast: negative contrast rejected");
+
+    var fh = Ids(0, 1, 2, 3);
+    PixelAdjust.FlipHorizontal(fh, 2, 2);
+    Check(Same(fh, Ids(1, 0, 3, 2)), "flip horizontal: columns swap");
+    var fv = Ids(0, 1, 2, 3);
+    PixelAdjust.FlipVertical(fv, 2, 2);
+    Check(Same(fv, Ids(2, 3, 0, 1)), "flip vertical: rows swap");
+    PixelAdjust.FlipHorizontal(fh, 2, 2); PixelAdjust.FlipVertical(fv, 2, 2);
+    Check(Same(fh, Ids(0, 1, 2, 3)) && Same(fv, Ids(0, 1, 2, 3)), "flips: twice is identity");
+
+    var (rot, rw, rh) = PixelAdjust.Rotate90Clockwise(Ids(0, 1, 2, 3, 4, 5), 2, 3);
+    Check(rw == 3 && rh == 2 && Same(rot, Ids(4, 2, 0, 5, 3, 1)), "rotate 90 CW: dims swap, pixels land exactly");
+    var spin = Ids(0, 1, 2, 3, 4, 5); int sw = 2, sh = 3;
+    for (int i = 0; i < 4; i++) (spin, sw, sh) = PixelAdjust.Rotate90Clockwise(spin, sw, sh);
+    Check(sw == 2 && sh == 3 && Same(spin, Ids(0, 1, 2, 3, 4, 5)), "rotate: four quarter-turns is identity");
+
+    Check(Throws(() => PixelAdjust.FlipHorizontal(Ids(0, 1, 2), 2, 2)), "frame ops: buffer/size mismatch rejected");
+    Check(Throws(() => PixelAdjust.Rotate90Clockwise(Ids(0), 0, 1)), "frame ops: zero width rejected");
+    Check(Throws(() => PixelAdjust.Invert(new byte[3])), "pixel ops: partial pixel rejected");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
