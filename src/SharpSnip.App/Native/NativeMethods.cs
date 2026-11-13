@@ -20,7 +20,7 @@ internal static class NativeMethods
     public const int SM_CXDOUBLECLK = 36, SM_CYDOUBLECLK = 37;
     public const uint SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000;
     public const uint DIB_RGB_COLORS = 0;
-    public const int VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
+    public const int VK_LBUTTON = 0x01, VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
     public static readonly IntPtr HWND_MESSAGE = new(-3);
     public static readonly IntPtr DpiPerMonitorV2 = new(-4);
