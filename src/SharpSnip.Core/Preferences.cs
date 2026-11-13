@@ -62,6 +62,8 @@ public sealed class Preferences
     public bool WorkflowsLocked { get; set; }
     /// <summary>Colour picker output format (HEX, RGB, HTML, C++, Delphi); remembered between uses.</summary>
     public string ColorFormatName { get; set; } = ColorFormat.Default;
+    /// <summary>Capture mode bar position along the top edge: its centre as a fraction of the monitor width. Saved after each drag.</summary>
+    public double ModeBarCenter { get; set; } = ModeBarLayout.DefaultCenter;
     public string CaptureWorkflow { get; set; } = "";
     /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
     public string RecordingWorkflow { get; set; } = "";
@@ -111,6 +113,7 @@ public sealed class Preferences
         ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
         FfmpegPath = (FfmpegPath ?? "").Trim();
         ColorFormatName = ColorFormat.Sanitize(ColorFormatName);
+        ModeBarCenter = ModeBarLayout.SanitizeCenter(ModeBarCenter);
         WorkflowTrust ??= "";
         Workflows ??= new();
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

@@ -13,6 +13,8 @@ internal sealed class MenuPicker : PickerBase
     private int _x, _y;
     private int _hover = -2; // -2 = nothing, -1 = close, >= 0 = button index
     private MonitorInfo? _barMonitor;
+    private bool _dragging, _moved;
+    private double _grab; // cursor offset from the bar's left edge when the drag began, in bar units
 
     public MenuPicker(PickerContext ctx) : base(ctx) { }
     public override PickMode Mode => PickMode.Menu;
@@ -38,25 +40,35 @@ internal sealed class MenuPicker : PickerBase
         ShowBar();
     }
 
-    protected override void Leave() => Ctx.Overlays.ModeBar(null, -2, _x, _y);
+    protected override void Leave() { _dragging = false; SaveBarPlace(); Ctx.Overlays.ModeBar(null, -2, _x, _y); }
 
     protected override void RefreshHint() => ShowBar();
 
-    private void ShowBar() => Ctx.Overlays.ModeBar(Buttons, _hover, _x, _y);
+    private void ShowBar() => Ctx.Overlays.ModeBar(Buttons, _hover, _x, _y, Ctx.Prefs.ModeBarCenter);
 
     /// <summary>Bar hit-test: physical px → bar-local units on the bar's monitor.</summary>
     private ModeBarLayout.Hit? HitAt(int x, int y)
     {
         if (_barMonitor is not { } m) return null;
         double s = m.Scale;
-        double barLeft = (m.Bounds.Width / s - ModeBarLayout.BarWidth(Buttons.Count)) / 2;
-        return ModeBarLayout.HitTest((x - m.Bounds.X) / s - barLeft, (y - m.Bounds.Y) / s, Buttons.Count);
+        return ModeBarLayout.HitTest((x - m.Bounds.X) / s - BarLeft(m), (y - m.Bounds.Y) / s, Buttons.Count);
     }
+
+    private double BarLeft(MonitorInfo m) =>
+        ModeBarLayout.Left(Ctx.Prefs.ModeBarCenter, m.Bounds.Width / m.Scale, ModeBarLayout.BarWidth(Buttons.Count));
 
     protected override void OnMove(int x, int y)
     {
+        if (_dragging && _barMonitor is { } dm)
+        {
+            double s = dm.Scale, w = dm.Bounds.Width / s;
+            double left = (x - dm.Bounds.X) / s - _grab;
+            double c = ModeBarLayout.CenterFor(left, w, ModeBarLayout.BarWidth(Buttons.Count));
+            if (c != Ctx.Prefs.ModeBarCenter) { Ctx.Prefs.ModeBarCenter = c; _moved = true; ShowBar(); }
+            return;
+        }
         var hit = HitAt(x, y);
-        int hover = hit is null ? -2 : hit.Value.IsClose ? -1 : hit.Value.Index;
+        int hover = hit is null ? -2 : hit.Value.IsGrip ? -3 : hit.Value.IsClose ? -1 : hit.Value.Index;
         if (hover == _hover) return;
         _hover = hover;
         ShowBar();
@@ -65,6 +77,13 @@ internal sealed class MenuPicker : PickerBase
     protected override bool OnLeftDown(int x, int y)
     {
         if (HitAt(x, y) is not { } hit) return true;
+        if (hit.IsGrip && _barMonitor is { } gm)
+        {
+            _dragging = true; _moved = false; _hover = -3;
+            _grab = (x - gm.Bounds.X) / gm.Scale - BarLeft(gm);
+            ShowBar();
+            return true;
+        }
         if (hit.IsClose) { Finish(PickOutcome.Cancel()); return true; }
         switch (hit.Index)
         {
@@ -77,6 +96,19 @@ internal sealed class MenuPicker : PickerBase
             case 6: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); break;
         }
         return true;
+    }
+
+    protected override bool OnLeftUp(int x, int y)
+    {
+        if (_dragging) { _dragging = false; SaveBarPlace(); }
+        return true;
+    }
+
+    private void SaveBarPlace()
+    {
+        if (!_moved) return;
+        _moved = false;
+        try { Ctx.SavePrefs?.Invoke(); } catch (Exception ex) { Log.Warn("Could not save mode bar position: " + ex.Message); }
     }
 
     protected override bool HandleKey(int vk)

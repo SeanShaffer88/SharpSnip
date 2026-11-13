@@ -75,10 +75,10 @@ internal sealed class OverlayHost : IDisposable
     public void Hud(string? text, int x, int y) { foreach (var w in _wins) w.SetHud(text, x, y); }
 
     /// <summary>The mode bar lives on the monitor containing (x, y) — the menu's anchor point; all others hide theirs.</summary>
-    public void ModeBar(IReadOnlyList<ModeBarButton>? buttons, int hover, int x, int y)
+    public void ModeBar(IReadOnlyList<ModeBarButton>? buttons, int hover, int x, int y, double center = ModeBarLayout.DefaultCenter)
     {
         var target = VirtualDesktop.MonitorAt(_wins.Select(w => w.Monitor).ToList(), x, y);
-        foreach (var w in _wins) w.SetModeBar(buttons is not null && w.Monitor == target ? buttons : null, hover);
+        foreach (var w in _wins) w.SetModeBar(buttons is not null && w.Monitor == target ? buttons : null, hover, center);
     }
 
     public void Adorn(RectPx? r, bool handles, string? sizeText) { foreach (var w in _wins) w.SetAdorn(r, handles, sizeText); }
