@@ -984,5 +984,47 @@ var (tpx, _, _) = ImageFrames.AddShadow(tr, 6, 6, 3, 2, 2, 1.0);
 Check(tpx.Where((v, i) => i % 4 == 3 && v != 0).Count() == 0, "a fully transparent image casts no shadow");
 }
 
+Console.WriteLine("EdgeEffects");
+{
+    int ew = 60, eh = 40;
+    var src = new byte[ew * eh * 4];
+    for (int i = 0; i < src.Length; i += 4) { src[i] = 10; src[i + 1] = 20; src[i + 2] = 30; src[i + 3] = 255; }
+    int Alpha(byte[] b, int x, int y) => b[(y * ew + x) * 4 + 3];
+    var torn = EdgeEffects.Apply(src, ew, eh, EdgeStyle.Torn, EdgeSides.All, 6, 7);
+    Check(torn.Length == src.Length, "edges: size is unchanged");
+    Check(src[3] == 255 && src[0] == 10, "edges: input is not modified");
+    Check(Alpha(torn, ew / 2, eh / 2) == 255 && torn[(eh / 2 * ew + ew / 2) * 4] == 10, "edges: centre pixel is untouched");
+    bool deepOk = true;
+    for (int x = 6; x < ew - 6; x++) for (int y = 6; y < eh - 6; y++) if (Alpha(torn, x, y) != 255) deepOk = false;
+    for (int y = 6; y < eh - 6; y++) for (int x = 0; x < ew; x++) if (x >= 6 && x < ew - 6 && Alpha(torn, x, y) != 255) deepOk = false;
+    Check(deepOk, "edges: nothing deeper than the depth is cut");
+    int cutPx = 0; for (int i = 3; i < torn.Length; i += 4) if (torn[i] == 0) cutPx++;
+    Check(cutPx > 0, "edges: torn edge cuts some pixels");
+    bool cleared = true; for (int i = 0; i < torn.Length; i += 4) if (torn[i + 3] == 0 && (torn[i] | torn[i + 1] | torn[i + 2]) != 0) cleared = false;
+    Check(cleared, "edges: cut pixels are fully transparent black");
+    Check(EdgeEffects.Apply(src, ew, eh, EdgeStyle.Torn, EdgeSides.All, 6, 7).SequenceEqual(torn), "edges: same seed gives the same edge");
+    Check(!EdgeEffects.Apply(src, ew, eh, EdgeStyle.Torn, EdgeSides.All, 6, 8).SequenceEqual(torn), "edges: another seed gives another edge");
+    var bottomOnly = EdgeEffects.Apply(src, ew, eh, EdgeStyle.Torn, EdgeSides.Bottom, 6, 7);
+    bool onlyBottom = true; for (int y = 0; y < eh - 6; y++) for (int x = 0; x < ew; x++) if (Alpha(bottomOnly, x, y) != 255) onlyBottom = false;
+    Check(onlyBottom, "edges: only the chosen side is cut");
+    Check(EdgeEffects.Apply(src, ew, eh, EdgeStyle.Torn, EdgeSides.None, 6, 7).SequenceEqual(src), "edges: no sides = unchanged copy");
+    Check(EdgeEffects.Apply(src, ew, eh, EdgeStyle.Wave, EdgeSides.All, 0, 7).SequenceEqual(src), "edges: depth 0 = unchanged copy");
+    var hugeCut = EdgeEffects.Apply(src, ew, eh, EdgeStyle.Torn, EdgeSides.All, 9999, 1);
+    Check(Alpha(hugeCut, ew / 2, eh / 2) == 255, "edges: absurd depth is clamped, centre survives");
+    var wave = EdgeEffects.Profile(EdgeStyle.Wave, 200, 8, 0);
+    Check(wave.Min() == 0 && wave.Max() == 8 && wave.All(v => v is >= 0 and <= 8), "edges: wave spans 0..depth");
+    Check(Math.Abs(wave[1] - wave[0]) <= 1, "edges: wave is smooth");
+    Check(EdgeEffects.Profile(EdgeStyle.Torn, 300, 10, 3).All(v => v is >= 0 and <= 10), "edges: torn profile stays inside 0..depth");
+    Check(EdgeEffects.MaxDepthFor(1, 1) == 0 && EdgeEffects.MaxDepthFor(3, 80) == 0 &&
+          EdgeEffects.MaxDepthFor(4, 80) == 1 && EdgeEffects.MaxDepthFor(400, 400) == 100,
+          "edges: max depth is a quarter of the short side, rounded down");
+    var tinyCrop = Enumerable.Repeat((byte)255, 2 * 2 * 4).ToArray();
+    Check(EdgeEffects.Apply(tinyCrop, 2, 2, EdgeStyle.Torn, EdgeSides.All, 4, 0).SequenceEqual(tinyCrop),
+          "edges: torn leaves a two-by-two crop intact");
+    var narrowCrop = Enumerable.Repeat((byte)255, 80 * 3 * 4).ToArray();
+    Check(EdgeEffects.Apply(narrowCrop, 80, 3, EdgeStyle.Wave, EdgeSides.All, 4, 0).SequenceEqual(narrowCrop),
+          "edges: wave leaves a three-pixel-high crop intact");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

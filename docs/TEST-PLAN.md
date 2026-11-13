@@ -137,6 +137,10 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
 - [ ] Edit a workflow step in `settings.json` with Notepad, start SharpSnip: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
 
+## v0.15.0 manual rows (deferred by owner)
+- Open a capture in the editor, click Torn: all four edges turn ragged and transparent; Undo restores. Click it again on a fresh image: the edge differs.
+- Click Wave: edges ripple smoothly. Save as PNG and open it: the cut area is transparent. Save as JPEG: no crash.
+
 ## v0.14.0 manual rows (deferred by owner)
 - Open the bar, drag the dotted handle left and right: the bar follows the cursor, stops at both screen edges, and the buttons do not fire.
 - Release, Esc, open the bar again, then restart SharpSnip and open it again: the bar is where it was left.
