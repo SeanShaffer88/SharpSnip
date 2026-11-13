@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.7.0.** Compiles cleanly and the pure-logic layer is tested (294 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.7.0: screen recording (MP4/GIF with system sound, microphone and webcam overlay), the Windows.Graphics.Capture backend, and the editor/capture completion pack — the recording and WGC paths are new and have not yet had their field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.8.0.** Compiles cleanly and the pure-logic layer is tested (333 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.8.0: local workflows (after-capture/after-recording step chains), animated APNG, recording output sizes, and an FFmpeg export (a pinned LGPL build ships with the app) for WebM/AV1/MKV/audio conversions. The 0.7.0 recording suite and the 0.8.0 additions have not yet had their field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
@@ -59,7 +59,7 @@ dotnet build src/SharpSnip.App -c Release
 dotnet run --project tests/SharpSnip.SelfTest     # logic tests, runs anywhere
 ```
 
-No third-party packages are used (WPF, Windows Forms for the tray icon, UI Automation and Win32 only).
+No third-party packages are used in SharpSnip's code (WPF, Windows Forms for the tray icon, UI Automation and Win32/WinRT only). Release builds bundle an LGPL build of FFmpeg for the export feature — a separate program you may replace or remove; see [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md).
 
 ## Documents
 

@@ -1,6 +1,6 @@
 {
   "appName": "SharpSnip",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "Sean Shaffer",
   "primaryExe": "SharpSnip.exe",
   "desktopShortcut": true,

@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.8.0] - 2026-11-13
+
+### Added
+- **Workflows** (ShareX-style after-capture chains, fully local): named step lists — copy, format, effect (Border/Grayscale), external editor, run a program with %path%/%dir%/%name%/%ext% — assigned to captures and recordings in Settings, managed in their own window, and runnable by hand with `--run-workflow NAME --file PATH`.
+- **Animated APNG**: interval captures can save APNG alongside GIF (hand-written APNG writer; a still .apng export is a proper one-frame APNG).
+- **Recording output size**: Original / 1080p / 720p / 480p cap in the recorder window and as a setting; never upscales; applies to MP4 and GIF recordings (`--size` on the CLI).
+- **FFmpeg export** (bundled LGPL FFmpeg, owner-approved): tray *Export with FFmpeg…* converts recordings and GIFs to WebM (VP9), AV1, H.264 MP4 (Windows encoder), lossless MKV, palette GIF, MP3 or M4A, with a custom-arguments mode for a user-supplied build; `--export PRESET --file PATH [--out PATH]` on the CLI; Settings FFmpeg override path; license and source notice in THIRD-PARTY-NOTICES.md. The SharpSnip code itself still uses no third-party packages.
+
 ## [0.7.0] - 2026-11-13
 
 ### Added
