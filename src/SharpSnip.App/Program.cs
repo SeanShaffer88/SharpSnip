@@ -21,11 +21,19 @@ public static class Program
   SharpSnip.exe --interval N --count M [--all | --monitor K] [--out DIR]
                                         M frames, one every N seconds, into DIR (default: new Interval-... folder)
                                         In GIF format the frames become one looping animation.gif instead
+  SharpSnip.exe --record N [--monitor K] [--fps F] [--quality Q] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--webcam-corner C] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
+                                        record monitor K (default: primary) for N seconds to an MP4
+                                        --region records only that rectangle of the monitor (offsets in pixels)
+                                        system sound is recorded by default; --mic adds the microphone, --no-audio mutes both
+                                        --webcam overlays the default camera in a corner (default BottomRight)
+                                        --gif records an animated GIF instead (silent, max 20 fps)
+                                        --max-mb stops early at that file size; --at waits until the given time to start
+                                        (default: a timestamped recording-....mp4 in the output folder)
   SharpSnip.exe --clean                 delete settings and logs, then exit
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
-    private const string Version = "0.6.1";
+    private const string Version = "0.7.0";
 
     [STAThread]
     public static int Main(string[] args)
@@ -37,6 +45,7 @@ public static class Program
         if (Has("--help") || Has("-h") || Has("/?")) return Print(Usage, 0);
         if (Has("--version")) return Print("SharpSnip " + Version, 0);
         if (Has("--clean")) return Clean();
+        if (Has("--record")) return RecordCli(args);
         if (Has("--interval")) return IntervalCli(args);
         if (Has("--fullscreen")) return OneShot(args);
 
@@ -92,6 +101,95 @@ public static class Program
         {
             Log.Error("One-shot capture failed", ex);
             return Print("Capture failed: " + ex.Message, 1);
+        }
+    }
+
+    private static int RecordCli(string[] args)
+    {
+        string? Value(string flag)
+        {
+            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+        }
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
+            return Print("Recording needs Windows 10 version 2004 (build 19041) or later.", 2);
+        if (!int.TryParse(Value("--record"), out int secs) || secs is < 1 or > RecordingPlan.MaxSeconds)
+            return Print($"--record must be 1 to {RecordingPlan.MaxSeconds} seconds.", 2);
+        int mon = 0;
+        if (Value("--monitor") is { } mv && (!int.TryParse(mv, out mon) || mon is < 1 or > 9)) return Print("--monitor must be 1 to 9.", 2);
+        int fps = RecordingPlan.DefaultFps;
+        if (Value("--fps") is { } fv && (!int.TryParse(fv, out fps) || fps is < RecordingPlan.MinFps or > RecordingPlan.MaxFps))
+            return Print($"--fps must be {RecordingPlan.MinFps} to {RecordingPlan.MaxFps}.", 2);
+        string quality = RecordingQuality.Default;
+        if (Value("--quality") is { } qv)
+        {
+            if (Array.IndexOf(RecordingQuality.All, qv) < 0)
+                return Print("--quality must be Low, Medium, High or Ultra.", 2);
+            quality = qv;
+        }
+        long maxBytes = 0;
+        if (Value("--max-mb") is { } mbv)
+        {
+            if (!int.TryParse(mbv, out int mb) || mb is < 0 or > 102400)
+                return Print("--max-mb must be 0 to 102400.", 2);
+            maxBytes = mb * 1_000_000L;
+        }
+        if (Value("--at") is { } atv)
+        {
+            if (!TimeSpan.TryParse(atv, out var at) || at < TimeSpan.Zero || at >= TimeSpan.FromDays(1))
+                return Print("--at must be HH:MM (24-hour).", 2);
+            var now = DateTime.Now;
+            var start = now.Date + at;
+            if (start <= now.AddSeconds(5)) start = start.AddDays(1);
+            Console.Error.WriteLine($"Waiting until {start:yyyy-MM-dd HH:mm} to record...");
+            while (DateTime.Now < start) Thread.Sleep(1000);
+        }
+        RectPx? crop = null;
+        if (Value("--region") is { } rv)
+        {
+            var parts = rv.Split(',');
+            if (parts.Length != 4 || !int.TryParse(parts[0], out int rx) || !int.TryParse(parts[1], out int ry)
+                || !int.TryParse(parts[2], out int rw) || !int.TryParse(parts[3], out int rh) || rw < 16 || rh < 16)
+                return Print("--region must be X,Y,W,H (offsets inside the monitor, at least 16x16).", 2);
+            crop = new RectPx(rx, ry, rw, rh);
+        }
+        try
+        {
+            var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+            var monitors = MonitorEnumerator.Refresh();
+            var monitor = mon > 0 ? VirtualDesktop.ByIndex(monitors, mon)
+                : monitors.FirstOrDefault(m => m.IsPrimary) ?? (monitors.Count > 0 ? monitors[0] : null);
+            if (monitor is null) return Print(mon > 0 ? $"Monitor {mon} not found." : "No monitors found.", 2);
+            bool gif = args.Contains("--gif", StringComparer.OrdinalIgnoreCase);
+            string path = Value("--out") ?? Path.Combine(Exporter.OutputFolder(prefs),
+                gif ? RecordingPlan.GifFileName(DateTime.Now) : RecordingPlan.FileName(DateTime.Now));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var audio = new AudioOptions(System: !args.Contains("--no-audio", StringComparer.OrdinalIgnoreCase),
+                                         Mic: args.Contains("--mic", StringComparer.OrdinalIgnoreCase));
+            string corner = "BottomRight";
+            if (Value("--webcam-corner") is { } cv)
+            {
+                if (!Enum.TryParse<PipCorner>(cv, ignoreCase: true, out _))
+                    return Print("--webcam-corner must be BottomRight, BottomLeft, TopRight or TopLeft.", 2);
+                corner = cv;
+            }
+            var webcam = new WebcamOptions(args.Contains("--webcam", StringComparer.OrdinalIgnoreCase), corner);
+            IRecording? rec = gif
+                ? GifRecorder.StartAsync(monitor, path, fps, crop, webcam, 0, maxBytes).GetAwaiter().GetResult()
+                : ScreenRecorder.StartAsync(monitor, path, fps, crop, audio, quality, webcam, 0, maxBytes).GetAwaiter().GetResult();
+            if (rec is null) return Print("Recording could not start (capture or encoder unavailable).", 1);
+            using (rec)
+            {
+                Console.Error.WriteLine($"Recording monitor {monitor.Index} for {secs} s... Ctrl+C ends the process early.");
+                Thread.Sleep(secs * 1000);
+                rec.StopAsync().GetAwaiter().GetResult();
+            }
+            return Print(path, 0);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Record CLI failed", ex);
+            return Print("Recording failed: " + ex.Message, 1);
         }
     }
 
