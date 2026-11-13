@@ -24,6 +24,7 @@ internal sealed class MenuPicker : PickerBase
         string text =
             "SharpSnip — choose a mode\n" +
             "[E] Element    [R] Region    [W] Window\n" +
+            "[C] Scrolling capture (element)\n" +
             $"[S] Fixed-size region ({Ctx.Prefs.FixedWidth}×{Ctx.Prefs.FixedHeight})\n" +
             "[F] Full screen (all monitors)\n" +
             "[D] Full screen (this monitor)\n" +
@@ -40,6 +41,7 @@ internal sealed class MenuPicker : PickerBase
         {
             case 0x46: Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.All)); return true;
             case 0x44: Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current)); return true;
+            case 0x43: Ctx.ScrollCapture = true; Finish(PickOutcome.SwitchTo(PickMode.Element)); return true; // [C] scrolling capture
         }
         int n = vk is >= 0x31 and <= 0x39 ? vk - 0x30 : vk is >= 0x61 and <= 0x69 ? vk - 0x60 : 0;
         if (n > 0)

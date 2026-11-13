@@ -25,6 +25,10 @@ internal sealed class PickerContext
     public required UiaWorker Uia { get; init; }
     public int DelaySeconds { get; set; }
     public FullScreenTarget FullTarget { get; set; } = FullScreenTarget.Current;
+    /// <summary>When true, an element pick means "scrolling capture of this element".</summary>
+    public bool ScrollCapture { get; set; }
+    /// <summary>The live element chosen for a scrolling capture, set by the element picker on confirm.</summary>
+    public System.Windows.Automation.AutomationElement? ScrollTarget { get; set; }
     public IReadOnlyList<MonitorInfo> Monitors => MonitorEnumerator.Current;
 }
 
