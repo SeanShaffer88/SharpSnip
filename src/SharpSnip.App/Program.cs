@@ -14,15 +14,16 @@ public static class Program
       --all            capture every monitor (default: monitor under the cursor)
       --monitor N      capture monitor N (1-9)
       --delay N        wait N seconds first (0, 3, 5 or 10)
-      --out FILE       save to FILE (.png or .jpg); otherwise the output folder is used
+      --out FILE       save to FILE (.png, .jpg, .bmp, .gif, .tif or .pdf); otherwise the output folder is used
       --no-clipboard   do not touch the clipboard
   SharpSnip.exe --interval N --count M [--all | --monitor K] [--out DIR]
                                         M frames, one every N seconds, into DIR (default: new Interval-... folder)
+                                        In GIF format the frames become one looping animation.gif instead
   SharpSnip.exe --clean                 delete settings and logs, then exit
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
-    private const string Version = "0.3.0";
+    private const string Version = "0.4.0";
 
     [STAThread]
     public static int Main(string[] args)
@@ -106,6 +107,20 @@ public static class Program
             var requested = args.Contains("--all", StringComparer.OrdinalIgnoreCase) ? FullScreenTarget.All : mon > 0 ? FullScreenTarget.Monitor(mon) : FullScreenTarget.Current;
             var target = IntervalCapture.ResolveStartTarget(requested);
             string folder = Value("--out") ?? Path.Combine(Exporter.OutputFolder(prefs), IntervalPlan.FolderName(DateTime.Now));
+            if (GifPlan.IsAnimatedFormat(prefs.ImageFormat))
+            {
+                // GIF format = one animated file for the whole run, frame delay = the interval.
+                using var gif = new AnimatedGifSink(folder);
+                for (int i = 1; i <= count; i++)
+                {
+                    var cap = IntervalCapture.CaptureBitmap(prefs, target);
+                    if (!gif.Add(cap, GifPlan.DelayHundredths(secs)))
+                        return Print("Interval capture failed: frame size changed during the run (display layout changed).", 1);
+                    if (i < count) Thread.Sleep(secs * 1000);
+                }
+                gif.Dispose();
+                return Print(gif.FinalPath, 0);
+            }
             for (int i = 1; i <= count; i++)
             {
                 Console.Out.WriteLine(IntervalCapture.CaptureOnce(prefs, target, folder, i));
