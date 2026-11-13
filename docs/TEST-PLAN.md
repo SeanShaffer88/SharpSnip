@@ -180,3 +180,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 ## v0.21.0 manual rows (deferred by owner)
 - [ ] Adjust > Sharpen: text edges crisper, no heavy halos; repeat twice still acceptable; Undo restores.
 - [ ] Adjust > More colour / Less colour: visibly more / less vivid; Undo restores.
+
+## v0.22.0 manual rows (deferred by owner)
+- [ ] Editor Spotlight (S): drag an area; outside dims, inside stays bright; Undo removes; saved/copied image includes the dimming.

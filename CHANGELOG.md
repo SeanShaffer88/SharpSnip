@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.22.0] - 2026-11-13
+
+### Added
+- **Spotlight tool** in the editor (key S): drag the area to keep bright; everything else dims. It is an annotation, so Undo removes it and it is baked in on save like the others.
+
 ## [0.21.0] - 2026-11-13
 
 ### Added

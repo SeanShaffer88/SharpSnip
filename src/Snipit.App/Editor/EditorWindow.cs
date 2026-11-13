@@ -16,7 +16,7 @@ namespace Snipit;
 /// <summary>Mini editor (§9). Annotations live in a canvas above the image; undo/redo is an action stack.</summary>
 internal sealed class EditorWindow : Window
 {
-    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Blur, Crop, Cut }
+    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Blur, Spotlight, Crop, Cut }
 
     private interface IEdit { void Undo(); void Redo(); }
 
@@ -64,7 +64,7 @@ internal sealed class EditorWindow : Window
     private static readonly Dictionary<Key, Tool> ToolKeys = new()
     {
         [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
-        [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
+        [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.S] = Tool.Spotlight, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
     };
     private readonly Dictionary<Tool, ToggleButton> _toolCells = new();
 
@@ -84,7 +84,7 @@ internal sealed class EditorWindow : Window
     {
         _prefs = prefs; _persist = persist; _notify = notify; _meta = meta; _base = cap.Image;
         Title = "Snipit";
-        Width = 1100; Height = 720; MinWidth = 640; MinHeight = 420;
+        Width = 1100; Height = 720; MinWidth = 960; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         AutomationProperties_Name(this, "Snipit editor");
 
@@ -182,6 +182,7 @@ internal sealed class EditorWindow : Window
         AddTool("Step", "step", "N", Tool.Step, "Click to drop the next numbered step marker (1, 2, 3…).");
         left.Children.Add(new Border { Width = 1, Margin = new Thickness(6, 8, 6, 8), Background = c.Edge });
         AddTool("Blur", "blur", "B", Tool.Blur, "Drag over sensitive content to pixelate it.");
+        AddTool("Spotlight", "spotlight", "S", Tool.Spotlight, "Drag the area to keep bright; everything else is dimmed. An annotation: Undo removes it.");
         AddTool("Crop", "crop", "C", Tool.Crop, "Drag the area to keep. Applies immediately; Undo restores.");
         AddTool("Cut out", "cut", "X", Tool.Cut, "Drag across the image to remove a strip and join the two sides. A wide drag removes rows, a tall drag removes columns. Annotations are baked in; Undo restores.");
 
@@ -376,11 +377,12 @@ internal sealed class EditorWindow : Window
                 break;
             default:
                 _draft = _tool == Tool.Ellipse ? new Ellipse() : new Rectangle();
-                if (_tool is Tool.Crop or Tool.Cut) { _draft.Stroke = _tool == Tool.Cut ? Brushes.IndianRed : Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = _tool == Tool.Cut ? new SolidColorBrush(Color.FromArgb(70, 220, 60, 60)) : new SolidColorBrush(Color.FromArgb(40, 45, 156, 255)); }
+                if (_tool == Tool.Spotlight) { _draft.Stroke = Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)); }
+                else if (_tool is Tool.Crop or Tool.Cut) { _draft.Stroke = _tool == Tool.Cut ? Brushes.IndianRed : Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = _tool == Tool.Cut ? new SolidColorBrush(Color.FromArgb(70, 220, 60, 60)) : new SolidColorBrush(Color.FromArgb(40, 45, 156, 255)); }
                 else if (_tool == Tool.Blur) { _draft.Stroke = Brushes.Gray; _draft.StrokeDashArray = new DoubleCollection { 2, 2 }; }
                 else if (_tool == Tool.Arrow) { _draft = null; }
                 else { _draft.Stroke = Stroke(); }
-                if (_draft is not null) { _draft.StrokeThickness = _tool is Tool.Crop or Tool.Cut or Tool.Blur ? 1 : _thickness.Value; _layer.Children.Add(_draft); }
+                if (_draft is not null) { _draft.StrokeThickness = _tool is Tool.Crop or Tool.Cut or Tool.Blur or Tool.Spotlight ? 1 : _thickness.Value; _layer.Children.Add(_draft); }
                 else { _arrowShaft = new Line { Stroke = Stroke(), StrokeThickness = _thickness.Value, StrokeStartLineCap = PenLineCap.Round, X1 = _start.X, Y1 = _start.Y, X2 = _start.X, Y2 = _start.Y }; _layer.Children.Add(_arrowShaft); }
                 break;
         }
@@ -436,6 +438,14 @@ internal sealed class EditorWindow : Window
                 Push(new AddEdit(_layer, d));
                 break;
             case Tool.Blur: AddBlur(rect); break;
+            case Tool.Spotlight:
+                var dim = new System.Windows.Shapes.Path
+                {
+                    Data = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(new Rect(0, 0, _layer.Width, _layer.Height)), new RectangleGeometry(rect)),
+                    Fill = new SolidColorBrush(Color.FromArgb(140, 0, 0, 0)), IsHitTestVisible = false,
+                };
+                _layer.Children.Add(dim); Push(new AddEdit(_layer, dim));
+                break;
             case Tool.Crop: ApplyCrop(rect); break;
             case Tool.Cut: ApplyCut(rect); break;
         }
