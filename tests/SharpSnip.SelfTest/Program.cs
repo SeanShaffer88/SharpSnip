@@ -192,7 +192,7 @@ Check(IntervalPlan.FrameName(3, "tiff") == "frame-00003.tif", "interval frame na
 
 Console.WriteLine("OutputNaming");
 Check(OutputNaming.FileName(new DateTime(2026, 11, 12, 9, 8, 7, 6), "png") == "20261112-090807-006.png", "timestamp name");
-Check(OutputNaming.ResolveFolder("", @"C:\Users\x").EndsWith("SharpSnip") && OutputNaming.ResolveFolder("D:\\shots", "x") == "D:\\shots", "output folder resolution");
+Check(OutputNaming.ResolveFolder("", @"C:\Users\x\Pictures") == @"C:\Users\x\Pictures" && OutputNaming.ResolveFolder("  ", @"C:\Users\x\Pictures") == @"C:\Users\x\Pictures" && OutputNaming.ResolveFolder("D:\\shots", "x") == "D:\\shots", "output folder resolution: unset = Pictures, set wins");
 
 Console.WriteLine("GifPlan");
 Check(GifPlan.DelayHundredths(5) == 500 && GifPlan.DelayHundredths(1) == 100, "delay seconds -> hundredths");
@@ -570,7 +570,7 @@ Console.WriteLine("PrintScreenPlan");
     Check(sp.PrintScreenSnippingPrior == 1 && sp.HotkeyMenuBeforeTakeover == "", "prefs sanitize: prior clamps to [-1,1], invalid remembered key dropped");
     sp = new Preferences { PrintScreenSnippingPrior = -5, HotkeyMenuBeforeTakeover = "Win+Shift+X" }.Sanitize();
     Check(sp.PrintScreenSnippingPrior == -1 && sp.HotkeyMenuBeforeTakeover == "Win+Shift+X", "prefs sanitize: -1 (value absent) and a valid remembered key survive");
-    Check(new Preferences().ShowTrayIcon && !new Preferences().PrintScreenTakeover, "prefs defaults: tray icon shown, takeover off");
+    Check(new Preferences().ShowTrayIcon && new Preferences().PrintScreenTakeover, "prefs defaults: tray icon shown, Print Screen takeover ON by default");
 }
 
 Console.WriteLine("ModeBarLayout");
