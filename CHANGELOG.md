@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.18.0] - 2026-11-13
+
+### Added
+- **Cut out tool** in the editor: drag across the image to remove a strip and join the two sides, to drop the boring middle of a tall or wide capture. A drag that covers more of the image's width than its height removes rows; a taller drag removes columns. A drag over the whole image does nothing. Annotations are baked in; Undo restores.
+- Core: `ImageCut` (`Plan`, `Remove`, `CutAxis`). 14 new self-test checks (454 total).
+
 ## [0.17.0] - 2026-11-13
 
 ### Added

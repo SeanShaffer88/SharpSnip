@@ -41,7 +41,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Redaction (manual) | 🔜 |
 | Rotate, flip | ✅ v0.5.0 — editor buttons over tested Core `PixelAdjust` |
 | Resize | 🔜 |
-| Borders, frames, drop shadows, torn-edge/wave, cut-out | border + drop shadow ✅ v0.12; torn-edge + wave ✅ v0.15 (fixed depth, all sides); cut-out 🔜 |
+| Borders, frames, drop shadows, torn-edge/wave, cut-out | border + drop shadow ✅ v0.12; torn-edge + wave ✅ v0.15, sizes in Effects… v0.17; cut-out ✅ v0.18 (one strip per drag) |
 | Watermark | 🔜 |
 | Brightness / contrast / hue / saturation / balance, grayscale, invert, sharpen | invert + grayscale ✅ v0.5.0 (editor buttons); brightness/contrast ✅ in Core, editor control 🔜; hue / saturation / balance, sharpen 🔜 |
 | Fill, eraser / retouch | 🔜 |
