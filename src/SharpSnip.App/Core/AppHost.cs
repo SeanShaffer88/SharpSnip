@@ -53,37 +53,29 @@ internal sealed class AppHost : IDisposable
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showSignal, (_, _) =>
             Application.Current?.Dispatcher.InvokeAsync(() => { RestoreTrayIcon(); ShowSettings(); }),
             null, Timeout.Infinite, executeOnlyOnce: false);
-        if (_prefs.PrintScreenTakeover)
+        // Print Screen is SharpSnip's only global hotkey, unconditionally (owner
+        // direction, 2026-11-13 — no other hotkeys, no setting, no conflict errors):
+        // the Windows "Print Screen opens Snipping Tool" switch is turned off for
+        // as long as SharpSnip runs, and Dispose restores it on exit. The switch's
+        // original state is recorded once and kept across runs, so a crash cannot
+        // make a later start mistake the leftover override for the original state.
+        try
         {
-            try
+            if (!_prefs.PrintScreenPriorRecorded)
             {
-                if (!PrintScreenPlan.IsPrintScreen(_prefs.HotkeyMenu))
-                {
-                    // Takeover is on but was never applied — it is on by default, so a
-                    // first run lands here: record the live Windows switch, turn it off,
-                    // and give Print Screen to the menu, remembering the old menu key.
-                    _prefs.PrintScreenSnippingPrior = PrintScreenKey.Read() ?? -1;
-                    PrintScreenKey.Write(0);
-                    var (menu, remembered) = PrintScreenPlan.Enable(_prefs.HotkeyMenu, _prefs.HotkeyMenuBeforeTakeover);
-                    _prefs.HotkeyMenu = menu;
-                    _prefs.HotkeyMenuBeforeTakeover = remembered;
-                    SavePrefs();
-                }
-                else PrintScreenKey.Write(0); // re-assert: the switch may have been flipped back outside SharpSnip
+                _prefs.PrintScreenSnippingPrior = PrintScreenKey.Read() ?? -1;
+                _prefs.PrintScreenPriorRecorded = true;
+                SavePrefs();
             }
-            catch (Exception ex) { Log.Error("Could not apply the Print Screen takeover", ex); }
+            PrintScreenKey.Write(0);   // assert every start: the switch may have been flipped back outside SharpSnip
         }
+        catch (Exception ex) { Log.Error("Could not apply the Print Screen override", ex); }
 
         _hotkeys.HotkeyPressed += id =>
         {
             if (id == HotkeyManager.IdMenu) _ = _router.RunSessionAsync();
-            else if (id == HotkeyManager.IdFullScreen) _ = _router.RunInstantFullScreenAsync();
-            else if (id == HotkeyManager.IdActiveWindow) _ = _router.RunActiveWindowAsync();
-            else if (id == HotkeyManager.IdRepeatLast) _ = _router.RunRepeatLastAsync();
-            else if (id == HotkeyManager.IdPreset) _ = _router.RunPresetAsync();
-            else if (id >= HotkeyManager.IdMonitorBase) _ = _router.RunMonitorAsync(id - HotkeyManager.IdMonitorBase + 1);
         };
-        RegisterHotkeys(_prefs, notifyOnFailure: true);
+        _hotkeys.RegisterPrintScreen();
         if (warn is not null) Notify("SharpSnip", warn, null);
         MonitorEnumerator.Refresh();
         Log.Info("SharpSnip started");
@@ -100,7 +92,7 @@ internal sealed class AppHost : IDisposable
             m.Items.Add(i);
             return i;
         }
-        Item("Capture…", "Open the mode menu (same as the menu hotkey).", () => _ = _router.RunSessionAsync());
+        Item("Capture…", "Open the mode menu (same as Print Screen).", () => _ = _router.RunSessionAsync());
         Item("Scrolling capture…", "Pick a scrollable element and capture its full content as one tall image.", () => _ = _router.RunSessionAsync(scroll: true));
         Item("Full screen now", "Capture the configured monitor straight to the clipboard.", () => _ = _router.RunInstantFullScreenAsync());
         _intervalItem = Item("Start interval capture", "Capture the configured monitor every N seconds into a new folder. Click again to stop.", () => _ = ToggleIntervalAsync());
@@ -124,7 +116,7 @@ internal sealed class AppHost : IDisposable
         Item("Settings…", "Hotkeys, output folder, delay and more.", ShowSettings);
         Item("Hide tray icon", "Hide the tray icon. Run SharpSnip again (for example from the Start menu) to bring it back.", HideTrayIcon);
         m.Items.Add(new WinForms.ToolStripSeparator());
-        Item("Exit", "Quit SharpSnip and release the hotkeys.", () => Application.Current.Shutdown());
+        Item("Exit", "Quit SharpSnip. Print Screen goes back to what it did before.", () => Application.Current.Shutdown());
         m.Opening += (_, _) => RebuildHistory();
         return m;
     }
@@ -199,45 +191,6 @@ internal sealed class AppHost : IDisposable
         }
     }
 
-    /// <summary>Every hotkey the app wants: the four fixed ones plus one per monitor entry.</summary>
-    private static List<(int Id, string Text)> Slots(Preferences p)
-    {
-        var list = new List<(int, string)>
-        {
-            (HotkeyManager.IdMenu, p.HotkeyMenu), (HotkeyManager.IdFullScreen, p.HotkeyFullScreen),
-            (HotkeyManager.IdActiveWindow, p.HotkeyActiveWindow), (HotkeyManager.IdRepeatLast, p.HotkeyRepeatLast),
-        };
-        if (!string.IsNullOrWhiteSpace(p.HotkeyPreset)) list.Add((HotkeyManager.IdPreset, p.HotkeyPreset));
-        int i = 0;
-        foreach (var part in p.HotkeyMonitors.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
-            list.Add((HotkeyManager.IdMonitorBase + i++, part));
-        return list;
-    }
-
-    private void UnregisterAll()
-    {
-        foreach (int id in new[] { HotkeyManager.IdMenu, HotkeyManager.IdFullScreen, HotkeyManager.IdActiveWindow, HotkeyManager.IdRepeatLast, HotkeyManager.IdPreset })
-            _hotkeys.Unregister(id);
-        for (int i = 0; i < HotkeyList.Max; i++) _hotkeys.Unregister(HotkeyManager.IdMonitorBase + i);
-    }
-
-    /// <summary>Registers everything; returns the texts that could not be registered.</summary>
-    private List<string> RegisterAll(Preferences p)
-    {
-        UnregisterAll();
-        var failed = new List<string>();
-        foreach (var (id, text) in Slots(p))
-            if (!(HotkeySpec.TryParse(text, out var spec) && _hotkeys.Register(id, spec))) failed.Add(text);
-        return failed;
-    }
-
-    private void RegisterHotkeys(Preferences p, bool notifyOnFailure)
-    {
-        var failed = RegisterAll(p);
-        if (notifyOnFailure && failed.Count > 0)
-            Notify("SharpSnip", $"Hotkey already in use: {string.Join(", ", failed)}. Change it in Settings, or start from the tray icon.", null);
-    }
-
     private void ShowSettings()
     {
         if (_settings is not null) { _settings.Activate(); return; }
@@ -250,7 +203,7 @@ internal sealed class AppHost : IDisposable
     {
         if (_recorderWindow is not null) { _recorderWindow.Activate(); return; }
         _recorderWindow = new RecorderWindow(MonitorEnumerator.Refresh(), _prefs,
-            StartRecordingAsync, StopRecordingAsync, RecorderState,
+            StartRecordingAsync, StopRecordingAsync, paused => _recorder?.SetPaused(paused), RecorderState,
             ScheduleRecording, CancelSchedule, () => _schedReq is not null,
             m => ToggleDrawOverlay(m),
             () => _router.PickRegionAsync(),
@@ -372,11 +325,11 @@ internal sealed class AppHost : IDisposable
         _schedReq = null; _schedStop = null; _schedStarted = false;
     }
 
-    private (bool Recording, string? Path, TimeSpan Elapsed) RecorderState()
+    private (bool Recording, string? Path, TimeSpan Elapsed, bool Paused) RecorderState()
     {
-        if (_recorder is null) return (false, _recordPath, TimeSpan.Zero);
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) return (true, _recordPath, TimeSpan.Zero);
-        return (true, _recordPath, _recorder.Elapsed);
+        if (_recorder is null) return (false, _recordPath, TimeSpan.Zero, false);
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) return (true, _recordPath, TimeSpan.Zero, false);
+        return (true, _recordPath, _recorder.Elapsed, _recorder.IsPaused);
     }
 
     private async Task StopRecordingAsync()
@@ -406,67 +359,19 @@ internal sealed class AppHost : IDisposable
         if (!_prefs.ShowTrayIcon) { _prefs.ShowTrayIcon = true; SavePrefs(); }
     }
 
-    /// <summary>Returns an error message, or null on success. Old hotkeys are restored if any new one is taken.</summary>
+    /// <summary>
+    /// Persists the saved preferences. There is nothing left to conflict: the
+    /// hotkeys are gone (Print Screen is unconditional and owned by startup/exit),
+    /// so a save can no longer fail partway the way the old hotkey registration did
+    /// (owner field report, 2026-11-13: a hotkey owned by another program silently
+    /// ate every Settings save). Returns null — no warning path remains.
+    /// </summary>
     private string? Apply(Preferences p)
     {
-        // Applies everything it can and returns a warning for the rest — a failed
-        // hotkey or registry write must never discard the whole save (owner field
-        // report, 2026-11-13: a hotkey owned by another program silently ate every
-        // Settings save, including unrelated options).
-        var old = _prefs;
-        var warnings = new List<string>();
-        bool enabling = p.PrintScreenTakeover && !old.PrintScreenTakeover;
-        bool disabling = !p.PrintScreenTakeover && old.PrintScreenTakeover;
-        if (enabling)
-        {
-            try
-            {
-                p.PrintScreenSnippingPrior = PrintScreenKey.Read() ?? -1;
-                PrintScreenKey.Write(0);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("Print Screen takeover failed", ex);
-                p.PrintScreenTakeover = false;
-                p.HotkeyMenu = old.HotkeyMenu;
-                p.HotkeyMenuBeforeTakeover = old.HotkeyMenuBeforeTakeover;
-                enabling = false;
-                warnings.Add("Could not change the Windows Print Screen setting: " + ex.Message);
-            }
-        }
-        var failed = RegisterAll(p);
-        if (failed.Count > 0)
-        {
-            if (enabling)
-            {
-                try { PrintScreenKey.Write(PrintScreenKey.Prior(p.PrintScreenSnippingPrior)); }
-                catch (Exception ex) { Log.Error("Print Screen rollback failed", ex); }
-            }
-            // Only the hotkeys fall back to the previous ones; every other setting applies.
-            p.HotkeyMenu = old.HotkeyMenu; p.HotkeyFullScreen = old.HotkeyFullScreen;
-            p.HotkeyActiveWindow = old.HotkeyActiveWindow; p.HotkeyRepeatLast = old.HotkeyRepeatLast;
-            p.HotkeyMonitors = old.HotkeyMonitors; p.HotkeyPreset = old.HotkeyPreset;
-            p.PrintScreenTakeover = old.PrintScreenTakeover;
-            p.PrintScreenSnippingPrior = old.PrintScreenSnippingPrior;
-            p.HotkeyMenuBeforeTakeover = old.HotkeyMenuBeforeTakeover;
-            RegisterAll(old);
-            warnings.Add($"{string.Join(", ", failed)} is already used by another program — kept your previous hotkeys.");
-        }
-        if (disabling)
-        {
-            try { PrintScreenKey.Write(PrintScreenKey.Prior(old.PrintScreenSnippingPrior)); }
-            catch (Exception ex)
-            {
-                Log.Error("Print Screen restore failed", ex);
-                Notify("SharpSnip", "Could not restore the Windows Print Screen setting. It is in Windows Settings → Accessibility → Keyboard.", null);
-            }
-            p.PrintScreenSnippingPrior = -1;
-            p.HotkeyMenuBeforeTakeover = "";
-        }
         _prefs = p.Sanitize();
         _router.Prefs = _prefs;
         SavePrefs();
-        return warnings.Count > 0 ? string.Join(" ", warnings) : null;
+        return null;
     }
 
     // ---- interval capture ----------------------------------------------------------------------
@@ -580,6 +485,21 @@ internal sealed class AppHost : IDisposable
         _tray.Visible = false;
         _tray.Dispose();
         _hotkeys.Dispose();
+        // Give Print Screen back (owner direction, 2026-11-13): restore the Windows
+        // switch to the state recorded before the override, and clear the record so
+        // the next start records fresh. A crash skips this — the record survives, so
+        // the next clean exit still restores the true original state.
+        if (_prefs.PrintScreenPriorRecorded)
+        {
+            try
+            {
+                PrintScreenKey.Write(PrintScreenKey.Prior(_prefs.PrintScreenSnippingPrior));
+                _prefs.PrintScreenPriorRecorded = false;
+                _prefs.PrintScreenSnippingPrior = -1;
+                SavePrefs();
+            }
+            catch (Exception ex) { Log.Error("Could not restore the Print Screen switch on exit", ex); }
+        }
         _uia.Dispose();
         Log.Info("SharpSnip stopped");
     }

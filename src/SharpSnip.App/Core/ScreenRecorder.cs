@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.Versioning;
@@ -50,6 +51,13 @@ internal sealed class ScreenRecorder : IRecording
     private TimeSpan _lastPixelTs = TimeSpan.MinValue;
     private readonly string? _audioDir;
     private readonly List<WasapiCapture> _captures = new();
+    private readonly PauseClock _clock = new();
+    // Audio pause support: each pause closes the current segment files and a
+    // resume opens the next pair; at Stop the segments join back into one track
+    // per source, so paused time is absent from the audio exactly as from the video.
+    private bool _wantSystem, _wantMic;
+    private int _segment;
+    private readonly List<string> _sysSegments = new(), _micSegments = new();
     private MediaEncodingProfile? _profile;
     private readonly WebcamCapture? _webcam;
     private readonly PipCorner _webcamCorner;
@@ -94,12 +102,13 @@ internal sealed class ScreenRecorder : IRecording
         // detours through a temp file for the mux at Stop.
         string? audioDir = null;
         var captures = new List<WasapiCapture>();
+        bool sysOpened = false, micOpened = false;
         if (audio is { } want && (want.System || want.Mic))
         {
             audioDir = Path.Combine(Path.GetTempPath(), "SharpSnip", "rec-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(audioDir);
-            if (want.System && WasapiCapture.Start(loopback: true, Path.Combine(audioDir, "system.wav")) is { } sys) captures.Add(sys);
-            if (want.Mic && WasapiCapture.Start(loopback: false, Path.Combine(audioDir, "mic.wav")) is { } mic) captures.Add(mic);
+            if (want.System && WasapiCapture.Start(loopback: true, Path.Combine(audioDir, "system-1.wav")) is { } sys) { captures.Add(sys); sysOpened = true; }
+            if (want.Mic && WasapiCapture.Start(loopback: false, Path.Combine(audioDir, "mic-1.wav")) is { } mic) { captures.Add(mic); micOpened = true; }
             if (captures.Count == 0)
             {
                 Log.Warn("Recording audio was requested but no audio endpoint opened; recording video only.");
@@ -133,6 +142,11 @@ internal sealed class ScreenRecorder : IRecording
         var source = new MediaStreamSource(descriptor) { BufferTime = TimeSpan.Zero };
         var recorder = new ScreenRecorder(stream, source, outputPath, videoPath, RecordingPlan.ClampFps(fps), crop, audioDir, cam, camCorner);
         recorder._captures.AddRange(captures);
+        recorder._segment = 1;
+        recorder._wantSystem = sysOpened;
+        recorder._wantMic = micOpened;
+        if (recorder._wantSystem) recorder._sysSegments.Add(Path.Combine(audioDir!, "system-1.wav"));
+        if (recorder._wantMic) recorder._micSegments.Add(Path.Combine(audioDir!, "mic-1.wav"));
         source.SampleRequested += recorder.OnSampleRequested;
         stream.FrameReady += recorder.OnFrame;
         try
@@ -170,7 +184,12 @@ internal sealed class ScreenRecorder : IRecording
         using (frame)
         {
             TimeSpan ts;
-            lock (_gate) { if (_stopping) return; _base ??= frame.SystemRelativeTime; ts = frame.SystemRelativeTime - _base.Value; }
+            lock (_gate)
+            {
+                if (_stopping || _clock.IsPaused) return;
+                _base ??= frame.SystemRelativeTime;
+                ts = _clock.MediaTime(frame.SystemRelativeTime - _base.Value);
+            }
             var sample = MakeSample(frame, ts);
             if (sample is null) return; // throttled or unreadable frame: dropped, the pump is undisturbed
             lock (_gate)
@@ -276,10 +295,11 @@ internal sealed class ScreenRecorder : IRecording
     private string? BuildAudioTrack()
     {
         var tracks = new List<(string Path, int Rate)>();
-        string sysPath = Path.Combine(_audioDir!, "system.wav"), micPath = Path.Combine(_audioDir!, "mic.wav");
         // Rates were captured on the WasapiCapture objects; after Dispose they are gone, so the WAV headers carry them.
-        if (File.Exists(sysPath) && new FileInfo(sysPath).Length > 44) tracks.Add((sysPath, ReadWavRate(sysPath)));
-        if (File.Exists(micPath) && new FileInfo(micPath).Length > 44) tracks.Add((micPath, ReadWavRate(micPath)));
+        string? sysPath = JoinSegments(_sysSegments, "system.wav");
+        string? micPath = JoinSegments(_micSegments, "mic.wav");
+        if (sysPath is not null) tracks.Add((sysPath, ReadWavRate(sysPath)));
+        if (micPath is not null) tracks.Add((micPath, ReadWavRate(micPath)));
         if (tracks.Count == 0) return null;
         if (tracks.Count == 1) return tracks[0].Path;
         string mixedPath = Path.Combine(_audioDir!, "mixed.wav");
@@ -342,6 +362,62 @@ internal sealed class ScreenRecorder : IRecording
             writer.Write(PcmMix.Mix(aBuf.AsSpan(0, aRead), bSlice));
         }
     }
+
+    /// <summary>One segment plays as-is; several join (streaming) into a single track file. Missing or header-only segments do not count.</summary>
+    private string? JoinSegments(List<string> segments, string joinedName)
+    {
+        var real = segments.Where(p => File.Exists(p) && new FileInfo(p).Length > 44).ToList();
+        if (real.Count == 0) return null;
+        if (real.Count == 1) return real[0];
+        string joined = Path.Combine(_audioDir!, joinedName);
+        var streams = real.Select(p => (Stream)File.OpenRead(p)).ToList();
+        try
+        {
+            using var outFs = new FileStream(joined, FileMode.Create, FileAccess.Write);
+            WavConcat.Concatenate(streams, outFs);
+        }
+        finally { foreach (var s in streams) s.Dispose(); }
+        return joined;
+    }
+
+    public bool IsPaused => _clock.IsPaused;
+
+    /// <summary>
+    /// Pauses or resumes the recording. While paused, frames are dropped and
+    /// every later timestamp shifts by the paused span; the audio captures close
+    /// their segment files and reopen fresh ones on resume, so the pause is cut
+    /// from the audio exactly as from the video.
+    /// </summary>
+    public void SetPaused(bool paused)
+    {
+        lock (_gate)
+        {
+            if (_stopping || paused == _clock.IsPaused) return;
+            var wall = SrtNow() - (_base ?? SrtNow());
+            if (paused)
+            {
+                _clock.Pause(wall);
+                foreach (var c in _captures) c.Dispose();
+                _captures.Clear();
+            }
+            else
+            {
+                _clock.Resume(wall);
+                _segment++;
+                if (_audioDir is not null)
+                {
+                    if (_wantSystem && WasapiCapture.Start(loopback: true, Path.Combine(_audioDir, $"system-{_segment}.wav")) is { } sys)
+                    { _captures.Add(sys); _sysSegments.Add(sys.Path); }
+                    if (_wantMic && WasapiCapture.Start(loopback: false, Path.Combine(_audioDir, $"mic-{_segment}.wav")) is { } mic)
+                    { _captures.Add(mic); _micSegments.Add(mic.Path); }
+                }
+            }
+        }
+    }
+
+    /// <summary>Now, in the SystemRelativeTime (QPC) domain the frame timestamps use. Shared with the GIF recorder.</summary>
+    internal static TimeSpan SrtNow() =>
+        TimeSpan.FromTicks((long)(Stopwatch.GetTimestamp() * ((double)TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
 
     private static int ReadWavRate(string path)
     {

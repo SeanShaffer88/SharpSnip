@@ -10,7 +10,7 @@ internal sealed class SettingsWindow : Window
     private readonly Preferences _prefs;
     private readonly Func<Preferences, string?> _apply;
     private readonly Action<string>? _warn;
-    private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new(), _hkMon = new(), _fixW = new(), _fixH = new(), _interval = new(), _hkPreset = new(), _extEditor = new(), _ffmpeg = new();
+    private readonly TextBox _folder = new(), _fixW = new(), _fixH = new(), _interval = new(), _extEditor = new(), _ffmpeg = new();
     private readonly TextBlock _presetInfo = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _useLast = new() { Content = "Use last capture region", Padding = new Thickness(8, 3, 8, 3) };
     private int[]? _presetRect;
@@ -20,7 +20,6 @@ internal sealed class SettingsWindow : Window
     private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new(), _effect = new();
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
     private readonly CheckBox _contrast = new() { Content = "High-contrast highlight" };
-    private readonly CheckBox _prtsc = new() { Content = "Print Screen replaces Snipping Tool" };
     private readonly Slider _dim = new() { Minimum = 20, Maximum = 90, Width = 200, TickFrequency = 10, IsSnapToTickEnabled = false };
     private readonly TextBlock _error = new() { Foreground = TesselTheme.Danger, TextWrapping = TextWrapping.Wrap };
 
@@ -41,12 +40,6 @@ internal sealed class SettingsWindow : Window
         _extEditor.Text = prefs.ExternalEditorPath; _extEditor.ToolTip = "Path to an image editor program (for example paint.net or GIMP). The editor window's External editor button opens the saved capture in it. Empty = none.";
         _ffmpeg.Text = prefs.FfmpegPath; _ffmpeg.ToolTip = "Path to your own ffmpeg.exe, used instead of the bundled FFmpeg for exports. Empty = the bundled copy.";
         _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. PNG and TIFF keep transparency; JPEG, BMP, GIF and PDF drop it. A still GIF is a single frame; interval captures in GIF become one animated file. PDF holds one image, losslessly.";
-        _hkMenu.Text = prefs.HotkeyMenu; _hkMenu.ToolTip = "Opens the mode menu. Example: Win+Shift+X. Needs at least one modifier.";
-        _hkFull.Text = prefs.HotkeyFullScreen; _hkFull.ToolTip = "One-shot full-screen capture straight to clipboard. Print Screen alone is allowed.";
-        _hkWin.Text = prefs.HotkeyActiveWindow; _hkWin.ToolTip = "Captures the foreground window straight to clipboard and file.";
-        _hkRepeat.Text = prefs.HotkeyRepeatLast; _hkRepeat.ToolTip = "Captures the same screen rectangle as the previous capture.";
-        _hkMon.Text = prefs.HotkeyMonitors; _hkMon.ToolTip = "Capture monitor 1, 2, 3... one hotkey each, separated by semicolons. Empty = none. Up to 9.";
-        _hkPreset.Text = prefs.HotkeyPreset; _hkPreset.ToolTip = "One-shot capture of the preset region below. Empty = no hotkey.";
         _presetRect = prefs.PresetRect;
         _useLast.ToolTip = "Sets the preset region to the rectangle of your most recent capture.";
         _useLast.Click += (_, _) =>
@@ -76,7 +69,6 @@ internal sealed class SettingsWindow : Window
         _effect.SelectedItem = AutoEffects.Sanitize(prefs.AutoEffect); _effect.ToolTip = "Applied automatically to every capture. Border draws a thin black frame; Grayscale converts to grey.";
         _toasts.IsChecked = prefs.ShowToasts; _toasts.ToolTip = "Balloon notifications after saving or on errors.";
         _contrast.IsChecked = prefs.HighContrastHighlight; _contrast.ToolTip = "Thicker yellow highlight and opaque hint bars.";
-        _prtsc.IsChecked = prefs.PrintScreenTakeover; _prtsc.ToolTip = "Gives the Print Screen key to SharpSnip instead of Snipping Tool: the Windows switch for it is turned off and Print Screen becomes the menu hotkey. Unticking restores both the switch and your old menu hotkey.";
         _dim.Value = prefs.DimmerOpacity * 100; _dim.ToolTip = "How dark the screen gets while picking.";
 
         var grid = new Grid { Margin = new Thickness(16) };
@@ -92,15 +84,12 @@ internal sealed class SettingsWindow : Window
             grid.Children.Add(l); grid.Children.Add(c); row++;
         }
         Add("Output folder", _folder); Add("Image format", _format); Add("External editor", _extEditor); Add("FFmpeg override", _ffmpeg);
-        Add("Menu hotkey", _hkMenu); Add("Full-screen hotkey", _hkFull);
-        Add("Active-window hotkey", _hkWin); Add("Repeat-last hotkey", _hkRepeat);
-        Add("Monitor hotkeys (1;2;3…)", _hkMon);
-        Add("Preset hotkey", _hkPreset); Add("Preset region", _presetInfo); Add("", _useLast);
+        Add("Preset region", _presetInfo); Add("", _useLast);
         Add("After capture", _wfCapture); Add("After recording", _wfRecording); Add("Workflows", _wfManage);
         Add("Fixed region width", _fixW); Add("Fixed region height", _fixH); Add("Interval (seconds)", _interval);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim); Add("Auto effect", _effect);
-        Add("", _toasts); Add("", _contrast); Add("", _prtsc);
+        Add("", _toasts); Add("", _contrast);
         Add("", _error);
 
         var ok = new Button { Content = "Save", IsDefault = true, Width = 80, Margin = new Thickness(4), ToolTip = "Apply and store settings." };
@@ -139,10 +128,7 @@ internal sealed class SettingsWindow : Window
         var p = new Preferences
         {
             OutputFolder = _folder.Text.Trim(), ImageFormat = (string)_format.SelectedItem,
-            HotkeyMenu = _hkMenu.Text.Trim(), HotkeyFullScreen = _hkFull.Text.Trim(),
-            HotkeyActiveWindow = _hkWin.Text.Trim(), HotkeyRepeatLast = _hkRepeat.Text.Trim(),
-            HotkeyMonitors = _hkMon.Text.Trim(),
-            HotkeyPreset = _hkPreset.Text.Trim(), PresetRect = _presetRect,
+            PresetRect = _presetRect,
             ExternalEditorPath = _extEditor.Text.Trim(),
             FfmpegPath = _ffmpeg.Text.Trim(),
             Workflows = _workflows, CaptureWorkflow = SelectedWorkflow(_wfCapture), RecordingWorkflow = SelectedWorkflow(_wfRecording),
@@ -152,8 +138,8 @@ internal sealed class SettingsWindow : Window
             HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
             EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
             LastCaptureRect = _prefs.LastCaptureRect,
-            PrintScreenTakeover = _prtsc.IsChecked == true,
             PrintScreenSnippingPrior = _prefs.PrintScreenSnippingPrior,
+            PrintScreenPriorRecorded = _prefs.PrintScreenPriorRecorded,
             ShowTrayIcon = _prefs.ShowTrayIcon,
             AutoEffect = (string)_effect.SelectedItem,
             // Recording preferences are edited in the Recorder window; carry them over untouched.
@@ -163,18 +149,6 @@ internal sealed class SettingsWindow : Window
             RecordMaxMinutes = _prefs.RecordMaxMinutes, RecordMaxMb = _prefs.RecordMaxMb,
             RecordingRegion = _prefs.RecordingRegion,
         };
-        // Print Screen takeover drives the menu hotkey: on = Print Screen (old key remembered), off = remembered key back.
-        if (p.PrintScreenTakeover && !_prefs.PrintScreenTakeover)
-        {
-            var (menu, remembered) = PrintScreenPlan.Enable(p.HotkeyMenu, _prefs.HotkeyMenuBeforeTakeover);
-            p.HotkeyMenu = menu; p.HotkeyMenuBeforeTakeover = remembered;
-        }
-        else if (!p.PrintScreenTakeover && _prefs.PrintScreenTakeover)
-        {
-            p.HotkeyMenu = PrintScreenPlan.Disable(p.HotkeyMenu, _prefs.HotkeyMenuBeforeTakeover);
-            p.HotkeyMenuBeforeTakeover = "";
-        }
-        else p.HotkeyMenuBeforeTakeover = _prefs.HotkeyMenuBeforeTakeover;
         // Per-field validation (owner field report, 2026-11-13): one bad field must
         // never discard the whole save — an invalid entry keeps its previous value
         // and is named in the warning, everything else applies and persists.
@@ -185,28 +159,6 @@ internal sealed class SettingsWindow : Window
         if (!int.TryParse(_interval.Text, out int iv) || iv is < IntervalPlan.MinSeconds or > IntervalPlan.MaxSeconds)
         { iv = _prefs.IntervalSeconds; problems.Add($"Interval must be {IntervalPlan.MinSeconds} to {IntervalPlan.MaxSeconds} seconds — kept {iv}."); }
         p.FixedWidth = fw; p.FixedHeight = fh; p.IntervalSeconds = iv;
-        if (!HotkeyList.TryParse(p.HotkeyMonitors, out var monKeys))
-        { p.HotkeyMonitors = _prefs.HotkeyMonitors; HotkeyList.TryParse(p.HotkeyMonitors, out monKeys); problems.Add("Monitor hotkeys were invalid — kept the previous ones."); }
-        var keyFields = new List<(string Name, string Text, string Old, Action<string> Set)>
-        {
-            ("Menu", p.HotkeyMenu, _prefs.HotkeyMenu, v => p.HotkeyMenu = v),
-            ("Full-screen", p.HotkeyFullScreen, _prefs.HotkeyFullScreen, v => p.HotkeyFullScreen = v),
-            ("Active-window", p.HotkeyActiveWindow, _prefs.HotkeyActiveWindow, v => p.HotkeyActiveWindow = v),
-            ("Repeat-last", p.HotkeyRepeatLast, _prefs.HotkeyRepeatLast, v => p.HotkeyRepeatLast = v),
-        };
-        if (!string.IsNullOrWhiteSpace(p.HotkeyPreset)) keyFields.Add(("Preset", p.HotkeyPreset, _prefs.HotkeyPreset, v => p.HotkeyPreset = v));
-        foreach (var (name, text, old, set) in keyFields)
-            if (!HotkeySpec.TryParse(text, out _)) { set(old); problems.Add($"{name} hotkey was not valid — kept {old}."); }
-        var finalTexts = new List<string> { p.HotkeyMenu, p.HotkeyFullScreen, p.HotkeyActiveWindow, p.HotkeyRepeatLast };
-        if (!string.IsNullOrWhiteSpace(p.HotkeyPreset)) finalTexts.Add(p.HotkeyPreset);
-        var everyKey = finalTexts.Select(t => { HotkeySpec.TryParse(t, out var sp); return sp; }).Concat(monKeys).ToList();
-        if (everyKey.Distinct().Count() != everyKey.Count)
-        {
-            p.HotkeyMenu = _prefs.HotkeyMenu; p.HotkeyFullScreen = _prefs.HotkeyFullScreen;
-            p.HotkeyActiveWindow = _prefs.HotkeyActiveWindow; p.HotkeyRepeatLast = _prefs.HotkeyRepeatLast;
-            p.HotkeyPreset = _prefs.HotkeyPreset; p.HotkeyMonitors = _prefs.HotkeyMonitors;
-            problems.Add("Each hotkey must be different — kept the previous hotkeys.");
-        }
         string? warning = _apply(p);
         if (warning is not null) problems.Add(warning);
         if (problems.Count > 0)

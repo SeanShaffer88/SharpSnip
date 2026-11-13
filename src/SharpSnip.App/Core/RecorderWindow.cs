@@ -16,7 +16,8 @@ internal sealed class RecorderWindow : Window
     private readonly IReadOnlyList<MonitorInfo> _monitors;
     private readonly Func<RecordRequest, Task<string?>> _start;
     private readonly Func<Task> _stop;
-    private readonly Func<(bool Recording, string? Path, TimeSpan Elapsed)> _state;
+    private readonly Action<bool> _setPaused;
+    private readonly Func<(bool Recording, string? Path, TimeSpan Elapsed, bool Paused)> _state;
     private readonly Func<RecordRequest, string, string, string?> _schedule;
     private readonly Action _cancelSchedule;
     private readonly Func<bool> _isScheduled;
@@ -37,6 +38,7 @@ internal sealed class RecorderWindow : Window
     private readonly CheckBox _webcam = new() { Content = "Webcam overlay" };
     private readonly ComboBox _corner = new();
     private readonly Button _toggle = new() { Content = "Start recording", Padding = new Thickness(14, 5, 14, 5) };
+    private readonly Button _pauseBtn = new() { Content = "Pause", Padding = new Thickness(14, 5, 14, 5) };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, Foreground = TesselTheme.Muted };
     private readonly TextBlock _error = new() { Foreground = TesselTheme.Danger, TextWrapping = TextWrapping.Wrap };
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -44,12 +46,12 @@ internal sealed class RecorderWindow : Window
     private bool _busy;
 
     public RecorderWindow(IReadOnlyList<MonitorInfo> monitors, Preferences prefs,
-        Func<RecordRequest, Task<string?>> start, Func<Task> stop,
-        Func<(bool Recording, string? Path, TimeSpan Elapsed)> state,
+        Func<RecordRequest, Task<string?>> start, Func<Task> stop, Action<bool> setPaused,
+        Func<(bool Recording, string? Path, TimeSpan Elapsed, bool Paused)> state,
         Func<RecordRequest, string, string, string?> schedule, Action cancelSchedule, Func<bool> isScheduled,
         Action<MonitorInfo> draw, Func<Task<RectPx?>> pickRegion, Action<RectPx> saveRegion)
     {
-        _monitors = monitors; _start = start; _stop = stop; _state = state;
+        _monitors = monitors; _start = start; _stop = stop; _setPaused = setPaused; _state = state;
         _schedule = schedule; _cancelSchedule = cancelSchedule; _isScheduled = isScheduled; _draw = draw;
         _pickRegion = pickRegion; _saveRegion = saveRegion;
         Title = "SharpSnip — Record screen";
@@ -110,6 +112,8 @@ internal sealed class RecorderWindow : Window
             _draw(_monitors[idx]);
         };
         _toggle.ToolTip = "Starts or stops the recording. Recordings save as MP4 in the output folder.";
+        _pauseBtn.ToolTip = "Pauses the recording — the paused time is cut from the video and the audio. Resume continues seamlessly.";
+        _pauseBtn.Click += (_, _) => { var (_, _, _, paused) = _state(); _setPaused(!paused); Refresh(); };
         _status.Text = "Ready.";
 
         var grid = new Grid { Margin = new Thickness(16) };
@@ -140,6 +144,7 @@ internal sealed class RecorderWindow : Window
         Add("Max minutes", _maxMin);
         Add("Max size (MB)", _maxMb);
         Add("", _toggle);
+        Add("", _pauseBtn);
         Add("Start at", _at);
         Add("For minutes", _dur);
         Add("", _scheduleBtn);
@@ -216,7 +221,7 @@ internal sealed class RecorderWindow : Window
     {
         if (_busy) return;
         _error.Text = "";
-        var (recording, _, _) = _state();
+        var (recording, _, _, _) = _state();
         _busy = true; _toggle.IsEnabled = false;
         try
         {
@@ -234,8 +239,10 @@ internal sealed class RecorderWindow : Window
 
     private void Refresh()
     {
-        var (recording, path, elapsed) = _state();
+        var (recording, path, elapsed, paused) = _state();
         _toggle.Content = recording ? "Stop recording" : "Start recording";
+        _pauseBtn.Content = paused ? "Resume" : "Pause";
+        _pauseBtn.IsEnabled = recording;
         if (recording && !_isScheduled()) _scheduleBtn.Content = "Schedule";
         bool gif = _format.SelectedItem as string == "GIF";
         _monitor.IsEnabled = !recording; _fps.IsEnabled = !recording; _quality.IsEnabled = !recording && !gif; _format.IsEnabled = !recording;
@@ -243,7 +250,7 @@ internal sealed class RecorderWindow : Window
         _webcam.IsEnabled = !recording; _corner.IsEnabled = !recording && _webcam.IsChecked == true;
         _region.IsEnabled = !recording && _regionAvailable;
         _status.Text = recording
-            ? $"Recording… {elapsed:mm\\:ss} → {path}"
+            ? paused ? $"Paused — {elapsed:mm\\:ss} → {path}" : $"Recording… {elapsed:mm\\:ss} → {path}"
             : path is not null ? $"Saved: {path}" : "Ready.";
     }
 }

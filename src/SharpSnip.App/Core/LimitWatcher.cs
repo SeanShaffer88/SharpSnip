@@ -8,6 +8,8 @@ internal interface IRecording : IDisposable
 {
     string OutputPath { get; }
     TimeSpan Elapsed { get; }
+    bool IsPaused { get; }
+    void SetPaused(bool paused);
     Task StopAsync();
     event Action? LimitReached;
 }

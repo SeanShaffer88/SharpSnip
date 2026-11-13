@@ -28,6 +28,7 @@ internal sealed class GifRecorder : IRecording
     private GifWriter? _writer;
     private FileStream? _file;
     private LimitWatcher? _watcher;
+    private readonly PauseClock _clock = new();
     private TimeSpan? _base;
     private TimeSpan _lastTs;
     private int _frames;
@@ -36,6 +37,19 @@ internal sealed class GifRecorder : IRecording
     public string OutputPath { get; }
     public TimeSpan Elapsed => _lastTs;
     public event Action? LimitReached;
+
+    public bool IsPaused => _clock.IsPaused;
+
+    /// <summary>While paused, frames are dropped and later frame delays shift by the paused span, so the pause never appears in the GIF.</summary>
+    public void SetPaused(bool paused)
+    {
+        lock (_gate)
+        {
+            if (_stopping || paused == _clock.IsPaused) return;
+            var wall = ScreenRecorder.SrtNow() - (_base ?? ScreenRecorder.SrtNow());
+            if (paused) _clock.Pause(wall); else _clock.Resume(wall);
+        }
+    }
 
     private GifRecorder(WgcStream stream, string outputPath, int fps, RectPx? crop, WebcamCapture? webcam, PipCorner corner, string sizeName)
     {
@@ -72,9 +86,9 @@ internal sealed class GifRecorder : IRecording
         {
             lock (_gate)
             {
-                if (_stopping) return;
+                if (_stopping || _clock.IsPaused) return;
                 _base ??= frame.SystemRelativeTime;
-                var ts = frame.SystemRelativeTime - _base.Value;
+                var ts = _clock.MediaTime(frame.SystemRelativeTime - _base.Value);
                 if (_writer is not null && ts - _lastTs < _interval * 0.9) return;
                 var canvas = PixelCanvas.Compose(_stream, frame, _crop, _webcam, _corner, out int w, out int h);
                 if (canvas is null) return;
