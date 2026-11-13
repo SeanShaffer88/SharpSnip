@@ -1,3 +1,5 @@
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using SharpSnip.Core;
 using SharpSnip.Native;
@@ -15,17 +17,25 @@ internal sealed class ModeRouter
     public ModeRouter(Preferences prefs, UiaWorker uia, Action<string, string, string?> notify, Action persistPrefs)
     {
         Prefs = prefs; _uia = uia; _notify = notify; _persistPrefs = persistPrefs;
+        if (prefs.LastCaptureRect is { Length: 4 } r) LastRect = new RectPx(r[0], r[1], r[2], r[3]);
     }
 
     public Preferences Prefs { get; set; }
     public bool IsBusy => _sm.State != AppState.Idle;
 
-    /// <summary>Rectangle of the most recent capture (physical px), for "repeat last". Session only.</summary>
+    /// <summary>Rectangle of the most recent capture (physical px), for "repeat last". Persisted, so it survives a restart; use re-validates it against the current desktop.</summary>
     public RectPx? LastRect { get; private set; }
+
+    private void RememberRect(RectPx rect)
+    {
+        LastRect = rect;
+        Prefs.LastCaptureRect = new[] { rect.X, rect.Y, rect.Width, rect.Height };
+        _persistPrefs();
+    }
 
     // ---- full session (hotkey 1 / tray) --------------------------------------------------------
 
-    public async Task RunSessionAsync()
+    public async Task RunSessionAsync(bool scroll = false)
     {
         if (IsBusy) return;
         _sm.TryTransition(AppState.ModeMenu);
@@ -33,7 +43,7 @@ internal sealed class ModeRouter
         var monitors = MonitorEnumerator.Refresh();
         using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
         using var hook = new InputHook();
-        var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, DelaySeconds = Prefs.DefaultDelaySeconds, FullTarget = FullScreenTarget.Parse(Prefs.FullScreenTarget) };
+        var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, DelaySeconds = Prefs.DefaultDelaySeconds, FullTarget = FullScreenTarget.Parse(Prefs.FullScreenTarget), ScrollCapture = scroll };
 
         // Watchdog (§11): a stuck overlay must never trap the user. 60 s without input ends the session.
         var dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -49,7 +59,9 @@ internal sealed class ModeRouter
             dog.Start();
 
             PickResult? result = null;
-            var mode = PickMode.Menu;
+            var mode = scroll ? PickMode.Element : PickMode.Menu;
+            bool viaMouse = false;   // the switch that armed the next picker came from a bar click
+            if (scroll) _sm.TryTransition(AppState.ElementPicking);
             while (result is null)
             {
                 PickerBase picker = mode switch
@@ -59,8 +71,11 @@ internal sealed class ModeRouter
                     PickMode.FixedRegion => new FixedRegionPicker(ctx),
                     PickMode.Window => new WindowPicker(ctx),
                     PickMode.FullScreen => new FullScreenPicker(ctx),
+                    PickMode.Freehand => new FreehandPicker(ctx),
                     _ => new MenuPicker(ctx),
                 };
+                picker.ArmedByMouse = viaMouse;
+                viaMouse = false;
                 var outcome = await picker.RunAsync(cts.Token);
                 switch (outcome.Kind)
                 {
@@ -72,6 +87,7 @@ internal sealed class ModeRouter
                     case PickKind.Switch:
                         if (outcome.Target is { } t) ctx.FullTarget = t;
                         mode = outcome.Next;
+                        viaMouse = outcome.ViaMouse;
                         if (!_sm.TryTransition(AppStateMachine.ForMode(mode))) Log.Warn($"Illegal state transition to {mode}");
                         break;
                     default:
@@ -117,30 +133,96 @@ internal sealed class ModeRouter
         if (rect.IsEmpty) { _notify("SharpSnip", "Nothing to capture: the target is no longer on screen.", null); return; }
 
         await overlays.HideForCaptureAsync();
-        var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
-        LastRect = rect;
-        ClipboardWriter.SetImage(cap.Image);
-        if (cap.Megapixels > 100) _notify("SharpSnip", $"Large capture ({cap.Megapixels:F0} MP). Saving may be slow.", null);
-
-        // Tear down input before the editor opens so no hook outlives the capture.
-        hook.Dispose();
-        overlays.Dispose();
-
-        if (Prefs.OpenEditorAfterCapture)
+        CaptureResult cap;
+        if (ctx.ScrollCapture && ctx.ScrollTarget is { } scrollEl)
         {
-            _sm.TryTransition(AppState.Editing);
-            var tcs = new TaskCompletionSource();
-            var win = new EditorWindow(cap, result.Meta, monitors.Count, delay, Prefs, _persistPrefs, _notify);
-            win.Closed += (_, _) => tcs.TrySetResult();
-            win.Show();
-            win.Activate();
-            await tcs.Task;
+            // Scrolling capture: the picked rect is the element's viewport; the result is its full content.
+            cap = await ScrollCapture.CaptureAsync(scrollEl, rect, _uia, monitors, Prefs.MatteArgb, ct);
         }
         else
         {
-            _sm.TryTransition(AppState.Exporting);
-            string path = Exporter.Save(cap.Image, Prefs);
-            _notify("Copied to clipboard", "Saved " + path, path);
+            cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
+            if (result.Polygon is { } polygon) cap = MaskOutside(cap, polygon);
+        }
+        RememberRect(rect);
+        // Captures never open the editor (owner direction, 2026-11-13): clipboard
+        // + file + workflow, always. The editor remains for deliberate opens only
+        // (a past capture from the tray history). The Settings auto-effect, which
+        // the editor used to apply on open, is applied to the capture itself here.
+        var image = ApplyAutoEffect(cap.Image);
+        ClipboardWriter.SetImage(image);
+        if (cap.Megapixels > 100) _notify("SharpSnip", $"Large capture ({cap.Megapixels:F0} MP). Saving may be slow.", null);
+
+        // Tear down input now the capture is done, so no hook outlives the session.
+        hook.Dispose();
+        overlays.Dispose();
+
+        _sm.TryTransition(AppState.Exporting);
+        string path = Exporter.Save(image, Prefs);
+        _notify("Copied to clipboard", "Saved " + path, path);
+        WorkflowRunner.MaybeRun(Prefs, "Capture", path, _notify);
+    }
+
+    /// <summary>The Settings auto-effect (Border / Grayscale) applied to a fresh capture. Any failure keeps the original image.</summary>
+    private BitmapSource ApplyAutoEffect(BitmapSource image)
+    {
+        string effect = AutoEffects.Sanitize(Prefs.AutoEffect);
+        if (effect == AutoEffects.Default) return image;
+        try
+        {
+            var src = image.Format == PixelFormats.Bgra32 ? image : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+            int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
+            var px = new byte[stride * h];
+            src.CopyPixels(px, stride, 0);
+            switch (effect)
+            {
+                case "Grayscale": PixelAdjust.Grayscale(px); break;
+                case "Border": PixelAdjust.Border(px, w, h, Math.Max(2, Math.Min(w, h) / 120), 0, 0, 0); break;
+                default: return image;
+            }
+            var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, px, stride);
+            bmp.Freeze();
+            return bmp;
+        }
+        catch (Exception ex) { Log.Error("Auto effect failed", ex); return image; }
+    }
+
+    /// <summary>
+    /// A bare region pick with no capture behind it — the Recorder's "Pick region…".
+    /// Runs only the region picker over the usual overlays/hook and returns the
+    /// dragged rectangle, or null on cancel / while another session is busy.
+    /// </summary>
+    public async Task<RectPx?> PickRegionAsync()
+    {
+        if (IsBusy) return null;
+        _sm.TryTransition(AppStateMachine.ForMode(PickMode.Region));
+        using var cts = new CancellationTokenSource();
+        var monitors = MonitorEnumerator.Refresh();
+        using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
+        using var hook = new InputHook();
+        var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, DelaySeconds = 0, FullTarget = FullScreenTarget.Current };
+        var dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        dog.Tick += (_, _) =>
+        {
+            if (Environment.TickCount64 - hook.LastInputTick > 60_000) { Log.Warn("Watchdog: no input for 60 s, cancelling region pick"); cts.Cancel(); }
+        };
+        try
+        {
+            overlays.Show();
+            hook.Start();
+            dog.Start();
+            var outcome = await new RegionPicker(ctx).RunAsync(cts.Token);
+            return outcome.Kind == PickKind.Picked ? outcome.Result?.Rect : null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Region pick failed", ex);
+            return null;
+        }
+        finally
+        {
+            dog.Stop();
+            _sm.TryTransition(AppState.Idle);
         }
     }
 
@@ -189,6 +271,34 @@ internal sealed class ModeRouter
                               Prefs.DefaultDelaySeconds, "Active-window capture");
     }
 
+    /// <summary>Applies the freehand mask: pixels outside the drawn outline become transparent.</summary>
+    private static CaptureResult MaskOutside(CaptureResult cap, IReadOnlyList<(int X, int Y)> polygon)
+    {
+        var src = cap.Image.Format == System.Windows.Media.PixelFormats.Bgra32
+            ? cap.Image
+            : new System.Windows.Media.Imaging.FormatConvertedBitmap(cap.Image, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+        int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
+        var px = new byte[stride * h];
+        src.CopyPixels(px, stride, 0);
+        PolygonMask.ApplyAlpha(px, w, h, polygon, cap.Rect);
+        var bmp = System.Windows.Media.Imaging.BitmapSource.Create(w, h, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, px, stride);
+        bmp.Freeze();
+        return cap with { Image = bmp };
+    }
+
+    /// <summary>Capture the preset region (Settings) in one shot.</summary>
+    public async Task RunPresetAsync()
+    {
+        if (IsBusy) return;
+        if (Prefs.PresetRect is not { Length: 4 } r)
+        {
+            _notify("SharpSnip", "No preset region yet. Set one in Settings — it can take your last capture region.", null);
+            return;
+        }
+        var rect = new RectPx(r[0], r[1], r[2], r[3]);
+        await RunInstantAsync(_ => rect, Prefs.DefaultDelaySeconds, "Preset-region capture");
+    }
+
     /// <summary>Capture the same screen rectangle as the previous capture.</summary>
     public async Task RunRepeatLastAsync()
     {
@@ -227,12 +337,13 @@ internal sealed class ModeRouter
             if (rect.IsEmpty) { _notify("SharpSnip", "The capture target is off screen.", null); return; }
 
             var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
-            LastRect = rect;
+            RememberRect(rect);
             ClipboardWriter.SetImage(cap.Image);       // clipboard first: the latency target is hotkey → clipboard
 
             _sm.TryTransition(AppState.Exporting);
             string path = Exporter.Save(cap.Image, Prefs);
             _notify("Copied to clipboard", "Saved " + path, path);
+            WorkflowRunner.MaybeRun(Prefs, "Capture", path, _notify);
         }
         catch (Exception ex)
         {

@@ -6,14 +6,15 @@ internal sealed record CaptureMeta(string Mode, string? App = null, string? Elem
                                    string? AutomationId = null, string? ClassName = null, string? UiaPath = null);
 
 /// <summary>A confirmed selection. <see cref="Resolve"/> re-computes the rect after a countdown (display may change).</summary>
-internal sealed record PickResult(RectPx Rect, CaptureMeta Meta, Func<IReadOnlyList<MonitorInfo>, RectPx?>? Resolve = null);
+internal sealed record PickResult(RectPx Rect, CaptureMeta Meta, Func<IReadOnlyList<MonitorInfo>, RectPx?>? Resolve = null,
+                                  IReadOnlyList<(int X, int Y)>? Polygon = null);
 
 internal enum PickKind { Cancel, Switch, Picked }
 
-internal sealed record PickOutcome(PickKind Kind, PickMode Next = PickMode.Menu, FullScreenTarget? Target = null, PickResult? Result = null)
+internal sealed record PickOutcome(PickKind Kind, PickMode Next = PickMode.Menu, FullScreenTarget? Target = null, PickResult? Result = null, bool ViaMouse = false)
 {
     public static PickOutcome Cancel() => new(PickKind.Cancel);
-    public static PickOutcome SwitchTo(PickMode m, FullScreenTarget? t = null) => new(PickKind.Switch, m, t);
+    public static PickOutcome SwitchTo(PickMode m, FullScreenTarget? t = null, bool viaMouse = false) => new(PickKind.Switch, m, t, ViaMouse: viaMouse);
     public static PickOutcome Picked(PickResult r) => new(PickKind.Picked, Result: r);
 }
 
@@ -25,6 +26,10 @@ internal sealed class PickerContext
     public required UiaWorker Uia { get; init; }
     public int DelaySeconds { get; set; }
     public FullScreenTarget FullTarget { get; set; } = FullScreenTarget.Current;
+    /// <summary>When true, an element pick means "scrolling capture of this element".</summary>
+    public bool ScrollCapture { get; set; }
+    /// <summary>The live element chosen for a scrolling capture, set by the element picker on confirm.</summary>
+    public System.Windows.Automation.AutomationElement? ScrollTarget { get; set; }
     public IReadOnlyList<MonitorInfo> Monitors => MonitorEnumerator.Current;
 }
 
@@ -37,11 +42,15 @@ internal abstract class PickerBase
     protected const int VkTab = 0x09, VkEnter = 0x0D, VkEsc = 0x1B, VkSpace = 0x20, VkPgUp = 0x21, VkPgDn = 0x22;
 
     private TaskCompletionSource<PickOutcome>? _tcs;
+    private readonly ClickGate _gate = new();
 
     protected PickerBase(PickerContext ctx) => Ctx = ctx;
 
     protected PickerContext Ctx { get; }
     public abstract PickMode Mode { get; }
+
+    /// <summary>Set by the router when the switch that armed this picker came from a mouse click (the mode bar): that click's release is still in flight and must never read as this picker's capture click. See Core ClickGate for why this is event-stream state, not a physical probe.</summary>
+    public bool ArmedByMouse { get; set; }
 
     public async Task<PickOutcome> RunAsync(CancellationToken ct)
     {
@@ -50,8 +59,9 @@ internal abstract class PickerBase
         var h = Ctx.Hook;
         h.ClearHandlers();
         h.KeyDown = HandleKey;
-        h.LeftDown = OnLeftDown;
-        h.LeftUp = OnLeftUp;
+        _gate.Arm(ArmedByMouse);
+        h.LeftDown = (x, y) => { _gate.Press(); return OnLeftDown(x, y); };
+        h.LeftUp = (x, y) => _gate.Release() ? OnLeftUp(x, y) : true;
         h.RightDown = (_, _) => { Finish(PickOutcome.Cancel()); return true; };
         h.Move = OnMove;
         h.Wheel = OnWheel;
@@ -90,6 +100,7 @@ internal abstract class PickerBase
             case VkSpace: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); return true;
             case 0x45: if (Mode != PickMode.Element) Finish(PickOutcome.SwitchTo(PickMode.Element)); return true;
             case 0x52: if (Mode != PickMode.Region) Finish(PickOutcome.SwitchTo(PickMode.Region)); return true;
+            case 0x48: if (Mode != PickMode.Freehand) Finish(PickOutcome.SwitchTo(PickMode.Freehand)); return true;
             case 0x53: if (Mode != PickMode.FixedRegion) Finish(PickOutcome.SwitchTo(PickMode.FixedRegion)); return true;
             case 0x57: if (Mode != PickMode.Window) Finish(PickOutcome.SwitchTo(PickMode.Window)); return true;
             case 0x46: if (Mode != PickMode.FullScreen) Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current)); return true;

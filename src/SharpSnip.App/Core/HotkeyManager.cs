@@ -1,18 +1,20 @@
 using System.Windows.Interop;
-using SharpSnip.Core;
 using SharpSnip.Native;
 
 namespace SharpSnip;
 
-/// <summary>Message-only window that owns the global hotkeys and watches for display changes.</summary>
+/// <summary>
+/// Message-only window that owns SharpSnip's one global hotkey — Print Screen
+/// opens the mode menu (owner direction, 2026-11-13: no other hotkeys exist) —
+/// and watches for display changes.
+/// </summary>
 internal sealed class HotkeyManager : IDisposable
 {
-    public const int IdMenu = 1, IdFullScreen = 2, IdActiveWindow = 3, IdRepeatLast = 4;
-    /// <summary>Ids 10..18 are "capture monitor 1..9".</summary>
-    public const int IdMonitorBase = 10;
+    public const int IdMenu = 1;
+    private const uint VkSnapshot = 0x2C;   // VK_SNAPSHOT: the Print Screen key
 
     private readonly HwndSource _source;
-    private readonly HashSet<int> _registered = new();
+    private bool _registered;
 
     public event Action<int>? HotkeyPressed;
     public event Action? DisplayChanged;
@@ -24,22 +26,22 @@ internal sealed class HotkeyManager : IDisposable
         _source.AddHook(WndProc);
     }
 
-    /// <summary>Register (or re-register) a hotkey. Returns false when another app already owns it.</summary>
-    public bool Register(int id, HotkeySpec spec)
+    /// <summary>Registers Print Screen as the menu hotkey. False when another app already owns the key (logged, never surfaced — the tray still opens the menu).</summary>
+    public bool RegisterPrintScreen()
     {
-        Unregister(id);
-        if (!NativeMethods.RegisterHotKey(_source.Handle, id, (uint)spec.Mods | NativeMethods.MOD_NOREPEAT, (uint)spec.VirtualKey))
+        UnregisterPrintScreen();
+        if (!NativeMethods.RegisterHotKey(_source.Handle, IdMenu, NativeMethods.MOD_NOREPEAT, VkSnapshot))
         {
-            Log.Warn($"RegisterHotKey({spec}) failed, Win32 error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
+            Log.Warn($"RegisterHotKey(PrintScreen) failed, Win32 error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
             return false;
         }
-        _registered.Add(id);
+        _registered = true;
         return true;
     }
 
-    public void Unregister(int id)
+    public void UnregisterPrintScreen()
     {
-        if (_registered.Remove(id)) NativeMethods.UnregisterHotKey(_source.Handle, id);
+        if (_registered) { NativeMethods.UnregisterHotKey(_source.Handle, IdMenu); _registered = false; }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -59,7 +61,7 @@ internal sealed class HotkeyManager : IDisposable
 
     public void Dispose()
     {
-        foreach (int id in _registered.ToList()) Unregister(id);
+        UnregisterPrintScreen();
         _source.RemoveHook(WndProc);
         _source.Dispose();
     }

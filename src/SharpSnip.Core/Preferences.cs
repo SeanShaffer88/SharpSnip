@@ -10,27 +10,60 @@ public sealed class Preferences
     public int SchemaVersion { get; set; } = CurrentSchema;
     public string OutputFolder { get; set; } = "";
     public string ImageFormat { get; set; } = "png";
-    public string HotkeyMenu { get; set; } = "Win+Shift+X";
-    public string HotkeyFullScreen { get; set; } = "Win+Shift+F";
-    public string HotkeyActiveWindow { get; set; } = "Win+Shift+W";
-    public string HotkeyRepeatLast { get; set; } = "Win+Shift+R";
-    public string HotkeyMonitors { get; set; } = HotkeyList.Default;
-    public string FileNamePattern { get; set; } = NamePattern.DefaultFile;
-    public string FolderPattern { get; set; } = NamePattern.DefaultFolder;
-    public int JpegQuality { get; set; } = 92;
     public int FixedWidth { get; set; } = 1280;
     public int FixedHeight { get; set; } = 720;
     public int IntervalSeconds { get; set; } = 5;
     public string FullScreenTarget { get; set; } = "CurrentMonitor";
     public int DefaultDelaySeconds { get; set; }
-    public bool OpenEditorAfterCapture { get; set; } = true;
     public bool ShowToasts { get; set; } = true;
     public double DimmerOpacity { get; set; } = 0.47;
     public bool HighContrastHighlight { get; set; }
     public string MatteColor { get; set; } = "Transparent";
     /// <summary>Editor window x,y,width,height in physical pixels; null = never saved.</summary>
     public int[]? EditorBounds { get; set; }
+    /// <summary>Last capture rectangle x,y,width,height in physical pixels, so "repeat last" survives a restart; null = none yet.</summary>
+    public int[]? LastCaptureRect { get; set; }
+    /// <summary>Recording region x,y,width,height in physical pixels, set by the Recorder's "Pick region…"; null = fall back to the last capture rectangle.</summary>
+    public int[]? RecordingRegion { get; set; }
     public bool EditorMaximized { get; set; }
+    /// <summary>Screen-recording frame rate (RecordingPlan bounds).</summary>
+    public int RecordingFps { get; set; } = RecordingPlan.DefaultFps;
+    /// <summary>Record the machine's own sound (WASAPI loopback) with recordings.</summary>
+    public bool RecordSystemAudio { get; set; } = true;
+    /// <summary>Record the default microphone with recordings (off by default — a mic is private by nature).</summary>
+    public bool RecordMic { get; set; }
+    /// <summary>Recording quality preset name (RecordingQuality).</summary>
+    public string RecordingQualityName { get; set; } = RecordingQuality.Default;
+    /// <summary>Recording output height cap: Original, 1080p, 720p or 480p.</summary>
+    public string RecordingSizeName { get; set; } = RecordingSize.Default;
+    /// <summary>Overlay the webcam on recordings, picture-in-picture.</summary>
+    public bool RecordWebcam { get; set; }
+    /// <summary>Webcam overlay corner (PipCorner name).</summary>
+    public string WebcamCorner { get; set; } = "BottomRight";
+    /// <summary>Stop a recording after this many minutes (0 = no limit).</summary>
+    public int RecordMaxMinutes { get; set; }
+    /// <summary>Stop a recording when the file reaches this many MB (0 = no limit).</summary>
+    public int RecordMaxMb { get; set; }
+    /// <summary>Effect applied automatically when a capture opens in the editor (AutoEffects names).</summary>
+    public string AutoEffect { get; set; } = AutoEffects.Default;
+    /// <summary>Preset capture rectangle x,y,width,height in physical pixels; null = not set.</summary>
+    public int[]? PresetRect { get; set; }
+    /// <summary>External image editor executable for the editor's "External editor…" button. Empty = none.</summary>
+    public string ExternalEditorPath { get; set; } = "";
+    /// <summary>Override path to an ffmpeg.exe. Empty = use the bundled FFmpeg (owner-approved bundle, 2026-11-13).</summary>
+    public string FfmpegPath { get; set; } = "";
+    /// <summary>Named post-capture workflows (owner program v0.8.0); each runs locally on a finished file.</summary>
+    public List<WorkflowDef> Workflows { get; set; } = new();
+    /// <summary>Workflow auto-run after a still capture is saved; empty = none.</summary>
+    public string CaptureWorkflow { get; set; } = "";
+    /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
+    public string RecordingWorkflow { get; set; } = "";
+    /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded the first time SharpSnip applied its Print Screen override: -1 = the value did not exist, 0/1 = its DWORD. Written back by --clean. The override itself is unconditional (owner direction, 2026-11-13): Print Screen is SharpSnip's only global hotkey and there is no setting for it.</summary>
+    public int PrintScreenSnippingPrior { get; set; } = -1;
+    /// <summary>True once PrintScreenSnippingPrior holds a real recorded value (the override has been applied at least once).</summary>
+    public bool PrintScreenPriorRecorded { get; set; }
+    /// <summary>False when the user hid the tray icon from its context menu. Running SharpSnip again brings it back.</summary>
+    public bool ShowTrayIcon { get; set; } = true;
 
     /// <summary>Matte for monitor-layout gaps as 0xAARRGGBB.</summary>
     public uint MatteArgb => MatteColor switch
@@ -40,22 +73,12 @@ public sealed class Preferences
         _ => 0x00000000u,
     };
 
-    public string Extension => ImageFormats.Extension(ImageFormat);
 
     /// <summary>Clamp every field to a legal value. Never throws.</summary>
     public Preferences Sanitize()
     {
         SchemaVersion = CurrentSchema;
         OutputFolder ??= "";
-        ImageFormat = ImageFormats.Sanitize(ImageFormat);
-        if (!NamePattern.IsValid(FileNamePattern) || string.IsNullOrWhiteSpace(FileNamePattern)) FileNamePattern = NamePattern.DefaultFile;
-        if (!NamePattern.IsValid(FolderPattern)) FolderPattern = NamePattern.DefaultFolder;
-        JpegQuality = Math.Clamp(JpegQuality, 10, 100);
-        if (!HotkeySpec.TryParse(HotkeyMenu, out _)) HotkeyMenu = "Win+Shift+X";
-        if (!HotkeySpec.TryParse(HotkeyFullScreen, out _)) HotkeyFullScreen = "Win+Shift+F";
-        if (!HotkeySpec.TryParse(HotkeyActiveWindow, out _)) HotkeyActiveWindow = "Win+Shift+W";
-        if (!HotkeySpec.TryParse(HotkeyRepeatLast, out _)) HotkeyRepeatLast = "Win+Shift+R";
-        if (!HotkeyList.TryParse(HotkeyMonitors, out _)) HotkeyMonitors = HotkeyList.Default;
         FixedWidth = FixedRegion.ClampSize(FixedWidth);
         FixedHeight = FixedRegion.ClampSize(FixedHeight);
         IntervalSeconds = IntervalPlan.SanitizeSeconds(IntervalSeconds);
@@ -65,6 +88,29 @@ public sealed class Preferences
         DimmerOpacity = double.IsFinite(DimmerOpacity) ? Math.Clamp(DimmerOpacity, 0.2, 0.9) : 0.47;
         MatteColor = MatteColor is "Transparent" or "Black" or "White" ? MatteColor : "Transparent";
         if (EditorBounds is { Length: not 4 }) EditorBounds = null;
+        if (LastCaptureRect is not { Length: 4 } r || r[2] is < 1 or > 32767 || r[3] is < 1 or > 32767) LastCaptureRect = null;
+        if (RecordingRegion is not { Length: 4 } rr || rr[2] is < 1 or > 32767 || rr[3] is < 1 or > 32767) RecordingRegion = null;
+        PrintScreenSnippingPrior = Math.Clamp(PrintScreenSnippingPrior, -1, 1);
+        RecordingFps = RecordingPlan.ClampFps(RecordingFps);
+        RecordingQualityName = RecordingQuality.Sanitize(RecordingQualityName);
+        RecordingSizeName = RecordingSize.Sanitize(RecordingSizeName);
+        WebcamCorner = PipLayout.ParseCorner(WebcamCorner).ToString();
+        RecordMaxMinutes = Math.Clamp(RecordMaxMinutes, 0, 1440);
+        RecordMaxMb = Math.Clamp(RecordMaxMb, 0, 102400);
+        AutoEffect = AutoEffects.Sanitize(AutoEffect);
+        ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
+        FfmpegPath = (FfmpegPath ?? "").Trim();
+        Workflows ??= new();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Workflows = Workflows
+            .Where(w => w is not null)
+            .Select(w => { w.Name = (w.Name ?? "").Trim(); w.ApplyTo = WorkflowPlan.SanitizeApplyTo(w.ApplyTo); w.Steps = WorkflowPlan.SanitizeSteps(w.Steps); return w; })
+            .Where(w => w.Name.Length > 0 && seenNames.Add(w.Name))
+            .Take(WorkflowPlan.MaxWorkflows)
+            .ToList();
+        CaptureWorkflow = WorkflowPlan.Find(Workflows, CaptureWorkflow)?.Name ?? "";
+        RecordingWorkflow = WorkflowPlan.Find(Workflows, RecordingWorkflow)?.Name ?? "";
+        if (PresetRect is not { Length: 4 } pr || pr[2] is < 1 or > 32767 || pr[3] is < 1 or > 32767) PresetRect = null;
         return this;
     }
 }

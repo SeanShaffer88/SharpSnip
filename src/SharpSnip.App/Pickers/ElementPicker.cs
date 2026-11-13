@@ -94,7 +94,8 @@ internal sealed class ElementPicker : PickerBase
         string head = _snap is null || _snap.Rect.IsEmpty
             ? "No UI element here — [R] region"
             : $"{_snap.ControlType} ▸ '{Trim(_snap.Name)}'{(_snap.Fallback ? "  (no UIA — will switch to region)" : "")}";
-        Ctx.Overlays.HintAt($"{head}   [Tab] cycle · [PgUp/Dn] parent/child · [Ctrl+Wheel] expand · [Space] delay {DelayText} · [Esc] back", _curX, _curY);
+        string lead = Ctx.ScrollCapture ? "Scrolling capture — click the scrollable element.   " : "";
+        Ctx.Overlays.HintAt($"{lead}{head}   [Tab] cycle · [PgUp/Dn] parent/child · [Ctrl+Wheel] expand · [Space] delay {DelayText} · [Esc] back", _curX, _curY);
     }
 
     private static string Trim(string s) => s.Length <= 40 ? s : s[..39] + "…";
@@ -132,6 +133,14 @@ internal sealed class ElementPicker : PickerBase
         string? path = null;
         try { path = await Ctx.Uia.RunAsync(_walker.CurrentPath).WaitAsync(TimeSpan.FromSeconds(1)); }
         catch (Exception ex) when (ex is TimeoutException or InvalidOperationException) { }
+        if (Ctx.ScrollCapture)
+        {
+            try { Ctx.ScrollTarget = await Ctx.Uia.RunAsync(_walker.CurrentElement).WaitAsync(TimeSpan.FromSeconds(1)); }
+            catch (Exception ex) when (ex is TimeoutException or InvalidOperationException) { }
+            var scrollMeta = new CaptureMeta("Scrolling", WindowEnumerator.ProcessName(s.ProcessId), s.Name, s.ControlType, s.AutomationId, s.ClassName, path);
+            Finish(PickOutcome.Picked(new PickResult(s.Rect, scrollMeta)));
+            return;
+        }
         var meta = new CaptureMeta("Element", WindowEnumerator.ProcessName(s.ProcessId), s.Name, s.ControlType, s.AutomationId, s.ClassName, path);
         Finish(PickOutcome.Picked(new PickResult(s.Rect, meta)));
     }

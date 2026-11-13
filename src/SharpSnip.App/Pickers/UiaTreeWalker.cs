@@ -17,6 +17,9 @@ internal sealed class UiaTreeWalker
     private readonly Stack<AutomationElement> _descent = new();
     private AutomationElement? _cur;
 
+    /// <summary>The element the selection state currently points at (scrolling capture needs the live element, not just its rectangle).</summary>
+    public AutomationElement? CurrentElement() => _cur;
+
     public UiaSnapshot? Hover(int x, int y)
     {
         _descent.Clear();

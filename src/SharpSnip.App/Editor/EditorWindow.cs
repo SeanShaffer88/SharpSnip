@@ -16,7 +16,7 @@ namespace SharpSnip;
 /// <summary>Mini editor (§9). Annotations live in a canvas above the image; undo/redo is an action stack.</summary>
 internal sealed class EditorWindow : Window
 {
-    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Blur, Crop }
+    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Blur, Crop }
 
     private interface IEdit { void Undo(); void Redo(); }
 
@@ -28,10 +28,10 @@ internal sealed class EditorWindow : Window
         public void Redo() { if (!_c.Children.Contains(_e)) _c.Children.Add(_e); }
     }
 
-    private sealed class CropEdit : IEdit
+    private sealed class BaseEdit : IEdit
     {
         private readonly EditorWindow _w; private readonly BitmapSource _oldBase, _newBase; private readonly List<UIElement> _oldItems;
-        public CropEdit(EditorWindow w, BitmapSource oldBase, BitmapSource newBase, List<UIElement> oldItems)
+        public BaseEdit(EditorWindow w, BitmapSource oldBase, BitmapSource newBase, List<UIElement> oldItems)
         { _w = w; _oldBase = oldBase; _newBase = newBase; _oldItems = oldItems; }
         public void Undo() { _w.SetBase(_oldBase); _w._layer.Children.Clear(); foreach (var e in _oldItems) _w._layer.Children.Add(e); }
         public void Redo() { _w.SetBase(_newBase); _w._layer.Children.Clear(); }
@@ -51,6 +51,9 @@ internal sealed class EditorWindow : Window
     private readonly ComboBox _color = new() { Width = 90, ToolTip = "Annotation colour." };
     private readonly Slider _thickness = new() { Minimum = 1, Maximum = 20, Value = 4, Width = 100, ToolTip = "Stroke thickness." };
 
+    private readonly Slider _bright = new() { Minimum = -100, Maximum = 100, Value = 0, Width = 80, ToolTip = "Brightness for the Apply B/C button." };
+    private readonly Slider _contrast = new() { Minimum = 50, Maximum = 200, Value = 100, Width = 80, ToolTip = "Contrast (100 = unchanged) for the Apply B/C button." };
+    private int _stepCount;
     private BitmapSource _base;
     private Tool _tool = Tool.Pen;
     private Point _start;
@@ -106,6 +109,24 @@ internal sealed class EditorWindow : Window
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && _editing is null) { Close(); e.Handled = true; } };
 
         _status.Text = meta.Mode + (cap.HasGaps ? " · monitor layout has gaps (matte fill)" : "");
+        Loaded += (_, _) => ApplyAutoEffect();
+    }
+
+    private void ApplyAutoEffect()
+    {
+        try
+        {
+            switch (_prefs.AutoEffect)
+            {
+                case "Grayscale":
+                    TransformBase("Auto effect: grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); });
+                    break;
+                case "Border":
+                    TransformBase("Auto effect: border", (px, w, h) => { PixelAdjust.Border(px, w, h, Math.Max(2, Math.Min(w, h) / 120), 0, 0, 0); return (px, w, h); });
+                    break;
+            }
+        }
+        catch (Exception ex) { Log.Error("Auto effect failed", ex); }
     }
 
     private static void AutomationProperties_Name(DependencyObject d, string name) => System.Windows.Automation.AutomationProperties.SetName(d, name);
@@ -128,6 +149,7 @@ internal sealed class EditorWindow : Window
         AddTool("Rect", Tool.Rect, "Drag a rectangle outline.");
         AddTool("Ellipse", Tool.Ellipse, "Drag an ellipse outline.");
         AddTool("Text", Tool.Text, "Click to type. Enter commits, Esc discards.");
+        AddTool("Step", Tool.Step, "Click to drop the next numbered step marker (1, 2, 3…).");
         AddTool("Blur", Tool.Blur, "Drag over sensitive content to pixelate it.");
         AddTool("Crop", Tool.Crop, "Drag the area to keep. Applies immediately; Undo restores.");
 
@@ -145,6 +167,47 @@ internal sealed class EditorWindow : Window
         Act("Undo", "Undo last edit (Ctrl+Z).", DoUndo);
         Act("Redo", "Redo (Ctrl+Y).", DoRedo);
         Act("Copy", "Copy the edited image to the clipboard (Ctrl+C).", CopyImage);
+        Act("Copy text", "Recognise the text in this image (built-in Windows OCR, offline) and copy it to the clipboard.", () => _ = CopyTextAsync());
+        Act("Redact", "Find emails, cards, IPs, phone numbers and key-shaped tokens in the image's text and cover them with black boxes (undoable).", () => _ = RedactAsync());
+        Act("Replace text…", "Find text in the image (OCR) and replace it: the original is covered with the surrounding colour and the new text drawn in (undoable).", () =>
+        {
+            if (EditorDialogs.ReplaceText(this) is { } rr) _ = ReplaceTextAsync(rr.Find, rr.Replace);
+        });
+        Act("Resize…", "Resize the whole image to new pixel dimensions. Annotations are baked in; Undo restores.", () =>
+        {
+            if (EditorDialogs.Resize(this, _base.PixelWidth, _base.PixelHeight) is { } sz && (sz.W != _base.PixelWidth || sz.H != _base.PixelHeight))
+                ResizeBase(sz.W, sz.H);
+        });
+        Act("Watermark…", "Stamp a text watermark, in the corner or tiled. Annotations are baked in; Undo restores.", () =>
+        {
+            if (EditorDialogs.Watermark(this) is { } wm) ApplyWatermark(wm.Text, wm.Tiled, wm.Opacity);
+        });
+        bar.Children.Add(new Separator { Margin = new Thickness(6, 0, 6, 0) });
+        Act("Invert", "Invert the colours of the whole image. Annotations are baked in; Undo restores.", () => TransformBase("Invert", (px, w, h) => { PixelAdjust.Invert(px); return (px, w, h); }));
+        Act("Grayscale", "Convert the whole image to grey. Annotations are baked in; Undo restores.", () => TransformBase("Grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); }));
+        Act("Flip ↔", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
+        Act("Flip ↕", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
+        Act("Rotate", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));
+        bar.Children.Add(new TextBlock { Text = "Bright", Margin = new Thickness(10, 4, 4, 0) }); bar.Children.Add(_bright);
+        bar.Children.Add(new TextBlock { Text = "Contrast", Margin = new Thickness(10, 4, 4, 0) }); bar.Children.Add(_contrast);
+        Act("Apply B/C", "Apply the brightness/contrast sliders to the whole image. Annotations are baked in; Undo restores.", () =>
+        {
+            int b = (int)_bright.Value; double c = _contrast.Value / 100.0;
+            TransformBase("Brightness/contrast", (px, w, h) => { PixelAdjust.BrightnessContrast(px, b, c); return (px, w, h); });
+            _bright.Value = 0; _contrast.Value = 100;
+        });
+        Act("External editor…", "Save, then open the file in the external editor set in Settings.", () =>
+        {
+            if (string.IsNullOrWhiteSpace(_prefs.ExternalEditorPath)) { _status.Text = "No external editor set — add one in Settings."; return; }
+            if (_savedPath is null) Save();
+            if (_savedPath is null) return;
+            try
+            {
+                Process.Start(new ProcessStartInfo(_prefs.ExternalEditorPath.Trim()) { Arguments = "\"" + _savedPath + "\"", UseShellExecute = true });
+                _status.Text = "Opened in the external editor.";
+            }
+            catch (Exception ex) { Log.Error("External editor failed", ex); _status.Text = "Could not start the external editor: " + ex.Message; }
+        });
         Act("Save", "Save to the output folder (Ctrl+S).", Save);
         Act("Reveal", "Save if needed, then show the file in Explorer. (The Windows share sheet is not implemented yet.)", () => { if (_savedPath is null) Save(); if (_savedPath is not null) Process.Start("explorer.exe", $"/select,\"{_savedPath}\""); });
         return bar;
@@ -212,6 +275,9 @@ internal sealed class EditorWindow : Window
                 break;
             case Tool.Text:
                 BeginText(_start); _layer.ReleaseMouseCapture();
+                break;
+            case Tool.Step:
+                PlaceStep(_start); _layer.ReleaseMouseCapture();
                 break;
             default:
                 _draft = _tool == Tool.Ellipse ? new Ellipse() : new Rectangle();
@@ -318,9 +384,94 @@ internal sealed class EditorWindow : Window
         var oldItems = _layer.Children.Cast<UIElement>().ToList();
         var cropped = new CroppedBitmap(Flatten(), ir);
         cropped.Freeze();
-        var edit = new CropEdit(this, oldBase, cropped, oldItems);
+        var edit = new BaseEdit(this, oldBase, cropped, oldItems);
         edit.Redo();
         Push(edit);
+    }
+
+    /// <summary>
+    /// Applies a whole-image pixel operation (Core <see cref="PixelAdjust"/>) to the
+    /// flattened image and swaps it in as the new base, like Crop: annotations are
+    /// baked in, and Undo restores the previous base and its annotation layer.
+    /// </summary>
+    private void TransformBase(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op)
+    {
+        try
+        {
+            var flat = Flatten();
+            var src = flat.Format == PixelFormats.Bgra32 ? flat : new FormatConvertedBitmap(flat, PixelFormats.Bgra32, null, 0);
+            int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
+            var px = new byte[stride * h];
+            src.CopyPixels(px, stride, 0);
+            var (data, nw, nh) = op(px, w, h);
+            var bmp = BitmapSource.Create(nw, nh, 96, 96, PixelFormats.Bgra32, null, data, nw * 4);
+            bmp.Freeze();
+            SwapBase(bmp, label + " applied");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(label + " failed", ex);
+            _status.Text = label + " failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>Swaps in a new base image (annotations baked into it) as one undoable edit.</summary>
+    private void SwapBase(BitmapSource newBase, string label)
+    {
+        var oldItems = _layer.Children.Cast<UIElement>().ToList();
+        var edit = new BaseEdit(this, _base, newBase, oldItems);
+        edit.Redo();
+        Push(edit);
+        _status.Text = label + " (annotations baked in). Undo restores the previous image.";
+    }
+
+    private void ResizeBase(int nw, int nh)
+    {
+        try
+        {
+            var flat = Flatten();
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen()) dc.DrawImage(flat, new Rect(0, 0, nw, nh));
+            var rtb = new RenderTargetBitmap(nw, nh, 96, 96, PixelFormats.Pbgra32);
+            rtb.Render(dv); rtb.Freeze();
+            SwapBase(rtb, $"Resized to {nw} × {nh}");
+        }
+        catch (Exception ex) { Log.Error("Resize failed", ex); _status.Text = "Resize failed: " + ex.Message; }
+    }
+
+    private void ApplyWatermark(string text, bool tiled, double opacity)
+    {
+        try
+        {
+            int w = _base.PixelWidth, h = _base.PixelHeight;
+            var flat = Flatten();
+            var brush = new SolidColorBrush(Color.FromArgb((byte)(Math.Clamp(opacity, 0.05, 1) * 255), 255, 255, 255));
+            double fontSize = Math.Max(14, w / 36.0);
+            var ft = new System.Windows.Media.FormattedText(text, System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, new Typeface("Segoe UI"), fontSize, brush, 1.0);
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawImage(flat, new Rect(0, 0, w, h));
+                if (!tiled)
+                {
+                    var (x, y) = WatermarkPlan.CornerOrigin(w, h, (int)Math.Ceiling(ft.Width), (int)Math.Ceiling(ft.Height));
+                    dc.DrawText(ft, new Point(x, y));
+                }
+                else
+                {
+                    dc.PushTransform(new RotateTransform(-30, w / 2.0, h / 2.0));
+                    int stepX = (int)(ft.Width + 90), stepY = (int)(ft.Height + 70);
+                    foreach (var (x, y) in WatermarkPlan.TileOrigins(w, h, stepX, stepY))
+                        dc.DrawText(ft, new Point(x, y));
+                    dc.Pop();
+                }
+            }
+            var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            rtb.Render(dv); rtb.Freeze();
+            SwapBase(rtb, "Watermark applied");
+        }
+        catch (Exception ex) { Log.Error("Watermark failed", ex); _status.Text = "Watermark failed: " + ex.Message; }
     }
 
     private Int32Rect ToIntRect(Rect r)
@@ -328,6 +479,23 @@ internal sealed class EditorWindow : Window
         int x = (int)Math.Floor(Math.Max(0, r.X)), y = (int)Math.Floor(Math.Max(0, r.Y));
         int w = (int)Math.Min(Math.Ceiling(r.Width), _base.PixelWidth - x), h = (int)Math.Min(Math.Ceiling(r.Height), _base.PixelHeight - y);
         return new Int32Rect(x, y, Math.Max(0, w), Math.Max(0, h));
+    }
+
+    private void PlaceStep(Point at)
+    {
+        _stepCount++;
+        const double size = 30;
+        var grid = new Grid { Width = size, Height = size };
+        grid.Children.Add(new Ellipse { Fill = Stroke(), Stroke = Brushes.White, StrokeThickness = 2 });
+        grid.Children.Add(new TextBlock
+        {
+            Text = _stepCount.ToString(), Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+        });
+        Canvas.SetLeft(grid, Math.Clamp(at.X - size / 2, 0, Math.Max(0, _layer.Width - size)));
+        Canvas.SetTop(grid, Math.Clamp(at.Y - size / 2, 0, Math.Max(0, _layer.Height - size)));
+        _layer.Children.Add(grid);
+        Push(new AddEdit(_layer, grid));
     }
 
     private void BeginText(Point at)
@@ -366,6 +534,119 @@ internal sealed class EditorWindow : Window
     private void DoRedo() { if (_redo.Count == 0) return; var e = _redo.Pop(); e.Redo(); _undo.Push(e); }
 
     /// <summary>Base image + annotations as one bitmap at the image's native pixel size.</summary>
+    private async Task CopyTextAsync()
+    {
+        _status.Text = "Recognising text…";
+        try
+        {
+            var (text, error) = await OcrService.RecognizeAsync(Flatten());
+            if (text is null) { _status.Text = error ?? "OCR is unavailable."; return; }
+            if (text.Length == 0) { _status.Text = "No text found in this image."; return; }
+            try
+            {
+                System.Windows.Clipboard.SetText(text);
+                _status.Text = $"Copied recognised text ({text.Split('\n').Length} line(s)) to the clipboard.";
+            }
+            catch (Exception) { _status.Text = "Clipboard busy, try again."; }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("OCR failed", ex);
+            _status.Text = "Text recognition failed: " + ex.Message;
+        }
+    }
+
+    private async Task RedactAsync()
+    {
+        _status.Text = "Scanning for sensitive text…";
+        try
+        {
+            // OCR runs on the base image, not the flattened one: annotations are not text.
+            var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
+            var hits = Redactor.Find(words);
+            if (hits.Count == 0) { _status.Text = "No sensitive text found (emails, cards, IPs, phone numbers, key-shaped tokens)."; return; }
+            foreach (var hit in hits)
+            {
+                var box = new System.Windows.Shapes.Rectangle
+                {
+                    Fill = System.Windows.Media.Brushes.Black,
+                    Width = hit.Rect.Width,
+                    Height = hit.Rect.Height,
+                };
+                Canvas.SetLeft(box, hit.Rect.X);
+                Canvas.SetTop(box, hit.Rect.Y);
+                _layer.Children.Add(box);
+                Push(new AddEdit(_layer, box));
+            }
+            string kinds = string.Join(", ", hits.GroupBy(h => h.Kind).Select(g => $"{g.Count()} {g.Key}"));
+            _status.Text = $"Redacted {hits.Count} item(s): {kinds}. Each box is an annotation — Undo removes them.";
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Redact failed", ex);
+            _status.Text = "Redact failed: " + ex.Message;
+        }
+    }
+
+    private async Task ReplaceTextAsync(string find, string replace)
+    {
+        _status.Text = "Finding text…";
+        try
+        {
+            var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
+            var matches = TextReplace.Find(words, find);
+            if (matches.Count == 0) { _status.Text = $"\"{find}\" was not found in the image's text."; return; }
+            var flat = Flatten();
+            var src = flat.Format == PixelFormats.Bgra32 ? flat : new FormatConvertedBitmap(flat, PixelFormats.Bgra32, null, 0);
+            int w = src.PixelWidth, hh = src.PixelHeight, stride = w * 4;
+            var px = new byte[stride * hh];
+            src.CopyPixels(px, stride, 0);
+            foreach (var m in matches)
+            {
+                var r = m.Union;
+                var bg = SamplePerimeter(px, w, hh, r);
+                var cover = new System.Windows.Shapes.Rectangle { Fill = new SolidColorBrush(bg), Width = r.Width, Height = r.Height };
+                Canvas.SetLeft(cover, r.X); Canvas.SetTop(cover, r.Y);
+                _layer.Children.Add(cover); Push(new AddEdit(_layer, cover));
+                if (replace.Length > 0)
+                {
+                    double lum = (0.299 * bg.R + 0.587 * bg.G + 0.114 * bg.B) / 255.0;
+                    var t = new TextBlock
+                    {
+                        Text = replace, FontSize = Math.Max(8, r.Height * 0.72),
+                        Foreground = new SolidColorBrush(lum > 0.5 ? Colors.Black : Colors.White),
+                        FontFamily = new FontFamily("Segoe UI"),
+                    };
+                    Canvas.SetLeft(t, r.X); Canvas.SetTop(t, Math.Max(0, r.Y - r.Height * 0.08));
+                    _layer.Children.Add(t); Push(new AddEdit(_layer, t));
+                }
+            }
+            _status.Text = $"Replaced {matches.Count} occurrence(s) of \"{find}\". Each cover and text is an annotation — Undo steps back through them.";
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Replace text failed", ex);
+            _status.Text = "Replace failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>Average colour of the pixels just outside a rectangle — the best guess at what hides behind it.</summary>
+    private static Color SamplePerimeter(byte[] px, int w, int h, RectPx r)
+    {
+        long sb = 0, sg = 0, sr = 0; int n = 0;
+        void Take(int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= w || y >= h) return;
+            int i = (y * w + x) * 4;
+            sb += px[i]; sg += px[i + 1]; sr += px[i + 2]; n++;
+        }
+        for (int x = r.X - 1; x <= r.Right; x += 2) { Take(x, r.Y - 1); Take(x, r.Bottom); }
+        for (int y = r.Y; y < r.Bottom; y += 2) { Take(r.X - 1, y); Take(r.Right, y); }
+        return n == 0 ? Colors.White : Color.FromRgb((byte)(sr / n), (byte)(sg / n), (byte)(sb / n));
+    }
+
     private BitmapSource Flatten()
     {
         int w = _base.PixelWidth, h = _base.PixelHeight;

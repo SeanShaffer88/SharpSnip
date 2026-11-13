@@ -74,12 +74,20 @@ internal sealed class OverlayHost : IDisposable
 
     public void Hud(string? text, int x, int y) { foreach (var w in _wins) w.SetHud(text, x, y); }
 
+    /// <summary>The mode bar lives on the monitor containing (x, y) — the menu's anchor point; all others hide theirs.</summary>
+    public void ModeBar(IReadOnlyList<ModeBarButton>? buttons, int hover, int x, int y)
+    {
+        var target = VirtualDesktop.MonitorAt(_wins.Select(w => w.Monitor).ToList(), x, y);
+        foreach (var w in _wins) w.SetModeBar(buttons is not null && w.Monitor == target ? buttons : null, hover);
+    }
+
     public void Adorn(RectPx? r, bool handles, string? sizeText) { foreach (var w in _wins) w.SetAdorn(r, handles, sizeText); }
 
-    /// <summary>Magnifier: a 15x15 px crop of the frozen frame, drawn 8x, next to the cursor.</summary>
+    /// <summary>Magnifier: a 15x15 px crop of the frozen frame, drawn 8x, next to the cursor, with a colour readout.</summary>
     public void Loupe(BitmapSource? frozen, RectPx frozenRect, int cx, int cy)
     {
         BitmapSource? crop = null;
+        string? readout = null;
         if (frozen is not null)
         {
             const int n = 15;
@@ -90,9 +98,26 @@ internal sealed class OverlayHost : IDisposable
                 crop = new CroppedBitmap(frozen, new Int32Rect(sx, sy, n, n));
                 crop.Freeze();
             }
+            int px = cx - frozenRect.X, py = cy - frozenRect.Y;
+            if (px >= 0 && py >= 0 && px < frozen.PixelWidth && py < frozen.PixelHeight)
+            {
+                try
+                {
+                    var src = frozen.Format == System.Windows.Media.PixelFormats.Bgra32
+                        ? frozen
+                        : new FormatConvertedBitmap(frozen, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+                    var one = new byte[4];
+                    src.CopyPixels(new Int32Rect(px, py, 1, 1), one, 4, 0);
+                    readout = ColorReadout.Format(one[2], one[1], one[0], cx, cy);
+                }
+                catch { /* the readout is a nicety; the loupe still works without it */ }
+            }
         }
-        foreach (var w in _wins) w.SetLoupe(crop, cx, cy);
+        foreach (var w in _wins) w.SetLoupe(crop, cx, cy, readout);
     }
+
+    /// <summary>Freehand outline being drawn, in virtual-desktop pixels (null clears it).</summary>
+    public void Trace(IReadOnlyList<(int X, int Y)>? points) { foreach (var w in _wins) w.SetTrace(points); }
 
     public void Dispose()
     {

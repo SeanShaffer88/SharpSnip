@@ -22,10 +22,13 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Object / element / window capture | ✅ |
 | Window-control capture | ✅ (element picker) |
 | Menu capture (disappearing menus) | ✅ via delay; hotkey-while-menu-open 🔜 |
+| Print Screen key replaces Snipping Tool | ✅ v0.6.0 — Settings option; prior Windows switch value + old menu hotkey recorded and restored on untick / `--clean`; **on by default + self-applying at startup** — v0.6.1 |
+| Settings window in TesselGUI revision 2 | ✅ v0.6.1 — GitHub-scheme tokens, themed inputs/buttons/combos/checkboxes; OS title bar unthemed |
+| Snipping-Tool-style mode bar (top-of-screen tab, icon buttons) | ✅ v0.6.0 — design A picked by SEAN 2026-11-13 from rendered mockups; replaces the text HUD menu, all keys unchanged |
 | Multiple-area capture (several regions, one action) | 🔜 |
 | Freehand and polygon capture | 🔜 (mask drawn into transparent PNG) |
-| Scrolling capture (web pages, documents, wide tables) | 🟡 UIA ScrollPattern first, wheel-and-stitch fallback |
-| Windows.Graphics.Capture backend (DRM-aware, HDR) | 🟡 replaces GDI as primary |
+| Scrolling capture (web pages, documents, wide tables) | ✅ v0.5.0 — UIA ScrollPattern first, wheel-and-stitch fallback |
+| Windows.Graphics.Capture backend (DRM-aware, HDR) | ✅ unreleased — WGC is now the primary stills backend with automatic GDI fallback; runtime field check still owed |
 | Webcam still | 🟡 WinRT MediaCapture |
 | Printer capture | ❓ needs a virtual printer driver; large scope |
 
@@ -36,10 +39,11 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Lines/connectors, speech-bubble callouts, step numbers, stamps | 🔜 |
 | Spotlight / dim surroundings, magnify / loupe annotation | 🔜 |
 | Redaction (manual) | 🔜 |
-| Resize, rotate, flip | 🔜 |
+| Rotate, flip | ✅ v0.5.0 — editor buttons over tested Core `PixelAdjust` |
+| Resize | 🔜 |
 | Borders, frames, drop shadows, torn-edge/wave, cut-out | 🔜 |
 | Watermark | 🔜 |
-| Brightness / contrast / hue / saturation / balance, grayscale, invert, sharpen | 🔜 |
+| Brightness / contrast / hue / saturation / balance, grayscale, invert, sharpen | invert + grayscale ✅ v0.5.0 (editor buttons); brightness/contrast ✅ in Core, editor control 🔜; hue / saturation / balance, sharpen 🔜 |
 | Fill, eraser / retouch | 🔜 |
 | Eyedropper with HEX / RGB / HTML / C++ / Delphi output, palette generation | 🔜 |
 | Quick styles / themes, customisable toolbar | 🔜 |
@@ -49,33 +53,31 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Feature | Status |
 |---|---|
 | Local searchable library, tags, filters, sort, recent tray, history gallery | 🔜 (local SQLite would be a new package ❓; JSON index otherwise) |
-| Custom file-naming patterns, automatic folder organisation | ✅ v0.4 |
-| Export PNG / JPG / BMP / TIFF / GIF | ✅ v0.4 |
-| Export PDF | ✅ v0.4 |
 | Export PSD / TGA | ❓ custom writers, low priority |
 | Send to external program / open in external editor | 🔜 |
 | Automated after-capture tasks (copy, save, run script) | 🔜 |
 | Proprietary editable format (layers kept) | 🔜 |
 | Insert into Office documents | ❓ needs COM automation per app |
 | Screen magnifier, on-screen ruler / pixel measure, colour picker, whiteboard | 🔜 |
+| Hideable tray icon | ✅ v0.6.0 — context-menu option; running SharpSnip again restores it |
 | Scheduled captures, context-menu quick actions | 🔜 |
 
 ## Phase 4 — v0.5 Text recognition
 | Feature | Status |
 |---|---|
-| OCR (grab / copy text from image), multi-language | 🟡 `Windows.Media.Ocr` ships with Windows, no package; languages depend on installed language packs |
+| OCR (grab / copy text from image), multi-language | ✅ v0.5.0 — editor Copy text via `Windows.Media.Ocr` (ships with Windows, no package); languages depend on installed language packs |
 | Text-inside-image search | 🔜 builds on OCR + library index |
-| Smart Redact (auto-find emails, numbers, keys) | 🟡 OCR + regex rules, runs fully offline |
+| Smart Redact (auto-find emails, numbers, keys) | ✅ v0.5.0 — editor Redact button; detectors + box mapping in tested Core, runs fully offline |
 
 ## Phase 5 — v0.6+ Recording
 | Feature | Status |
 |---|---|
-| Screen recording (full / window / region), 4K, frame-rate and quality settings, auto-save | ❓ needs a capture + encode pipeline; Windows.Graphics.Capture + Media Foundation H.264 (MP4), no package if done via WinRT/MF |
+| Screen recording (full / window / region), 4K, frame-rate and quality settings, auto-save | 🟡 owner-approved 2026-11-13 as part of the recording suite — engine shipped unreleased (monitor → MP4 via WGC + MediaTranscoder, `--record` CLI); region, window, audio, webcam and in-app controls follow in the suite's slices |
 | System audio, microphone | ❓ WASAPI loopback via P/Invoke, or a package (NAudio) |
 | Webcam picture-in-picture, background blur, camera swap | ❓ |
 | Cursor highlight, click animation, on-screen drawing while recording | 🔜 after recorder exists |
 | Trim / combine clips, image-sequence → video, frame extraction | ❓ |
-| GIF from video / screen activity | 🟡 WPF `GifBitmapEncoder` (limited palette quality) |
+| GIF from video / screen activity | ✅ v0.5.0 for interval capture (hand-written GIF89a writer, looping, per-frame delay; 256-colour palette). From a recorder: still ❓ with Phase 5 recording |
 | Audio noise removal | ❓ needs a DSP library |
 
 ## Needs a decision before any work (⛔ / ❓)

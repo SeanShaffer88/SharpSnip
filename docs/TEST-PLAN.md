@@ -4,14 +4,15 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-80 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine and file naming. Last result: **80 passed, 0 failed**.
+345 checks over geometry, monitor stitching, target resolution, delay cycle, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), the Print Screen override record, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing, the FFmpeg export plans, the click gate, recording-region resolution, pause timing and WAV segment joining. Last result: **345 passed, 0 failed**.
 
-## Manual (needs real Windows hardware — not yet done)
+## Manual (needs real Windows hardware)
+**Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
 Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Partially verified / Unverified.
 
 | # | Check | Pass when |
 |---|---|---|
-| 1 | Start `SharpSnip.exe`, press `Win+Shift+X` | Menu HUD in < 150 ms, tray icon present |
+| 1 | Start `SharpSnip.exe`, press `Win+Shift+X` | Mode bar slides in at the top of the screen, tray icon present |
 | 2 | Element mode on Chrome, Explorer, Notepad, VS Code, Win11 Settings | Highlight follows cursor, click captures exactly the rect (±1 px) |
 | 3 | `Tab`, `PgUp`, `PgDn`, `Ctrl+Wheel` in element mode | Deterministic and reversible |
 | 4 | Element mode over an app with no UIA (a game) | Switches to region picker, no error |
@@ -20,13 +21,13 @@ Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Part
 | 7 | Full screen: `Tab`, `A`, `1`..`9`, `Enter` on 2 monitors | Correct monitor highlighted and captured only |
 | 8 | All-monitors capture at 100% + 150% | One image, no gaps/overlap; pixel test at monitor seam |
 | 9 | L-shaped arrangement | Union rect correct, gap filled with matte |
-| 10 | One-shot hotkey `Win+Shift+F` | Clipboard image in < 250 ms, no UI flash |
+| 10 | One-shot CLI `SharpSnip --fullscreen` | Clipboard image in < 250 ms, no UI flash |
 | 11 | Delay 3/5/10 s, open a menu during countdown, `Esc` | Menu captured; `Esc` cancels; chip not in image |
 | 12 | Unplug a monitor during countdown | No crash; capture continues |
 | 13 | `Esc` from every picker, right-click | No leaked hook/timer/overlay (check Task Manager, input stays normal) |
 | 14 | 60 s idle in the menu | Watchdog closes the session |
 | 15 | Editor: each tool, undo/redo, crop+undo, blur, save, copy | Output matches canvas |
-| 16 | Settings: bad hotkey, taken hotkey | Clear message, old hotkey keeps working |
+| 16 | Settings: invalid fixed size or interval | The saved-with-notes toast names the field and its previous value is kept — and every other setting in the same save still applies and persists (a bad field never discards the save). The window has no hotkey fields and no error text about other programs' keys |
 | 17 | Corrupt `settings.json` | Moved to `.bad-*`, defaults load, balloon shown |
 | 18 | `data` folder next to exe | Nothing written to `%APPDATA%` |
 | 19 | Idle: 10 minutes in the tray | ~0% CPU, working set < 15 MB target |
@@ -45,14 +46,62 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 6. `editor.png` — editor with annotations and the metadata panel.
 7. `settings.png` — settings window.
 
+## Unreleased manual rows (recording)
+- [ ] `SharpSnip.exe --record 5` on the primary monitor: a timestamped MP4 lands in the output folder and plays back in a standard player, showing the desktop and cursor moving; `--record 5 --monitor 2 --fps 60 --out C:\Temp\rec.mp4` honours its arguments; `--region 100,100,800,600` records only that rectangle.
+- [ ] Tray → Record screen…: the window opens themed, Start begins (elapsed ticks, tray's Stop recording enables), Stop from either the window or the tray saves the MP4 and toasts its name; ticking the region option after a region capture records just that rectangle; "Pick region…" hides the window, lets you drag a fresh rectangle (Esc cancels and changes nothing), and the window returns showing the new region's size and position; a recording started with the region ticked covers only that rectangle, and the picked region is still offered after a restart.
+- [ ] Record 10 s with music playing and Microphone ticked while speaking: the MP4 plays back with both the music and the voice audible and roughly in sync; `--record 5 --no-audio` produces a silent MP4.
+- [ ] Record with Webcam overlay ticked: the camera appears in the chosen corner, moving live; the same scene at Quality Low vs Ultra shows the expected file-size difference; `--record 5 --webcam --webcam-corner TopLeft` agrees.
+- [ ] Set Max minutes to 1 and record: the recording stops itself at about a minute with a "limit reached" toast; schedule a recording two minutes ahead for 1 minute: it starts and stops on its own; `--record 5 --at` with a time two minutes out waits, then records.
+- [ ] Record 5 s in GIF format (window and `--record 5 --gif`): the GIF plays back animated at a sensible speed in a browser.
+- [ ] While recording, click Draw on screen and scribble: the strokes show in the playback; Esc ends drawing; colours change with 1–5 and C clears.
+- [ ] Editor pack: Step clicks drop 1, 2, 3 badges (Undo removes them); Resize to half keeps the aspect and Undo restores; Watermark corner and tiled both stamp visibly; Bright/Contrast sliders + Apply B/C change the image; Replace text on a screenshot containing a repeated word covers and rewrites every occurrence; set Auto effect = Border in Settings, take a capture — the saved file and the clipboard image already carry the frame (captures never open the editor), and the recording preferences (fps/audio) survive a Settings save.
+- [ ] Capture pack: draw a freehand outline around an icon — the saved PNG is transparent outside the outline; the loupe shows a changing #hex readout that matches the pixel under the cursor; set a preset region in Settings — the tray's "Capture preset region" captures exactly that rectangle.
+- [ ] Integration: tray → Recent captures lists the newest captures; a still reopens in the editor, a recording opens in the default player; with an external editor path set in Settings, the editor's External editor… button opens the saved capture in that program.
+
+## Unreleased manual rows (WGC backend)
+- [ ] Play DRM video (or a hardware-overlay scene) and capture its monitor: the picture is present, not black; the log's "capture backend" line reads Windows.Graphics.Capture.
+- [ ] Ordinary desktop capture on each monitor (incl. mixed DPI): pixel-correct, no offset or tearing; a capture spanning two monitors stitches at the seam.
+
+## Unreleased manual rows (owner's v0.6.0 field fixes)
+- [ ] Fresh profile (delete `%APPDATA%\SharpSnip\settings.json` first): with the Windows Print-screen switch ON beforehand, starting SharpSnip turns it off and Print Screen opens SharpSnip's menu; quitting SharpSnip from the tray restores the switch to on. With the switch absent beforehand, quitting removes the value SharpSnip wrote. Settings contains no Print Screen option and no hotkey fields at all.
+- [ ] With no output folder set, a capture lands in the Pictures folder itself.
+- [ ] Settings: Cancel closes the window; Esc closes it; Save applies and closes. The window renders in the dark TesselGUI theme (inputs, dropdowns, checkboxes, green Save) with readable text throughout.
+
+## Unreleased manual rows (mode bar)
+- [ ] Open the menu (Print Screen or the tray's Capture… item): the bar slides down from the top-centre of the monitor the cursor is on; hovering a button highlights it; clicking Element/Region/Window/Full screen/Scrolling starts that mode; clicking Delay cycles off → 3s → 5s → 10s and the label follows; ✕, Esc and right-click all cancel; on a second monitor the bar follows the cursor's monitor; at 150–200% scaling the bar is centred and its buttons hit where they are drawn.
+- [ ] Clicking a tool in the bar NEVER captures by itself (Snipping Tool contract): click Window — nothing is captured; move over another window and click once — that window is captured. Same for Element and Full screen (this monitor). Repeat with a very fast click on the tool and with a slow press-and-hold release: neither captures. Keyboard switching (W with the bar open) followed by one click also captures normally.
+
+## Unreleased manual rows (Snipping Tool replacement)
+- [ ] While SharpSnip runs, Windows Settings → Accessibility → Keyboard shows the Print-screen switch off and pressing Print Screen opens SharpSnip's menu (not Snipping Tool); kill SharpSnip from Task Manager, start it again and quit normally — the switch still ends at its original state (the crash could not corrupt the record).
+- [ ] Untick it and Save: the Windows switch is back to its previous state and the menu hotkey is the key from before the takeover.
+- [ ] With takeover on, run `SharpSnip.exe --clean` from a portable copy: the Windows Print-screen switch is restored before the settings are deleted.
+- [ ] Tray menu → Hide tray icon: the icon disappears and captures still work from the hotkeys; running SharpSnip again from the Start menu brings the icon back and opens Settings.
+
+## Unreleased manual rows (editor adjustments)
+- [ ] Editor → Invert / Grayscale / Flip ↔ / Flip ↕ / Rotate on a capture with an annotation drawn first: each button transforms the whole picture (annotation baked in), Rotate swaps width/height, Undo restores the pre-transform image with its annotation editable again, and Save writes the transformed image.
+
+## Unreleased manual rows (OCR)
+- [ ] Editor → Redact on a capture containing an email, a test card number (4242 4242 4242 4242), an IP and an API-key-shaped token: each is covered by a black box, ordinary text is untouched, Undo removes the boxes one by one, and Save bakes the boxes into the file.
+- [ ] Editor → Copy text on a capture of known on-screen text: the clipboard receives the text in reading order; on a text-free image the status says no text was found; with no OCR language installed the status explains how to add one.
+
+## Unreleased manual rows (scrolling capture)
+- [ ] Scrolling capture of a long web page / document (ScrollPattern path): result is one tall image, no duplicated or missing bands, and the page is left scrolled where it started.
+- [ ] Scrolling capture of an app without ScrollPattern (wheel fallback): stitches correctly and stops at the end of content.
+- [ ] Scrolling capture of a non-scrollable element degrades to a normal single capture; Esc cancels cleanly mid-run.
+
+## Unreleased manual rows (export formats + animated GIF + reliability + PDF)
+- [ ] Save a capture as PDF from Settings format, the editor, and `--out shot.pdf`: each opens in Edge and Acrobat, shows the capture at full size, and extracted/printed output matches the screen.
+- [ ] Capture a region, restart SharpSnip, press the repeat-last hotkey: the same rectangle is captured. Then change the display layout so the rectangle is off-screen: a clear "off screen" message, no crash.
+- [ ] Save two captures in rapid succession from the editor: both files exist (second name carries a `-2` suffix when the timestamp collides).
+- [ ] Set format to GIF, run `--interval 2 --count 3` and a tray interval run: each produces one `animation.gif` that loops in a browser/image viewer with ~2 s between frames, and no `frame-*.gif` stills.
+- [ ] Stop a tray GIF run early from the tray menu: the `animation.gif` from the frames so far is complete and playable (no truncated file).
+- [ ] Set each format (png/jpg/bmp/gif/tif) in Settings, capture, and open the saved file: the image renders and its header matches its extension (no PNG bytes in a `.bmp`/`.gif`/`.tif` file).
+- [ ] `--fullscreen --out shot.tiff` and `--out shot.bmp`: files open in an image viewer and match the requested format.
+- [ ] A capture with transparent gap matte saved as jpg/bmp/gif has no transparent/black fringe artefacts; as png/tif the transparency survives.
+
 ## v0.3.0 manual rows (deferred by owner)
 - [ ] `S` in menu: frame follows cursor, arrows nudge, Shift = 10 px, click/Enter saves exact W×H.
 - [ ] Tray "Start interval capture": frames appear every N s; Stop ends it; summary toast shows count.
 - [ ] `--interval 2 --count 3`: three files written, exit 0.
 - [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
-
-## v0.4.0 manual rows (deferred by owner)
-- [ ] Save one capture in each format; open each. PDF opens in a viewer and shows the image.
-- [ ] Pattern `{yyyy}/{MM}` + `shot-{n}`: folders made, numbers count up.
-- [ ] Two captures in the same millisecond name: second gets ` (2)`.

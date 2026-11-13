@@ -11,5 +11,6 @@ public static class IntervalPlan
     public static string FolderName(DateTime local) => $"Interval-{local:yyyyMMdd-HHmmss}";
 
     /// <summary>Zero-padded so files sort in capture order.</summary>
-    public static string FrameName(int index, string extension) => $"frame-{index:D5}.{extension.TrimStart('.')}";
+    public static string FrameName(int index, string extension) =>
+        $"frame-{index:D5}.{ImageFormats.Normalize(extension) ?? ImageFormats.Default}";
 }

@@ -2,19 +2,6 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
-## [0.4.0] - 2026-11-12
-
-### Added
-- Export formats: PNG, JPG, BMP, TIFF (zip), GIF, PDF. All in-box WPF encoders; PDF is a small hand-written one-page writer (JPEG inside), no package.
-- File name pattern (`{yyyy} {MM} {dd} {HH} {mm} {ss} {ms} {date} {time} {n}`) and sub-folder pattern (e.g. `{yyyy}/{MM}`). Names are made safe (bad chars, reserved device names, `..`). Clashes get ` (2)`, ` (3)`; `{n}` picks the lowest free number.
-- JPEG/PDF quality setting (10 to 100).
-- Core: colour formats for the coming eyedropper (HEX, RGB, HTML, C++, Delphi, gradient palette).
-- Self-test: 118 checks.
-
-### Changed
-- Existing files are no longer overwritten by default names; a suffix is added instead.
-- `--out FILE` picks the format from the extension.
-
 ## [0.3.0] - 2026-11-12
 
 ### Added
