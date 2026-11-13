@@ -1,9 +1,13 @@
 namespace SharpSnip.Core;
 
-/// <summary>Eyedropper output formats for one RGB colour.</summary>
+/// <summary>Colour picker output formats for one RGB colour, plus hex parsing and palette helpers.</summary>
 public static class ColorFormat
 {
     public static readonly string[] Names = { "HEX", "RGB", "HTML", "C++", "Delphi" };
+    public const string Default = "HEX";
+
+    public static string Sanitize(string? name) =>
+        name is not null && Array.IndexOf(Names, name) >= 0 ? name : Default;
 
     public static string Format(string kind, byte r, byte g, byte b) => kind switch
     {
@@ -13,6 +17,9 @@ public static class ColorFormat
         "Delphi" => $"$00{b:X2}{g:X2}{r:X2}",         // TColor $00BBGGRR
         _ => $"{r:X2}{g:X2}{b:X2}",                   // HEX
     };
+
+    /// <summary>Next format in the list, wrapping.</summary>
+    public static string Next(string kind) => Names[(Array.IndexOf(Names, Sanitize(kind)) + 1) % Names.Length];
 
     public static bool TryParseHex(string s, out (byte R, byte G, byte B) c)
     {
@@ -24,7 +31,7 @@ public static class ColorFormat
         return true;
     }
 
-    /// <summary>Evenly spaced palette from two colours (inclusive), at least 2 steps.</summary>
+    /// <summary>Evenly spaced palette from two colours (inclusive), 2 to 64 steps.</summary>
     public static (byte R, byte G, byte B)[] Gradient((byte R, byte G, byte B) a, (byte R, byte G, byte B) b, int steps)
     {
         steps = Math.Clamp(steps, 2, 64);

@@ -109,6 +109,11 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.12.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- `ColorFormat` and `ImageFrames` (border, shadow) are **Verified (logic)**: exact bytes, margins, clamping, determinism and the opacity-0 and transparent-image cases are in the self-test.
+- Colour picker overlay, magnifier, key handling, clipboard text and sampling a desktop snapshot taken before the overlays open are **unverified on hardware**. The colour comes from the capture backend, so HDR or colour-managed displays may differ slightly from what the eye sees; there is no HDR handling.
+- Editor Frame / Shadow buttons use fixed proportions (border ≈ 1/60 of the short side; blur ≈ 1/40, 4-24 px, offset about half the blur plus 2); no dialog yet. Shadow on a JPG flattens to black.
+
 ## v0.11.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - Print Screen recovery: `PrintScreenKey.Restore` / `RestoreFromFile`, ProcessExit and UnhandledException hooks, `--restore-printscreen`, tray item. Logic is simple but **unverified on hardware**; a hard kill (Task Manager, power loss) still skips every hook, so `--restore-printscreen` and the next clean exit are the only recovery there.
 - Recorder mux fallback and the "keep the raw video" path: **unverified** (needs a forced mux failure).
@@ -126,4 +131,4 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 ## v0.3.0 additions (compile-verified on Linux only; not run on Windows)
 - Fixed-size region picker: unverified on hardware (cursor follow, arrow nudge, clamp across mixed DPI).
 - Interval capture: unverified on hardware (PeriodicTimer loop, 3-failure stop, tick skipped while a capture is open). "Current monitor" is fixed at start.
-
+- Per-monitor hotkeys: removed 2026-11-13 with all configurable hotkeys (per-monitor capture remains on the mode bar's `1`..`9` keys and the CLI's `--monitor`).

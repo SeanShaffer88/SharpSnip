@@ -41,11 +41,11 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Redaction (manual) | 🔜 |
 | Rotate, flip | ✅ v0.5.0 — editor buttons over tested Core `PixelAdjust` |
 | Resize | 🔜 |
-| Borders, frames, drop shadows, torn-edge/wave, cut-out | 🔜 |
+| Borders, frames, drop shadows, torn-edge/wave, cut-out | border + drop shadow ✅ v0.12; torn-edge/wave, cut-out 🔜 |
 | Watermark | 🔜 |
 | Brightness / contrast / hue / saturation / balance, grayscale, invert, sharpen | invert + grayscale ✅ v0.5.0 (editor buttons); brightness/contrast ✅ in Core, editor control 🔜; hue / saturation / balance, sharpen 🔜 |
 | Fill, eraser / retouch | 🔜 |
-| Eyedropper with HEX / RGB / HTML / C++ / Delphi output, palette generation | 🔜 |
+| Eyedropper with HEX / RGB / HTML / C++ / Delphi output, palette generation | ✅ v0.12 (picker + formats; palette helper in Core, no UI yet) |
 | Quick styles / themes, customisable toolbar | 🔜 |
 | Dark mode, hotkey customisation, portable mode | hotkeys ✅, portable ✅, dark mode 🔜 |
 
@@ -53,6 +53,9 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Feature | Status |
 |---|---|
 | Local searchable library, tags, filters, sort, recent tray, history gallery | 🔜 (local SQLite would be a new package ❓; JSON index otherwise) |
+| Custom file-naming patterns, automatic folder organisation | 🔜 |
+| Export PNG / JPG / BMP / TIFF / GIF | ✅ v0.5.0 (all in-box WPF encoders; format logic tested, encoders not yet run on Windows) |
+| Export PDF | ✅ v0.5.0 (hand-written single-image PDF writer, no package; Poppler-verified) |
 | Export PSD / TGA | ❓ custom writers, low priority |
 | Send to external program / open in external editor | 🔜 |
 | Automated after-capture tasks (copy, save, run script) | 🔜 |

@@ -16,6 +16,7 @@ public static class Program
       --all            capture every monitor (default: monitor under the cursor)
       --monitor N      capture monitor N (1-9)
       --delay N        wait N seconds first (0, 3, 5 or 10)
+      --out FILE       save to FILE (.png, .jpg, .bmp, .gif, .tif or .pdf); otherwise the output folder is used
       --no-clipboard   do not touch the clipboard
   SharpSnip.exe --interval N --count M [--all | --monitor K] [--out DIR]
                                         M frames, one every N seconds, into DIR (default: new Interval-... folder)
@@ -38,6 +39,7 @@ public static class Program
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
+    private const string Version = "0.12.0";
 
     [STAThread]
     public static int Main(string[] args)

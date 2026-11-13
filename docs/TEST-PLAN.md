@@ -105,3 +105,39 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] `--interval 2 --count 3`: three files written, exit 0.
 - [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
+
+## Unreleased manual rows (workflow recording conversion)
+- [ ] Pause/resume: record 5 s with system audio on, Pause for 5 s (move windows, make noise — none of it may appear), Resume for 5 s, Stop — the MP4 plays ≈10 s (not 15), the paused sounds are absent, and speech before/after the pause stays in sync with the picture; same check for a GIF recording (plays ≈10 s).
+- [ ] Recording workflow with `format: webm` then `copy: <folder>`: after a recording stops, the WebM appears in the folder and the toast reports both steps.
+- [ ] Recording workflow with `format: jpg`: stops with the plain "recordings convert with an FFmpeg preset" reason.
+- [ ] Capture workflow with `format: webm`: stops with the "applies to recordings" reason.
+
+## Unreleased manual rows (post-v0.8.0 fix)
+- [ ] Mode bar: click **Window** — nothing captures; the window under the NEXT click is captured. Same for Element, Full screen and (via S) Fixed size: the bar click only arms the tool.
+- [ ] Mode bar: click **Region**, then drag a rectangle — the drag works normally (the fix must not eat genuine clicks).
+
+## Unreleased manual rows (v0.8.0)
+- [ ] Settings: create a workflow (copy + format + run steps), assign it under "After capture", take a capture — every step runs in order; a failing step toasts its reason and stops the chain.
+- [ ] Manage workflows window: rename/reassign a workflow, delete one that is assigned — the assignment clears instead of dangling.
+- [ ] `--run-workflow NAME --file PATH`: applies the chain headlessly, exit 0; a failing step exits 3 with the reason.
+- [ ] Interval capture with the APNG format: `animation.apng` animates in a browser; frame timing matches the interval.
+- [ ] A still saved as .apng opens as an image in a browser.
+- [ ] Recorder "Output size 720p" on a 1440p+ monitor: the MP4's stored dimensions are ≤1280×720 (even numbers); Original keeps full size.
+- [ ] Portable build contains `ffmpeg\ffmpeg.exe` + DLLs + LICENSE.txt and THIRD-PARTY-NOTICES.md at the root.
+- [ ] Tray "Export with FFmpeg…": WebM and AV1 exports of a test recording play in a browser; MKV remux is near-instant; MP3 extract has audio only; a failed export shows FFmpeg's log tail.
+- [ ] `--export webm --file rec.mp4`: prints the new path, exit 0; `--export bogus` exits 2 with the preset list.
+- [ ] Settings FFmpeg override pointing at a different ffmpeg.exe: an export uses it (log shows the run); clearing it returns to the bundle.
+
+## v0.11.0 manual rows (deferred by owner)
+- [ ] Kill SharpSnip in Task Manager, then run `SharpSnip.exe --restore-printscreen`: Print Screen opens Snipping Tool again.
+- [ ] Tray "Give Print Screen back": Print Screen opens Snipping Tool; restart SharpSnip: SharpSnip owns the key again.
+- [ ] Recording with audio where the mux fails (make the output path read-only): a toast names the problem and the raw video survives.
+- [ ] Tab through Settings: every control shows a clearly visible focus ring, including text boxes. Narrator reads each field's label.
+- [ ] Turn on a Windows High Contrast theme: Settings/Recorder use system colours; overlays use the yellow highlight.
+- [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
+- [ ] Edit a workflow step in `settings.json` with Notepad, start SharpSnip: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
+
+## v0.12.0 manual rows (deferred by owner)
+- [ ] Tray > Pick colour…: magnifier follows the cursor; clicking a known colour (e.g. a pure red rectangle) copies the exact value; 1-5 and Tab change the format; the format is remembered next time.
+- [ ] Pick a colour on a second monitor and across a mixed-DPI boundary: the value matches what is shown.
+- [ ] Editor: Frame adds a visible border and the canvas grows; Shadow shows a soft shadow on transparent PNG; Undo restores both.

@@ -113,6 +113,51 @@ internal sealed class ModeRouter
         }
     }
 
+    /// <summary>Colour picker: pick a pixel anywhere on screen and copy its colour text to the clipboard.</summary>
+    public async Task RunColorPickAsync()
+    {
+        if (IsBusy) return;
+        _sm.TryTransition(AppState.ModeMenu);
+        DispatcherTimer? dog = null;
+        try
+        {
+            var monitors = MonitorEnumerator.Refresh();
+            var desktop = VirtualDesktop.Union(monitors);
+            // Capture can wait for the graphics backend. Finish before showing overlays or installing hooks.
+            var snapshot = await Task.Run(() => CaptureEngine.Capture(desktop, monitors, 0xFF000000u));
+            using var cts = new CancellationTokenSource();
+            using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
+            using var hook = new InputHook();
+            var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia };
+            var picker = new ColorPickerPicker(ctx, snapshot, monitors);
+            dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            dog.Tick += (_, _) =>
+            {
+                if (Environment.TickCount64 - hook.LastInputTick > 60_000) { Log.Warn("Watchdog: no input for 60 s, cancelling colour picker"); cts.Cancel(); }
+            };
+            overlays.Show();
+            hook.Start();
+            dog.Start();
+            var outcome = await picker.RunAsync(cts.Token);
+            if (outcome.Kind == PickKind.Picked && picker.Chosen is { } text)
+            {
+                if (ClipboardWriter.SetText(text)) _notify("Colour copied", text, null);
+                else _notify("SharpSnip", $"Could not reach the clipboard. The colour is {text}.", null);
+                _persistPrefs();   // remembers the chosen format
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Colour picker failed", ex);
+            _notify("SharpSnip", "Colour picker failed: " + ex.Message, null);
+        }
+        finally
+        {
+            dog?.Stop();
+            _sm.ForceIdle();
+        }
+    }
+
     private async Task FinishCaptureAsync(PickResult result, PickerContext ctx, OverlayHost overlays, InputHook hook, CancellationToken ct)
     {
         int delay = ctx.DelaySeconds;

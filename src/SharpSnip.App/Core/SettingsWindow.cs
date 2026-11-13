@@ -9,6 +9,15 @@ internal sealed class SettingsWindow : Window
 {
     private readonly Preferences _prefs;
     private readonly Func<Preferences, string?> _apply;
+    private readonly Action<string>? _warn;
+    private readonly TextBox _folder = new(), _fixW = new(), _fixH = new(), _interval = new(), _extEditor = new(), _ffmpeg = new();
+    private readonly TextBlock _presetInfo = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _useLast = new() { Content = "Use last capture region", Padding = new Thickness(8, 3, 8, 3) };
+    private int[]? _presetRect;
+    private readonly ComboBox _wfCapture = new(), _wfRecording = new();
+    private readonly Button _wfManage = new() { Content = "Manage workflows…", Padding = new Thickness(8, 3, 8, 3) };
+    private List<WorkflowDef> _workflows = new();
+    private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new(), _effect = new();
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
     private readonly CheckBox _contrast = new() { Content = "High-contrast highlight" };
     private readonly Slider _dim = new() { Minimum = 20, Maximum = 90, Width = 200, TickFrequency = 10, IsSnapToTickEnabled = false };
@@ -27,6 +36,30 @@ internal sealed class SettingsWindow : Window
         _matte.ItemsSource = new[] { "Transparent", "Black", "White" };
         _effect.ItemsSource = AutoEffects.All;
 
+        _folder.Text = prefs.OutputFolder; _folder.ToolTip = "Where captures are saved. Empty = your Pictures folder.";
+        _extEditor.Text = prefs.ExternalEditorPath; _extEditor.ToolTip = "Path to an image editor program (for example paint.net or GIMP). The editor window's External editor button opens the saved capture in it. Empty = none.";
+        _ffmpeg.Text = prefs.FfmpegPath; _ffmpeg.ToolTip = "Path to your own ffmpeg.exe, used instead of the bundled FFmpeg for exports. Empty = the bundled copy.";
+        _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. PNG and TIFF keep transparency; JPEG, BMP, GIF and PDF drop it. A still GIF is a single frame; interval captures in GIF become one animated file. PDF holds one image, losslessly.";
+        _presetRect = prefs.PresetRect;
+        _useLast.ToolTip = "Sets the preset region to the rectangle of your most recent capture.";
+        _useLast.Click += (_, _) =>
+        {
+            if (_prefs.LastCaptureRect is { Length: 4 } r) { _presetRect = (int[])r.Clone(); }
+            UpdatePresetLabel();
+        };
+        UpdatePresetLabel();
+        _workflows = prefs.Workflows.Select(w => new WorkflowDef { Name = w.Name, ApplyTo = w.ApplyTo, Steps = new List<string>(w.Steps) }).ToList();
+        RefreshWorkflowCombos(prefs.CaptureWorkflow, prefs.RecordingWorkflow);
+        _wfManage.ToolTip = "Create and edit the named workflows that can run after a capture or a recording.";
+        _wfManage.Click += (_, _) =>
+        {
+            var win = new WorkflowWindow(_workflows) { Owner = this };
+            if (win.ShowDialog() == true)
+            {
+                _workflows = win.Result;
+                RefreshWorkflowCombos(SelectedWorkflow(_wfCapture), SelectedWorkflow(_wfRecording));
+            }
+        };
         _fixW.Text = prefs.FixedWidth.ToString(); _fixW.ToolTip = "Width in pixels of the fixed-size region (16 to 16384).";
         _fixH.Text = prefs.FixedHeight.ToString(); _fixH.ToolTip = "Height in pixels of the fixed-size region (16 to 16384).";
         _interval.Text = prefs.IntervalSeconds.ToString(); _interval.ToolTip = "Seconds between frames for interval capture (1 to 86400). Start it from the tray menu.";
@@ -50,6 +83,9 @@ internal sealed class SettingsWindow : Window
             if (c is FrameworkElement fe) fe.Margin = new Thickness(0, 4, 0, 4);
             grid.Children.Add(l); grid.Children.Add(c); row++;
         }
+        Add("Output folder", _folder); Add("Image format", _format); Add("External editor", _extEditor); Add("FFmpeg override", _ffmpeg);
+        Add("Preset region", _presetInfo); Add("", _useLast);
+        Add("After capture", _wfCapture); Add("After recording", _wfRecording); Add("Workflows", _wfManage);
         Add("Fixed region width", _fixW); Add("Fixed region height", _fixH); Add("Interval (seconds)", _interval);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim); Add("Auto effect", _effect);
@@ -92,6 +128,11 @@ internal sealed class SettingsWindow : Window
         var p = new Preferences
         {
             OutputFolder = _folder.Text.Trim(), ImageFormat = (string)_format.SelectedItem,
+            ColorFormatName = _prefs.ColorFormatName,
+            PresetRect = _presetRect,
+            ExternalEditorPath = _extEditor.Text.Trim(),
+            FfmpegPath = _ffmpeg.Text.Trim(),
+            Workflows = _workflows, CaptureWorkflow = SelectedWorkflow(_wfCapture), RecordingWorkflow = SelectedWorkflow(_wfRecording),
             FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor",
             DefaultDelaySeconds = (int)_delay.SelectedItem, MatteColor = (string)_matte.SelectedItem,
             ShowToasts = _toasts.IsChecked == true,
@@ -119,5 +160,13 @@ internal sealed class SettingsWindow : Window
         if (!int.TryParse(_interval.Text, out int iv) || iv is < IntervalPlan.MinSeconds or > IntervalPlan.MaxSeconds)
         { iv = _prefs.IntervalSeconds; problems.Add($"Interval must be {IntervalPlan.MinSeconds} to {IntervalPlan.MaxSeconds} seconds — kept {iv}."); }
         p.FixedWidth = fw; p.FixedHeight = fh; p.IntervalSeconds = iv;
+        string? warning = _apply(p);
+        if (warning is not null) problems.Add(warning);
+        if (problems.Count > 0)
+        {
+            string msg = "Settings saved, with notes: " + string.Join(" ", problems);
+            if (_warn is not null) _warn(msg); else _error.Text = msg;
+        }
+        Close();
     }
 }
