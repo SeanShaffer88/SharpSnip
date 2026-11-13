@@ -128,6 +128,7 @@ internal sealed class SettingsWindow : Window
         var p = new Preferences
         {
             OutputFolder = _folder.Text.Trim(), ImageFormat = (string)_format.SelectedItem,
+            ColorFormatName = _prefs.ColorFormatName,
             PresetRect = _presetRect,
             ExternalEditorPath = _extEditor.Text.Trim(),
             FfmpegPath = _ffmpeg.Text.Trim(),

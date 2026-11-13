@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SharpSnip.Core;
 
@@ -7,16 +6,27 @@ namespace SharpSnip;
 
 /// <summary>
 /// Colour picker: move over anything on screen, read its colour in a magnifier, press 1-5 or Tab to change the
-/// output format, click or Enter to copy it. The monitor under the cursor is captured once (overlays are excluded
-/// from capture, so the colour is the real one) and sampled from that frozen frame.
+/// output format, click or Enter to copy it. Samples a desktop snapshot taken before the overlays open.
 /// </summary>
 internal sealed class ColorPickerPicker : PickerBase
 {
-    private readonly Dictionary<int, (BitmapSource Image, RectPx Rect)> _shots = new();
+    private readonly (BitmapSource Image, RectPx Rect)[] _shots;
+    private readonly byte[] _pixel = new byte[4];
     private int _x, _y;
     private string _format = ColorFormat.Default;
 
-    public ColorPickerPicker(PickerContext ctx) : base(ctx) { }
+    public ColorPickerPicker(PickerContext ctx, CaptureResult snapshot, IReadOnlyList<MonitorInfo> monitors) : base(ctx)
+    {
+        _shots = new (BitmapSource, RectPx)[monitors.Count];
+        for (int i = 0; i < monitors.Count; i++)
+        {
+            var bounds = monitors[i].Bounds;
+            var region = new Int32Rect(bounds.X - snapshot.Rect.X, bounds.Y - snapshot.Rect.Y, bounds.Width, bounds.Height);
+            var view = new CroppedBitmap(snapshot.Image, region);
+            view.Freeze();
+            _shots[i] = (view, bounds);
+        }
+    }
     public override PickMode Mode => PickMode.Menu;
 
     /// <summary>The text that was copied (set when the pick is confirmed).</summary>
@@ -36,17 +46,9 @@ internal sealed class ColorPickerPicker : PickerBase
 
     private (BitmapSource Image, RectPx Rect)? ShotUnderCursor()
     {
-        var m = VirtualDesktop.MonitorAt(Ctx.Monitors, _x, _y);
-        if (m is null) return null;
-        if (!_shots.TryGetValue(m.Index, out var shot))
-        {
-            var cap = CaptureEngine.Capture(m.Bounds, Ctx.Monitors, 0xFF000000u);
-            BitmapSource img = cap.Image.Format == PixelFormats.Bgra32 ? cap.Image : new FormatConvertedBitmap(cap.Image, PixelFormats.Bgra32, null, 0);
-            img.Freeze();
-            shot = (img, cap.Rect);
-            _shots[m.Index] = shot;
-        }
-        return shot;
+        foreach (var shot in _shots)
+            if (shot.Rect.Contains(_x, _y)) return shot;
+        return null;
     }
 
     private (byte R, byte G, byte B)? Sample()
@@ -56,9 +58,8 @@ internal sealed class ColorPickerPicker : PickerBase
             if (ShotUnderCursor() is not { } s) return null;
             int px = _x - s.Rect.X, py = _y - s.Rect.Y;
             if (px < 0 || py < 0 || px >= s.Image.PixelWidth || py >= s.Image.PixelHeight) return null;
-            var buf = new byte[4];
-            s.Image.CopyPixels(new Int32Rect(px, py, 1, 1), buf, 4, 0);
-            return (buf[2], buf[1], buf[0]);
+            s.Image.CopyPixels(new Int32Rect(px, py, 1, 1), _pixel, 4, 0);
+            return (_pixel[2], _pixel[1], _pixel[0]);
         }
         catch (Exception ex)
         {
@@ -70,7 +71,8 @@ internal sealed class ColorPickerPicker : PickerBase
     private void Update()
     {
         Ctx.Overlays.Highlight(new RectPx(_x - 4, _y - 4, 9, 9));
-        if (ShotUnderCursor() is { } s) Ctx.Overlays.Loupe(s.Image, s.Rect, _x, _y);
+        var shot = ShotUnderCursor();
+        Ctx.Overlays.Loupe(shot?.Image, shot?.Rect ?? RectPx.Empty, _x, _y);
         RefreshHint();
     }
 

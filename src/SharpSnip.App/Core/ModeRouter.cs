@@ -118,22 +118,26 @@ internal sealed class ModeRouter
     {
         if (IsBusy) return;
         _sm.TryTransition(AppState.ModeMenu);
-        using var cts = new CancellationTokenSource();
-        var monitors = MonitorEnumerator.Refresh();
-        using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
-        using var hook = new InputHook();
-        var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia };
-        var dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        dog.Tick += (_, _) =>
-        {
-            if (Environment.TickCount64 - hook.LastInputTick > 60_000) { Log.Warn("Watchdog: no input for 60 s, cancelling colour picker"); cts.Cancel(); }
-        };
+        DispatcherTimer? dog = null;
         try
         {
+            var monitors = MonitorEnumerator.Refresh();
+            var desktop = VirtualDesktop.Union(monitors);
+            // Capture can wait for the graphics backend. Finish before showing overlays or installing hooks.
+            var snapshot = await Task.Run(() => CaptureEngine.Capture(desktop, monitors, 0xFF000000u));
+            using var cts = new CancellationTokenSource();
+            using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
+            using var hook = new InputHook();
+            var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia };
+            var picker = new ColorPickerPicker(ctx, snapshot, monitors);
+            dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            dog.Tick += (_, _) =>
+            {
+                if (Environment.TickCount64 - hook.LastInputTick > 60_000) { Log.Warn("Watchdog: no input for 60 s, cancelling colour picker"); cts.Cancel(); }
+            };
             overlays.Show();
             hook.Start();
             dog.Start();
-            var picker = new ColorPickerPicker(ctx);
             var outcome = await picker.RunAsync(cts.Token);
             if (outcome.Kind == PickKind.Picked && picker.Chosen is { } text)
             {
@@ -149,9 +153,7 @@ internal sealed class ModeRouter
         }
         finally
         {
-            dog.Stop();
-            hook.Dispose();
-            overlays.Dispose();
+            dog?.Stop();
             _sm.ForceIdle();
         }
     }
