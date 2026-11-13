@@ -5,10 +5,9 @@ public static class OutputNaming
     public static string FileName(DateTime local, string extension) =>
         $"{local:yyyyMMdd-HHmmss-fff}.{ImageFormats.Normalize(extension) ?? ImageFormats.Default}";
 
-    public static string DefaultFolder(string userProfile) => Path.Combine(userProfile, "Pictures", "SharpSnip");
-
-    public static string ResolveFolder(string configured, string userProfile) =>
-        string.IsNullOrWhiteSpace(configured) ? DefaultFolder(userProfile) : configured;
+    /// <summary>Where captures land: the configured folder, or — when none is set — the user's Pictures folder (the OS path is passed in, so a redirected Pictures folder is honoured).</summary>
+    public static string ResolveFolder(string configured, string picturesFolder) =>
+        string.IsNullOrWhiteSpace(configured) ? picturesFolder : configured;
 
     /// <summary>
     /// First free variant of an auto-generated path: the path itself, then "name-2.ext",

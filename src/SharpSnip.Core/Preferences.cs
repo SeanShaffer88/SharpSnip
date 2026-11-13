@@ -30,8 +30,8 @@ public sealed class Preferences
     /// <summary>Last capture rectangle x,y,width,height in physical pixels, so "repeat last" survives a restart; null = none yet.</summary>
     public int[]? LastCaptureRect { get; set; }
     public bool EditorMaximized { get; set; }
-    /// <summary>True when SharpSnip has taken the Print Screen key over from Snipping Tool.</summary>
-    public bool PrintScreenTakeover { get; set; }
+    /// <summary>True when SharpSnip has taken the Print Screen key over from Snipping Tool. On by default: replacing Snipping Tool is the point. A stored false (the user unticked it) is respected.</summary>
+    public bool PrintScreenTakeover { get; set; } = true;
     /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded when takeover was switched on: -1 = the value did not exist, 0/1 = its DWORD. Written back when takeover is switched off.</summary>
     public int PrintScreenSnippingPrior { get; set; } = -1;
     /// <summary>Menu hotkey from before takeover, restored when takeover is switched off; empty = none recorded.</summary>
