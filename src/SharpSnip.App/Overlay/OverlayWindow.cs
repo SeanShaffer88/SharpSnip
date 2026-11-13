@@ -4,6 +4,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using SharpSnip.Core;
@@ -28,6 +29,10 @@ internal sealed class OverlayWindow : Window
     private readonly Border _hint, _hud, _chip, _sizeTag, _loupe;
     private readonly TextBlock _hintText, _hudText, _chipText, _sizeText;
     private readonly Image _loupeImage = new() { Width = LoupePixels * LoupeZoom, Height = LoupePixels * LoupeZoom };
+    private readonly Border _bar = new() { Visibility = Visibility.Collapsed };
+    private readonly StackPanel _barRow = new() { Orientation = Orientation.Horizontal };
+    private IReadOnlyList<ModeBarButton>? _barButtons;
+    private int _barHover = -2;
 
     // Stored state (physical pixels).
     private bool _dimmed = true;
@@ -89,11 +94,20 @@ internal sealed class OverlayWindow : Window
         for (int i = 0; i < 8; i++)
             _handles.Add(new Rectangle { Width = 8, Height = 8, Fill = Brushes.White, Stroke = accent, StrokeThickness = 1, Visibility = Visibility.Collapsed });
 
+        bool hc = style.HighContrast;
+        _bar.Background = hc ? new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0x00)) : new SolidColorBrush(Color.FromArgb(0xE6, 0x26, 0x28, 0x2D));
+        _bar.BorderBrush = hc ? Brushes.Black : new SolidColorBrush(Color.FromRgb(0x45, 0x48, 0x4D));
+        _bar.BorderThickness = new Thickness(1, 0, 1, 1);
+        _bar.CornerRadius = new CornerRadius(0, 0, 14, 14);
+        _bar.Padding = new Thickness(ModeBarLayout.PadX, 6, ModeBarLayout.PadX, 6);
+        _bar.Child = _barRow;
+
         _canvas.Children.Add(_dim);
         _canvas.Children.Add(_highlight);
         _canvas.Children.Add(_outline);
         foreach (var h in _handles) _canvas.Children.Add(h);
         foreach (var b in new[] { _hint, _hud, _chip, _sizeTag, _loupe }) _canvas.Children.Add(b);
+        _canvas.Children.Add(_bar);
         Content = _canvas;
     }
 
@@ -156,6 +170,83 @@ internal sealed class OverlayWindow : Window
     public void SetChip(string? text) { _chipMsg = text; Render(); }
     public void SetAdorn(RectPx? r, bool handles, string? sizeText) { _adornRect = r; _handlesOn = handles; _sizeMsg = sizeText; Render(); }
     public void SetLoupe(BitmapSource? src, int cx, int cy) { _loupeSrc = src; _loupeX = cx; _loupeY = cy; Render(); }
+
+    /// <summary>
+    /// The mode bar (top-centre tab). Null hides it. Showing it after it was hidden
+    /// slides it down from the top edge; hover-only updates do not re-animate.
+    /// </summary>
+    public void SetModeBar(IReadOnlyList<ModeBarButton>? buttons, int hover)
+    {
+        bool animateIn = buttons is not null && _barButtons is null;
+        _barButtons = buttons;
+        _barHover = hover;
+        if (buttons is null) { _bar.Visibility = Visibility.Collapsed; return; }
+
+        bool hc = _style.HighContrast;
+        Brush ink = hc ? Brushes.Black : Brushes.White;
+        Brush hoverBg = hc ? Brushes.Black : new SolidColorBrush(Color.FromRgb(0x3A, 0x3D, 0x42));
+        Brush hoverInk = hc ? new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0x00)) : Brushes.White;
+
+        _barRow.Children.Clear();
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            bool hot = hover == i;
+            var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            var icon = (FrameworkElement)ModeBarIcons.Create(buttons[i].Icon, hot ? hoverInk : ink);
+            icon.Margin = new Thickness(0, 9, 0, 0);
+            icon.HorizontalAlignment = HorizontalAlignment.Center;
+            inner.Children.Add(icon);
+            inner.Children.Add(new TextBlock
+            {
+                Text = buttons[i].Label, FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
+                Foreground = hot ? hoverInk : ink, HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 5, 0, 0),
+            });
+            var cell = new Border
+            {
+                Width = ModeBarLayout.ButtonWidth, Height = 80, CornerRadius = new CornerRadius(8),
+                Background = hot ? hoverBg : Brushes.Transparent, Child = inner,
+            };
+            AutomationProperties.SetName(cell, buttons[i].AutomationName);
+            _barRow.Children.Add(cell);
+        }
+        _barRow.Children.Add(new Border
+        {
+            Width = 1, Height = 56, Margin = new Thickness(6, 12, 6, 12),
+            Background = hc ? Brushes.Black : new SolidColorBrush(Color.FromRgb(0x45, 0x48, 0x4D)),
+        });
+        bool closeHot = hover == -1;
+        var closeCell = new Border
+        {
+            Width = ModeBarLayout.CloseWidth, Height = 80, CornerRadius = new CornerRadius(8),
+            Background = closeHot ? hoverBg : Brushes.Transparent,
+            Child = new Grid { Children = { ModeBarIcons.Create(ModeBarIcon.Close, closeHot ? hoverInk : ink) } },
+        };
+        ((FrameworkElement)closeCell.Child).HorizontalAlignment = HorizontalAlignment.Center;
+        ((FrameworkElement)closeCell.Child).VerticalAlignment = VerticalAlignment.Center;
+        AutomationProperties.SetName(closeCell, "Close (Esc)");
+        _barRow.Children.Add(closeCell);
+
+        _bar.Visibility = Visibility.Visible;
+        PositionBar();
+        if (animateIn)
+        {
+            var slide = new TranslateTransform(0, -ModeBarLayout.BarHeight);
+            _bar.RenderTransform = slide;
+            slide.BeginAnimation(TranslateTransform.YProperty,
+                new DoubleAnimation(-ModeBarLayout.BarHeight, 0, TimeSpan.FromMilliseconds(180))
+                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        }
+        else _bar.RenderTransform = null;
+    }
+
+    private void PositionBar()
+    {
+        if (_barButtons is null) return;
+        double w = Monitor.Bounds.Width / Scale;
+        Canvas.SetLeft(_bar, Math.Max(0, (w - ModeBarLayout.BarWidth(_barButtons.Count)) / 2));
+        Canvas.SetTop(_bar, 0);
+    }
 
     private void AnnounceHint()
     {
@@ -231,6 +322,8 @@ internal sealed class OverlayWindow : Window
             Place(_hud, _hudText, _hudMsg, new Point(p.X + 18, p.Y + 22), w, h, clampFlip: true);
         }
         else _hud.Visibility = Visibility.Collapsed;
+
+        PositionBar();
 
         // magnifier
         if (_loupeSrc is not null && Monitor.Bounds.Contains(_loupeX, _loupeY))
