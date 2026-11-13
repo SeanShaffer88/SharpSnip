@@ -887,5 +887,19 @@ Console.WriteLine("Pause clock + WAV concatenation");
     Check(concatThrew, "wavconcat: mismatched sample rates are rejected");
 }
 
+
+Console.WriteLine("Theme contrast (TesselGUI r3 palette, copied from TesselTheme.cs)");
+double Cr(string a, string b) { ContrastRatio.TryParse(a, out var ca); ContrastRatio.TryParse(b, out var cb); return ContrastRatio.Between(ca, cb); }
+Check(Math.Abs(Cr("#000000", "#FFFFFF") - 21.0) < 0.01, "contrast formula: black/white = 21");
+foreach (var surface in new[] { "#1B1B1D", "#1F1F22", "#232326", "#2A2A2F" })
+{
+    Check(Cr("#E6E3E1", surface) >= 4.5, $"foreground text on {surface} >= 4.5");
+    if (surface is "#1B1B1D" or "#1F1F22") Check(Cr("#89868A", surface) >= 4.5, $"muted text on {surface} >= 4.5 (Muted must not be used on raised/selected surfaces)");
+    Check(Cr("#E8939F", surface) >= 3.0, $"focus ring (#E8939F) on {surface} >= 3");
+}
+Check(Cr("#E8939F", "#960018") >= 3.0, "focus ring on action button fill >= 3");
+Check(Cr("#FFFFFF", "#960018") >= 4.5 && Cr("#FFFFFF", "#7E0014") >= 4.5, "white text on action fills >= 4.5");
+Check(Cr("#960018", "#1B1B1D") < 3.0, "old focus colour #960018 stays below 3:1 (why it was replaced)");
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
