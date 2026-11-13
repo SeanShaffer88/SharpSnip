@@ -30,6 +30,14 @@ public sealed class Preferences
     /// <summary>Last capture rectangle x,y,width,height in physical pixels, so "repeat last" survives a restart; null = none yet.</summary>
     public int[]? LastCaptureRect { get; set; }
     public bool EditorMaximized { get; set; }
+    /// <summary>True when SharpSnip has taken the Print Screen key over from Snipping Tool.</summary>
+    public bool PrintScreenTakeover { get; set; }
+    /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded when takeover was switched on: -1 = the value did not exist, 0/1 = its DWORD. Written back when takeover is switched off.</summary>
+    public int PrintScreenSnippingPrior { get; set; } = -1;
+    /// <summary>Menu hotkey from before takeover, restored when takeover is switched off; empty = none recorded.</summary>
+    public string HotkeyMenuBeforeTakeover { get; set; } = "";
+    /// <summary>False when the user hid the tray icon from its context menu. Running SharpSnip again brings it back.</summary>
+    public bool ShowTrayIcon { get; set; } = true;
 
     /// <summary>Matte for monitor-layout gaps as 0xAARRGGBB.</summary>
     public uint MatteArgb => MatteColor switch
@@ -63,6 +71,9 @@ public sealed class Preferences
         MatteColor = MatteColor is "Transparent" or "Black" or "White" ? MatteColor : "Transparent";
         if (EditorBounds is { Length: not 4 }) EditorBounds = null;
         if (LastCaptureRect is not { Length: 4 } r || r[2] is < 1 or > 32767 || r[3] is < 1 or > 32767) LastCaptureRect = null;
+        PrintScreenSnippingPrior = Math.Clamp(PrintScreenSnippingPrior, -1, 1);
+        HotkeyMenuBeforeTakeover ??= "";
+        if (HotkeyMenuBeforeTakeover.Length > 0 && !HotkeySpec.TryParse(HotkeyMenuBeforeTakeover, out _)) HotkeyMenuBeforeTakeover = "";
         return this;
     }
 }
