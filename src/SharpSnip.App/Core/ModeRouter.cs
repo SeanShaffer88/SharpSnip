@@ -33,7 +33,7 @@ internal sealed class ModeRouter
 
     // ---- full session (hotkey 1 / tray) --------------------------------------------------------
 
-    public async Task RunSessionAsync()
+    public async Task RunSessionAsync(bool scroll = false)
     {
         if (IsBusy) return;
         _sm.TryTransition(AppState.ModeMenu);
@@ -41,7 +41,7 @@ internal sealed class ModeRouter
         var monitors = MonitorEnumerator.Refresh();
         using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
         using var hook = new InputHook();
-        var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, DelaySeconds = Prefs.DefaultDelaySeconds, FullTarget = FullScreenTarget.Parse(Prefs.FullScreenTarget) };
+        var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, DelaySeconds = Prefs.DefaultDelaySeconds, FullTarget = FullScreenTarget.Parse(Prefs.FullScreenTarget), ScrollCapture = scroll };
 
         // Watchdog (§11): a stuck overlay must never trap the user. 60 s without input ends the session.
         var dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -57,7 +57,8 @@ internal sealed class ModeRouter
             dog.Start();
 
             PickResult? result = null;
-            var mode = PickMode.Menu;
+            var mode = scroll ? PickMode.Element : PickMode.Menu;
+            if (scroll) _sm.TryTransition(AppState.ElementPicking);
             while (result is null)
             {
                 PickerBase picker = mode switch
@@ -125,7 +126,16 @@ internal sealed class ModeRouter
         if (rect.IsEmpty) { _notify("SharpSnip", "Nothing to capture: the target is no longer on screen.", null); return; }
 
         await overlays.HideForCaptureAsync();
-        var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
+        CaptureResult cap;
+        if (ctx.ScrollCapture && ctx.ScrollTarget is { } scrollEl)
+        {
+            // Scrolling capture: the picked rect is the element's viewport; the result is its full content.
+            cap = await ScrollCapture.CaptureAsync(scrollEl, rect, _uia, monitors, Prefs.MatteArgb, ct);
+        }
+        else
+        {
+            cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
+        }
         RememberRect(rect);
         ClipboardWriter.SetImage(cap.Image);
         if (cap.Megapixels > 100) _notify("SharpSnip", $"Large capture ({cap.Megapixels:F0} MP). Saving may be slow.", null);

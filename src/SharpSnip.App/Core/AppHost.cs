@@ -60,6 +60,7 @@ internal sealed class AppHost : IDisposable
             return i;
         }
         Item("Capture…", "Open the mode menu (same as the menu hotkey).", () => _ = _router.RunSessionAsync());
+        Item("Scrolling capture…", "Pick a scrollable element and capture its full content as one tall image.", () => _ = _router.RunSessionAsync(scroll: true));
         Item("Full screen now", "Capture the configured monitor straight to the clipboard.", () => _ = _router.RunInstantFullScreenAsync());
         _intervalItem = Item("Start interval capture", "Capture the configured monitor every N seconds into a new folder. Click again to stop.", () => _ = ToggleIntervalAsync());
         Item("Repeat last capture", "Capture the same screen rectangle as the previous capture.", () => _ = _router.RunRepeatLastAsync());
