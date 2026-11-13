@@ -58,6 +58,7 @@ internal sealed class ModeRouter
 
             PickResult? result = null;
             var mode = scroll ? PickMode.Element : PickMode.Menu;
+            bool viaMouse = false;   // the switch that armed the next picker came from a bar click
             if (scroll) _sm.TryTransition(AppState.ElementPicking);
             while (result is null)
             {
@@ -71,6 +72,8 @@ internal sealed class ModeRouter
                     PickMode.Freehand => new FreehandPicker(ctx),
                     _ => new MenuPicker(ctx),
                 };
+                picker.ArmedByMouse = viaMouse;
+                viaMouse = false;
                 var outcome = await picker.RunAsync(cts.Token);
                 switch (outcome.Kind)
                 {
@@ -82,6 +85,7 @@ internal sealed class ModeRouter
                     case PickKind.Switch:
                         if (outcome.Target is { } t) ctx.FullTarget = t;
                         mode = outcome.Next;
+                        viaMouse = outcome.ViaMouse;
                         if (!_sm.TryTransition(AppStateMachine.ForMode(mode))) Log.Warn($"Illegal state transition to {mode}");
                         break;
                     default:
