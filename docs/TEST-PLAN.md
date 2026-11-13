@@ -136,3 +136,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Turn on a Windows High Contrast theme: Settings/Recorder use system colours; overlays use the yellow highlight.
 - [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
 - [ ] Edit a workflow step in `settings.json` with Notepad, start SharpSnip: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
+
+## v0.12.0 manual rows (deferred by owner)
+- [ ] Tray > Pick colour…: magnifier follows the cursor; clicking a known colour (e.g. a pure red rectangle) copies the exact value; 1-5 and Tab change the format; the format is remembered next time.
+- [ ] Pick a colour on a second monitor and across a mixed-DPI boundary: the value matches what is shown.
+- [ ] Editor: Frame adds a visible border and the canvas grows; Shadow shows a soft shadow on transparent PNG; Undo restores both.

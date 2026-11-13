@@ -927,5 +927,49 @@ Check(!LogPolicy.ShouldRoll(LogPolicy.MaxFileBytes - 1) && LogPolicy.ShouldRoll(
 var tj = System.Text.Json.JsonSerializer.Serialize(new Preferences { WorkflowsLocked = true });
 Check(!tj.Contains("WorkflowsLocked") && tj.Contains("WorkflowTrust"), "lock flag is never written to settings");
 
+
+Console.WriteLine("v0.12: colour formats and image frames");
+Check(ColorFormat.Format("HEX", 255, 128, 0) == "FF8000" && ColorFormat.Format("RGB", 255, 128, 0) == "rgb(255, 128, 0)" && ColorFormat.Format("HTML", 255, 128, 0) == "#FF8000", "colour hex/rgb/html");
+Check(ColorFormat.Format("C++", 0x11, 0x22, 0x33) == "0x332211" && ColorFormat.Format("Delphi", 0x11, 0x22, 0x33) == "$00332211", "colour C++/Delphi BGR order");
+Check(ColorFormat.Next("HEX") == "RGB" && ColorFormat.Next("Delphi") == "HEX" && ColorFormat.Next("bogus") == "RGB" && ColorFormat.Sanitize("x") == "HEX", "format cycling and sanitising");
+Check(ColorFormat.TryParseHex("#fa0", out var hc2) && hc2 == ((byte)0xFF, (byte)0xAA, (byte)0x00) && !ColorFormat.TryParseHex("zz", out _), "hex parse (short form)");
+var gr2 = ColorFormat.Gradient((0, 0, 0), (255, 255, 255), 3);
+Check(gr2.Length == 3 && gr2[1] == ((byte)128, (byte)128, (byte)128) && ColorFormat.Gradient((0, 0, 0), (1, 1, 1), 1).Length == 2, "gradient");
+Check(new Preferences { ColorFormatName = "nope" }.Sanitize().ColorFormatName == "HEX", "prefs sanitise colour format");
+
+{
+byte[] Solid(int w, int h, byte b, byte g, byte r, byte a) { var p = new byte[w * h * 4]; for (int i = 0; i < p.Length; i += 4) { p[i] = b; p[i + 1] = g; p[i + 2] = r; p[i + 3] = a; } return p; }
+var src3 = Solid(4, 3, 10, 20, 30, 255);
+var (bp, bw, bh) = ImageFrames.AddBorder(src3, 4, 3, 2, 1, 2, 3);
+Check(bw == 8 && bh == 7 && bp.Length == 8 * 7 * 4, "border grows canvas by 2t");
+Check(bp[0] == 3 && bp[1] == 2 && bp[2] == 1 && bp[3] == 255, "border corner is the border colour (BGRA)");
+int ci = ((2) * bw + 2) * 4;
+Check(bp[ci] == 10 && bp[ci + 1] == 20 && bp[ci + 2] == 30 && bp[ci + 3] == 255, "border keeps the original pixel in place");
+Check(ImageFrames.AddBorder(src3, 4, 3, -5, 0, 0, 0).Width == 4 && ImageFrames.AddBorder(src3, 4, 3, 99999, 0, 0, 0).Width == 4 + 2 * ImageFrames.MaxThickness, "border thickness clamped");
+bool bad = false; try { ImageFrames.AddBorder(new byte[5], 4, 3, 1, 0, 0, 0); } catch (ArgumentException) { bad = true; }
+Check(bad, "border rejects a mismatched buffer");
+
+var sh = Solid(10, 10, 200, 100, 50, 255);
+var (sp, sw, shh) = ImageFrames.AddShadow(sh, 10, 10, 4, 5, 5, 0.5);
+int mg = ImageFrames.ShadowMargin(4, 5, 5);
+Check(sw == 10 + 2 * mg && shh == 10 + 2 * mg && mg == 13, "shadow margin = 2*blur + max offset");
+int oi = ((mg + 3) * sw + mg + 3) * 4;
+Check(sp[oi] == 200 && sp[oi + 1] == 100 && sp[oi + 2] == 50 && sp[oi + 3] == 255, "shadow leaves opaque original pixels untouched");
+Check(sp[3] == 0, "shadow far corner stays transparent");
+int si = ((mg + 10 + 2) * sw + mg + 6) * 4;   // just below the image, inside the offset shadow
+Check(sp[si + 3] > 0 && sp[si] == 0 && sp[si + 1] == 0 && sp[si + 2] == 0, "shadow below/right of the image is black with some alpha");
+int up = ((mg - 1) * sw + mg + 5) * 4;        // just above the image, away from the offset
+Check(sp[up + 3] < sp[si + 3], "shadow is weaker on the side opposite the offset");
+var (s0, _, _) = ImageFrames.AddShadow(sh, 10, 10, 4, 5, 5, 0);
+Check(s0.Where((v, i) => i % 4 == 3 && v != 0).Count() == 100, "opacity 0: only the 100 original pixels carry alpha");
+var (sa, saw, _) = ImageFrames.AddShadow(sh, 10, 10, 4, 5, 5, 0.5);
+Check(sa.SequenceEqual(sp) && saw == sw, "shadow is deterministic");
+var (nb, nbw, nbh) = ImageFrames.AddShadow(sh, 10, 10, 0, 0, 0, 1.0);
+Check(nbw == 10 && nbh == 10 && nb.SequenceEqual(sh), "no blur, no offset, opaque image: unchanged");
+var tr = Solid(6, 6, 255, 255, 255, 0);
+var (tpx, _, _) = ImageFrames.AddShadow(tr, 6, 6, 3, 2, 2, 1.0);
+Check(tpx.Where((v, i) => i % 4 == 3 && v != 0).Count() == 0, "a fully transparent image casts no shadow");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

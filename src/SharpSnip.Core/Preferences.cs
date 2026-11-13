@@ -60,6 +60,8 @@ public sealed class Preferences
     /// <summary>Runtime only: the settings file changed outside the app, so program-launching steps are blocked.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool WorkflowsLocked { get; set; }
+    /// <summary>Colour picker output format (HEX, RGB, HTML, C++, Delphi); remembered between uses.</summary>
+    public string ColorFormatName { get; set; } = ColorFormat.Default;
     public string CaptureWorkflow { get; set; } = "";
     /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
     public string RecordingWorkflow { get; set; } = "";
@@ -108,6 +110,7 @@ public sealed class Preferences
         AutoEffect = AutoEffects.Sanitize(AutoEffect);
         ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
         FfmpegPath = (FfmpegPath ?? "").Trim();
+        ColorFormatName = ColorFormat.Sanitize(ColorFormatName);
         WorkflowTrust ??= "";
         Workflows ??= new();
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

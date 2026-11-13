@@ -101,6 +101,7 @@ internal sealed class AppHost : IDisposable
         }
         Item("Capture…", "Open the mode menu (same as Print Screen).", () => _ = _router.RunSessionAsync());
         Item("Scrolling capture…", "Pick a scrollable element and capture its full content as one tall image.", () => _ = _router.RunSessionAsync(scroll: true));
+        Item("Pick colour…", "Pick any pixel on screen: shows its colour in a magnifier and copies it as HEX, RGB, HTML, C++ or Delphi text (1-5 or Tab changes the format).", () => _ = _router.RunColorPickAsync());
         Item("Full screen now", "Capture the configured monitor straight to the clipboard.", () => _ = _router.RunInstantFullScreenAsync());
         _intervalItem = Item("Start interval capture", "Capture the configured monitor every N seconds into a new folder. Click again to stop.", () => _ = ToggleIntervalAsync());
         Item("Record screen…", "Record a monitor (or the last capture region) to an MP4 video.", ShowRecorder);

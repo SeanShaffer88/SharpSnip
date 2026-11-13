@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.12.0] - 2026-11-13
+
+### Added
+- **Colour picker** (tray → "Pick colour…"): move over any pixel on screen, read it in the 8x magnifier, press 1-5 or Tab to change the format, click or Enter to copy. Formats: HEX (`FF8000`), RGB (`rgb(255, 128, 0)`), HTML (`#FF8000`), C++ (`0x0080FF`, COLORREF byte order) and Delphi (`$000080FF`, TColor). The last format is remembered. The colour is read from a frozen capture of the monitor under the cursor, so SharpSnip's own overlays never tint it.
+- **Frame** and **Shadow** buttons in the editor. Frame adds a solid border outside the image (the canvas grows). Shadow adds a soft, offset drop shadow on a transparent margin; save as PNG to keep the transparency. Both bake in annotations and are undoable like the other whole-image effects.
+- Core: `ColorFormat` (formats, hex parsing, gradient palette helper) and `ImageFrames` (border and shadow pixel math), 20 new self-test checks (394 total).
+
 ## [0.11.0] - 2026-11-13
 
 A hardening release from a full review of v0.10.0. No new capture features.

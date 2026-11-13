@@ -185,6 +185,14 @@ internal sealed class EditorWindow : Window
         bar.Children.Add(new Separator { Margin = new Thickness(6, 0, 6, 0) });
         Act("Invert", "Invert the colours of the whole image. Annotations are baked in; Undo restores.", () => TransformBase("Invert", (px, w, h) => { PixelAdjust.Invert(px); return (px, w, h); }));
         Act("Grayscale", "Convert the whole image to grey. Annotations are baked in; Undo restores.", () => TransformBase("Grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); }));
+        Act("Frame", "Add a solid border around the whole image (grows the canvas). Annotations are baked in; Undo restores.", () =>
+            TransformBase("Frame", (px, w, h) => ImageFrames.AddBorder(px, w, h, Math.Max(2, Math.Min(w, h) / 60), 0x1B, 0x1B, 0x1D)));
+        Act("Shadow", "Add a soft drop shadow under the image on a transparent margin (keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+            TransformBase("Shadow", (px, w, h) =>
+            {
+                int blur = Math.Clamp(Math.Min(w, h) / 40, 4, 24);
+                return ImageFrames.AddShadow(px, w, h, blur, blur / 2 + 2, blur / 2 + 2, 0.45);
+            }));
         Act("Flip ↔", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
         Act("Flip ↕", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
         Act("Rotate", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));

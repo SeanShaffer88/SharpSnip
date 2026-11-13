@@ -6,6 +6,24 @@ namespace SharpSnip;
 
 internal static class ClipboardWriter
 {
+    /// <summary>Put plain text on the clipboard (retrying while another process holds it). Returns false if it stayed locked.</summary>
+    public static bool SetText(string text)
+    {
+        try
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try { Clipboard.SetDataObject(text, true); return true; }
+                catch (System.Runtime.InteropServices.COMException) when (attempt < 4) { Thread.Sleep(15); }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Clipboard text write failed", ex);
+            return false;
+        }
+    }
+
     /// <summary>Put the image on the clipboard as PNG + DIB (§4.5). Returns false if the clipboard stayed locked.</summary>
     public static bool SetImage(BitmapSource image)
     {
