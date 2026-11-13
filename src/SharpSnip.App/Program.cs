@@ -7,6 +7,8 @@ namespace SharpSnip;
 public static class Program
 {
     private const string MutexName = @"Local\7C1D5E2A-3B84-4F0A-9E61-2A5B8D0C4F13-SharpSnip";
+    /// <summary>A second launch sets this event; the running instance answers by restoring its tray icon and opening Settings.</summary>
+    internal const string ShowEventName = @"Local\7C1D5E2A-3B84-4F0A-9E61-2A5B8D0C4F13-SharpSnipShow";
     private const string Usage =
 @"SharpSnip " + Version + @"
   SharpSnip.exe                         start in the tray
@@ -23,7 +25,7 @@ public static class Program
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
-    private const string Version = "0.5.0";
+    private const string Version = "0.6.0";
 
     [STAThread]
     public static int Main(string[] args)
@@ -39,7 +41,12 @@ public static class Program
         if (Has("--fullscreen")) return OneShot(args);
 
         using var mutex = new Mutex(true, MutexName, out bool first);
-        if (!first) return 0; // already running in the tray
+        if (!first)
+        {
+            // Already running: ask it to show itself (its tray icon may be hidden) and open Settings.
+            if (EventWaitHandle.TryOpenExisting(ShowEventName, out var ev)) { ev.Set(); ev.Dispose(); }
+            return 0;
+        }
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.DispatcherUnhandledException += (_, e) =>
@@ -137,6 +144,13 @@ public static class Program
 
     private static int Clean()
     {
+        // Leave no trace: if the Print Screen takeover is on, give the key back to Windows first.
+        try
+        {
+            var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+            if (prefs.PrintScreenTakeover) PrintScreenKey.Write(PrintScreenKey.Prior(prefs.PrintScreenSnippingPrior));
+        }
+        catch (Exception ex) { Log.Error("Print Screen restore during --clean failed", ex); }
         try
         {
             if (Directory.Exists(AppPaths.DataDir)) Directory.Delete(AppPaths.DataDir, true);
