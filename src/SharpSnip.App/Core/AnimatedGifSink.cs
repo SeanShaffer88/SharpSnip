@@ -27,7 +27,7 @@ internal sealed class AnimatedGifSink : IDisposable
     public int Frames { get; private set; }
 
     /// <summary>The fixed 256-colour palette as 768 RGB bytes, read from WPF's halftone palette.</summary>
-    private static byte[] PaletteRgb()
+    internal static byte[] PaletteRgb()
     {
         var colors = BitmapPalettes.Halftone256.Colors;
         var rgb = new byte[256 * 3];

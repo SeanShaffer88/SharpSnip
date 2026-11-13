@@ -68,6 +68,7 @@ internal sealed class ModeRouter
                     PickMode.FixedRegion => new FixedRegionPicker(ctx),
                     PickMode.Window => new WindowPicker(ctx),
                     PickMode.FullScreen => new FullScreenPicker(ctx),
+                    PickMode.Freehand => new FreehandPicker(ctx),
                     _ => new MenuPicker(ctx),
                 };
                 var outcome = await picker.RunAsync(cts.Token);
@@ -135,6 +136,7 @@ internal sealed class ModeRouter
         else
         {
             cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
+            if (result.Polygon is { } polygon) cap = MaskOutside(cap, polygon);
         }
         RememberRect(rect);
         ClipboardWriter.SetImage(cap.Image);
@@ -205,6 +207,34 @@ internal sealed class ModeRouter
         // Re-read the frame after any countdown: the window may have moved or opened a menu.
         await RunInstantAsync(_ => WindowEnumerator.FrameOf(hwnd) is { IsEmpty: false } f ? f : null,
                               Prefs.DefaultDelaySeconds, "Active-window capture");
+    }
+
+    /// <summary>Applies the freehand mask: pixels outside the drawn outline become transparent.</summary>
+    private static CaptureResult MaskOutside(CaptureResult cap, IReadOnlyList<(int X, int Y)> polygon)
+    {
+        var src = cap.Image.Format == System.Windows.Media.PixelFormats.Bgra32
+            ? cap.Image
+            : new System.Windows.Media.Imaging.FormatConvertedBitmap(cap.Image, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+        int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
+        var px = new byte[stride * h];
+        src.CopyPixels(px, stride, 0);
+        PolygonMask.ApplyAlpha(px, w, h, polygon, cap.Rect);
+        var bmp = System.Windows.Media.Imaging.BitmapSource.Create(w, h, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, px, stride);
+        bmp.Freeze();
+        return cap with { Image = bmp };
+    }
+
+    /// <summary>Capture the preset region (Settings) in one shot.</summary>
+    public async Task RunPresetAsync()
+    {
+        if (IsBusy) return;
+        if (Prefs.PresetRect is not { Length: 4 } r)
+        {
+            _notify("SharpSnip", "No preset region yet. Set one in Settings — it can take your last capture region.", null);
+            return;
+        }
+        var rect = new RectPx(r[0], r[1], r[2], r[3]);
+        await RunInstantAsync(_ => rect, Prefs.DefaultDelaySeconds, "Preset-region capture");
     }
 
     /// <summary>Capture the same screen rectangle as the previous capture.</summary>

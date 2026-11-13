@@ -7,7 +7,7 @@ namespace SharpSnip;
 /// <summary>Message-only window that owns the global hotkeys and watches for display changes.</summary>
 internal sealed class HotkeyManager : IDisposable
 {
-    public const int IdMenu = 1, IdFullScreen = 2, IdActiveWindow = 3, IdRepeatLast = 4;
+    public const int IdMenu = 1, IdFullScreen = 2, IdActiveWindow = 3, IdRepeatLast = 4, IdPreset = 5;
     /// <summary>Ids 10..18 are "capture monitor 1..9".</summary>
     public const int IdMonitorBase = 10;
 
