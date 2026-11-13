@@ -176,3 +176,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Text, Effects, Adjust, More menus open under their button, are dark, and every item works (incl. Adjust > Brightness / contrast…).
 - [ ] Status bar, side panel and dialogs (Resize, Watermark, Replace text, Effects settings) are themed.
 - [ ] High Contrast: editor is black and white, hover inverts, focus ring visible on every control.
+
+## v0.21.0 manual rows (deferred by owner)
+- [ ] Adjust > Sharpen: text edges crisper, no heavy halos; repeat twice still acceptable; Undo restores.
+- [ ] Adjust > More colour / Less colour: visibly more / less vivid; Undo restores.

@@ -276,6 +276,9 @@ internal sealed class EditorWindow : Window
                 if (EditorDialogs.BrightContrast(this) is { } bc)
                     TransformBase("Brightness/contrast", (px, w, h) => { PixelAdjust.BrightnessContrast(px, bc.Brightness, bc.Contrast); return (px, w, h); });
             });
+            item("Sharpen", "Sharpen the whole image a little. Repeat for more. Annotations are baked in; Undo restores.", () => TransformBase("Sharpen", (px, w, h) => { PixelAdjust.Sharpen(px, w, h, 0.8); return (px, w, h); }));
+            item("More colour", "Make colours 30% more vivid. Annotations are baked in; Undo restores.", () => TransformBase("More colour", (px, w, h) => { PixelAdjust.Saturation(px, 1.3); return (px, w, h); }));
+            item("Less colour", "Make colours 30% more muted. Annotations are baked in; Undo restores.", () => TransformBase("Less colour", (px, w, h) => { PixelAdjust.Saturation(px, 0.7); return (px, w, h); }));
             sep();
             item("Flip horizontal", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
             item("Flip vertical", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));

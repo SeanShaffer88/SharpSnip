@@ -66,6 +66,46 @@ public static class PixelAdjust
             }
     }
 
+    /// <summary>
+    /// Scale colour about the Rec.601 luma: channel' = clamp(luma + (channel − luma) × factor).
+    /// 1 = identity, 0 = grayscale, above 1 = more vivid. Alpha untouched.
+    /// </summary>
+    public static void Saturation(byte[] bgra, double factor)
+    {
+        ValidatePixels(bgra);
+        if (factor < 0) throw new ArgumentOutOfRangeException(nameof(factor), "Saturation factor cannot be negative.");
+        for (int i = 0; i < bgra.Length; i += 4)
+        {
+            double luma = (299 * bgra[i + 2] + 587 * bgra[i + 1] + 114 * bgra[i]) / 1000.0;
+            for (int c = 0; c < 3; c++)
+                bgra[i + c] = (byte)Math.Clamp(Math.Round(luma + (bgra[i + c] - luma) * factor), 0, 255);
+        }
+    }
+
+    /// <summary>
+    /// Sharpen with a 3×3 kernel (edge pixels use the nearest in-image neighbour):
+    /// out = clamp(centre + amount × (centre − mean of 4 neighbours)). amount 0 = identity. Alpha untouched.
+    /// </summary>
+    public static void Sharpen(byte[] bgra, int width, int height, double amount)
+    {
+        ValidatePixels(bgra);
+        if (width <= 0 || height <= 0 || bgra.Length != width * height * 4) throw new ArgumentException("Pixel buffer does not match width × height.");
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), "Sharpen amount cannot be negative.");
+        var src = (byte[])bgra.Clone();
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                int i = (y * width + x) * 4;
+                int l = (y * width + Math.Max(x - 1, 0)) * 4, r = (y * width + Math.Min(x + 1, width - 1)) * 4;
+                int u = (Math.Max(y - 1, 0) * width + x) * 4, d = (Math.Min(y + 1, height - 1) * width + x) * 4;
+                for (int c = 0; c < 3; c++)
+                {
+                    double mean = (src[l + c] + src[r + c] + src[u + c] + src[d + c]) / 4.0;
+                    bgra[i + c] = (byte)Math.Clamp(Math.Round(src[i + c] + amount * (src[i + c] - mean)), 0, 255);
+                }
+            }
+    }
+
     public static void FlipHorizontal(byte[] bgra, int width, int height)
     {
         ValidateFrame(bgra, width, height);

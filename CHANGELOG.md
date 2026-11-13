@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.21.0] - 2026-11-13
+
+### Added
+- Editor **Adjust** menu: **Sharpen**, **More colour**, **Less colour** (saturation about luma). Annotations are baked in; Undo restores.
+- Core: `PixelAdjust.Saturation`, `PixelAdjust.Sharpen`. 9 new self-test checks (472 total).
+
 ## [0.20.0] - 2026-11-13
 
 ### Changed
