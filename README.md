@@ -7,7 +7,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status v0.16.0.** SharpSnip is now Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
+> **Status v0.17.0.** The editor has an Effects… dialog for Frame, Shadow, Torn and Wave sizes. v0.16.0 renamed SharpSnip to Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
 
 ## Features
 

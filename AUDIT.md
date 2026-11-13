@@ -109,6 +109,9 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.17.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- `EffectSettings` and the new preference clamps are self-tested, including that automatic values equal the old hard-coded ones. The Effects… dialog (validation messages, save on OK) is unverified on hardware. Settings apply to all four effects at once; there is no per-side choice for Torn/Wave.
+
 ## v0.15.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - `EdgeEffects` pixel math is self-tested (size, depth limit, determinism, side selection, transparency). The editor buttons are wired through the existing `TransformBase` path and are unverified on hardware. Effects cut all four sides at a fixed depth; there is no per-side or depth setting yet.
 

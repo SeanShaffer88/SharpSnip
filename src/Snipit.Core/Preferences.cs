@@ -64,6 +64,16 @@ public sealed class Preferences
     public string ColorFormatName { get; set; } = ColorFormat.Default;
     /// <summary>Capture mode bar position along the top edge: its centre as a fraction of the monitor width. Saved after each drag.</summary>
     public double ModeBarCenter { get; set; } = ModeBarLayout.DefaultCenter;
+    /// <summary>Editor Frame border width in pixels; 0 = automatic by image size.</summary>
+    public int FrameThickness { get; set; }
+    /// <summary>Editor Frame colour, six hex digits.</summary>
+    public string FrameColor { get; set; } = EffectSettings.DefaultFrameColor;
+    /// <summary>Editor Shadow blur radius in pixels; 0 = automatic by image size.</summary>
+    public int ShadowBlur { get; set; }
+    /// <summary>Editor Shadow opacity, percent.</summary>
+    public int ShadowOpacityPercent { get; set; } = EffectSettings.DefaultShadowOpacity;
+    /// <summary>Editor Torn and Wave cut depth in pixels; 0 = automatic by image size.</summary>
+    public int EdgeDepth { get; set; }
     public string CaptureWorkflow { get; set; } = "";
     /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
     public string RecordingWorkflow { get; set; } = "";
@@ -113,6 +123,11 @@ public sealed class Preferences
         ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
         FfmpegPath = (FfmpegPath ?? "").Trim();
         ColorFormatName = ColorFormat.Sanitize(ColorFormatName);
+        FrameThickness = Math.Clamp(FrameThickness, 0, ImageFrames.MaxThickness);
+        FrameColor = EffectSettings.SanitizeColor(FrameColor);
+        ShadowBlur = Math.Clamp(ShadowBlur, 0, ImageFrames.MaxBlur);
+        ShadowOpacityPercent = Math.Clamp(ShadowOpacityPercent, 0, 100);
+        EdgeDepth = Math.Clamp(EdgeDepth, 0, EdgeEffects.MaxDepth);
         ModeBarCenter = ModeBarLayout.SanitizeCenter(ModeBarCenter);
         WorkflowTrust ??= "";
         Workflows ??= new();

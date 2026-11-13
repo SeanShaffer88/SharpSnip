@@ -1053,5 +1053,25 @@ Console.WriteLine("EdgeEffects");
           "edges: wave leaves a three-pixel-high crop intact");
 }
 
+Console.WriteLine("EffectSettings");
+{
+    Check(EffectSettings.FrameThickness(0, 1200, 800) == 13 && EffectSettings.FrameThickness(0, 50, 50) == 2, "effects: automatic frame width follows image size, min 2");
+    Check(EffectSettings.FrameThickness(7, 1200, 800) == 7 && EffectSettings.FrameThickness(99999, 100, 100) == ImageFrames.MaxThickness, "effects: manual frame width wins, clamped");
+    Check(EffectSettings.ShadowBlur(0, 4000, 3000) == 24 && EffectSettings.ShadowBlur(0, 40, 40) == 4 && EffectSettings.ShadowBlur(9, 40, 40) == 9, "effects: automatic blur clamps 4..24, manual wins");
+    Check(EffectSettings.ShadowBlur(500, 40, 40) == ImageFrames.MaxBlur, "effects: huge blur is capped");
+    Check(EffectSettings.ShadowOffset(10) == 7 && EffectSettings.ShadowOffset(0) == 2, "effects: offset follows blur");
+    Check(EffectSettings.ShadowOpacity(45) == 0.45 && EffectSettings.ShadowOpacity(-5) == 0 && EffectSettings.ShadowOpacity(400) == 1, "effects: opacity percent clamps");
+    Check(EffectSettings.EdgeDepth(0, 1600, 1200) == 30 && EffectSettings.EdgeDepth(0, 40, 40) == 4, "effects: automatic depth follows image size");
+    Check(EffectSettings.EdgeDepth(200, 100, 100) == 25, "effects: manual depth never beyond a quarter of the short side");
+    Check(EffectSettings.EdgeDepth(0, 8, 8) == EdgeEffects.MaxDepthFor(8, 8), "effects: tiny image caps automatic depth");
+    Check(EffectSettings.SanitizeColor("#ff8000") == "FF8000" && EffectSettings.SanitizeColor("f80") == "FF8800", "effects: colour accepts #, short form, any case");
+    Check(EffectSettings.SanitizeColor("nope") == EffectSettings.DefaultFrameColor && EffectSettings.SanitizeColor(null) == EffectSettings.DefaultFrameColor, "effects: bad colour falls back");
+    Check(EffectSettings.FrameRgb("0A0B0C") is { R: 0x0A, G: 0x0B, B: 0x0C }, "effects: FrameRgb parses");
+    var ep = new Preferences { FrameThickness = -4, FrameColor = "zz", ShadowBlur = 900, ShadowOpacityPercent = 250, EdgeDepth = 9999 }.Sanitize();
+    Check(ep.FrameThickness == 0 && ep.FrameColor == EffectSettings.DefaultFrameColor && ep.ShadowBlur == ImageFrames.MaxBlur && ep.ShadowOpacityPercent == 100 && ep.EdgeDepth == EdgeEffects.MaxDepth, "effects: saved settings are clamped on load");
+    var dflt = new Preferences();
+    Check(dflt.FrameThickness == 0 && dflt.ShadowBlur == 0 && dflt.EdgeDepth == 0 && dflt.ShadowOpacityPercent == 45, "effects: defaults are automatic");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

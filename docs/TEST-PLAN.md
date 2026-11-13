@@ -137,6 +137,11 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
 - [ ] Edit a workflow step in `settings.json` with Notepad, start Snipit: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
 
+## v0.17.0 manual rows (deferred by owner)
+- Editor → Effects…: set Frame width 20 and colour FF8000, OK, click Frame: the border is 20 px orange. Reopen the dialog after restarting: values are kept.
+- Enter "abc" as a width or "zz" as a colour: a red message shows and the dialog stays open. Cancel changes nothing.
+- Shadow blur 30 / strength 80 gives a larger, darker shadow; Torn/Wave depth 30 cuts deeper; 0 in each restores automatic sizing.
+
 ## v0.15.0 manual rows (deferred by owner)
 - Open a capture in the editor, click Torn: all four edges turn ragged and transparent; Undo restores. Click it again on a fresh image: the edge differs.
 - Click Wave: edges ripple smoothly. Save as PNG and open it: the cut area is transparent. Save as JPEG: no crash.

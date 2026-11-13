@@ -105,6 +105,39 @@ internal static class EditorDialogs
         return win.ShowDialog() == true ? result : null;
     }
 
+    /// <summary>Edits the Frame / Shadow / Torn-Wave settings in place. Returns true when saved.</summary>
+    public static bool Effects(Window owner, Preferences p)
+    {
+        var (grid, add) = Grid2();
+        var thick = new TextBox { Text = p.FrameThickness.ToString(), ToolTip = "Frame border width in pixels. 0 = automatic by image size." };
+        var color = new TextBox { Text = p.FrameColor, ToolTip = "Frame colour as six hex digits, e.g. 1B1B1D." };
+        var blur = new TextBox { Text = p.ShadowBlur.ToString(), ToolTip = "Shadow blur radius in pixels. 0 = automatic by image size." };
+        var strength = new Slider { Minimum = 0, Maximum = 100, Value = p.ShadowOpacityPercent, ToolTip = "How dark the shadow is." };
+        var depth = new TextBox { Text = p.EdgeDepth.ToString(), ToolTip = "How deep the Torn and Wave cuts go, in pixels. 0 = automatic. Limited to a quarter of the image's short side." };
+        var error = new TextBlock { Foreground = System.Windows.Media.Brushes.IndianRed, Margin = new Thickness(12, 0, 12, 0), TextWrapping = TextWrapping.Wrap };
+        add("Frame width px (0 = auto)", thick); add("Frame colour (hex)", color);
+        add("Shadow blur px (0 = auto)", blur); add("Shadow strength %", strength);
+        add("Torn/Wave depth px (0 = auto)", depth);
+        bool saved = false;
+        var win = Base("Effect settings", new StackPanel());
+        var stack = (StackPanel)win.Content;
+        stack.Children.Add(grid);
+        stack.Children.Add(error);
+        stack.Children.Add(Buttons(win, () =>
+        {
+            if (!int.TryParse(thick.Text.Trim(), out int t) || t < 0 || t > ImageFrames.MaxThickness) { error.Text = $"Frame width must be 0 to {ImageFrames.MaxThickness}."; return; }
+            if (!ColorFormat.TryParseHex(color.Text, out _)) { error.Text = "Frame colour must be six hex digits, like 1B1B1D."; return; }
+            if (!int.TryParse(blur.Text.Trim(), out int b) || b < 0 || b > ImageFrames.MaxBlur) { error.Text = $"Shadow blur must be 0 to {ImageFrames.MaxBlur}."; return; }
+            if (!int.TryParse(depth.Text.Trim(), out int d) || d < 0 || d > EdgeEffects.MaxDepth) { error.Text = $"Depth must be 0 to {EdgeEffects.MaxDepth}."; return; }
+            p.FrameThickness = t; p.FrameColor = EffectSettings.SanitizeColor(color.Text);
+            p.ShadowBlur = b; p.ShadowOpacityPercent = (int)Math.Round(strength.Value); p.EdgeDepth = d;
+            saved = true; win.DialogResult = true;
+        }));
+        win.Owner = owner;
+        win.ShowDialog();
+        return saved;
+    }
+
     /// <summary>Returns (find, replace) or null when cancelled.</summary>
     public static (string Find, string Replace)? ReplaceText(Window owner)
     {
