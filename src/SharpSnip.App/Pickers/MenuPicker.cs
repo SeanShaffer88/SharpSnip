@@ -2,38 +2,80 @@ using SharpSnip.Core;
 
 namespace SharpSnip;
 
-/// <summary>MODE_MENU HUD (§2.3). Chooses a picker; never captures by itself.</summary>
+/// <summary>
+/// MODE_MENU (§2.3). Shows the mode bar — a tab hanging from the top-centre of
+/// the monitor under the cursor, icon buttons with labels underneath — and
+/// dispatches clicks and keys to the pickers. Never captures by itself.
+/// Every action also stays on its key: E/R/W/S/F/D/C, 1..9, Space, Esc.
+/// </summary>
 internal sealed class MenuPicker : PickerBase
 {
     private int _x, _y;
+    private int _hover = -2; // -2 = nothing, -1 = close, >= 0 = button index
+    private MonitorInfo? _barMonitor;
 
     public MenuPicker(PickerContext ctx) : base(ctx) { }
     public override PickMode Mode => PickMode.Menu;
 
+    private IReadOnlyList<ModeBarButton> Buttons => new[]
+    {
+        new ModeBarButton(ModeBarIcon.Element, "Element", "Element (E)"),
+        new ModeBarButton(ModeBarIcon.Region, "Region", "Region (R)"),
+        new ModeBarButton(ModeBarIcon.Window, "Window", "Window (W)"),
+        new ModeBarButton(ModeBarIcon.FullScreen, "Full screen", "Full screen, this monitor (D); F = all monitors"),
+        new ModeBarButton(ModeBarIcon.Scrolling, "Scrolling", "Scrolling capture (C)"),
+        new ModeBarButton(ModeBarIcon.Delay, Ctx.DelaySeconds > 0 ? $"{Ctx.DelaySeconds}s delay" : "Delay", "Delay (Space cycles)"),
+    };
+
     protected override void Enter()
     {
         (_x, _y) = MonitorEnumerator.CursorPos();
+        _barMonitor = VirtualDesktop.MonitorAt(Ctx.Monitors, _x, _y);
         Ctx.Overlays.Dim(_ => true, null);
         Ctx.Overlays.Highlight(null);
         Ctx.Overlays.Adorn(null, false, null);
-        RefreshHint();
+        ShowBar();
     }
 
-    protected override void RefreshHint()
+    protected override void Leave() => Ctx.Overlays.ModeBar(null, -2, _x, _y);
+
+    protected override void RefreshHint() => ShowBar();
+
+    private void ShowBar() => Ctx.Overlays.ModeBar(Buttons, _hover, _x, _y);
+
+    /// <summary>Bar hit-test: physical px → bar-local units on the bar's monitor.</summary>
+    private ModeBarLayout.Hit? HitAt(int x, int y)
     {
-        string text =
-            "SharpSnip — choose a mode\n" +
-            "[E] Element    [R] Region    [W] Window\n" +
-            "[C] Scrolling capture (element)\n" +
-            $"[S] Fixed-size region ({Ctx.Prefs.FixedWidth}×{Ctx.Prefs.FixedHeight})\n" +
-            "[F] Full screen (all monitors)\n" +
-            "[D] Full screen (this monitor)\n" +
-            "[1..9] Full screen (monitor N)\n" +
-            $"[Space] delay: {DelayText}    [Esc] cancel";
-        Ctx.Overlays.Hud(text, _x, _y);
+        if (_barMonitor is not { } m) return null;
+        double s = m.Scale;
+        double barLeft = (m.Bounds.Width / s - ModeBarLayout.BarWidth(Buttons.Count)) / 2;
+        return ModeBarLayout.HitTest((x - m.Bounds.X) / s - barLeft, (y - m.Bounds.Y) / s, Buttons.Count);
     }
 
-    protected override void OnMove(int x, int y) { }
+    protected override void OnMove(int x, int y)
+    {
+        var hit = HitAt(x, y);
+        int hover = hit is null ? -2 : hit.Value.IsClose ? -1 : hit.Value.Index;
+        if (hover == _hover) return;
+        _hover = hover;
+        ShowBar();
+    }
+
+    protected override bool OnLeftDown(int x, int y)
+    {
+        if (HitAt(x, y) is not { } hit) return true;
+        if (hit.IsClose) { Finish(PickOutcome.Cancel()); return true; }
+        switch (hit.Index)
+        {
+            case 0: Finish(PickOutcome.SwitchTo(PickMode.Element)); break;
+            case 1: Finish(PickOutcome.SwitchTo(PickMode.Region)); break;
+            case 2: Finish(PickOutcome.SwitchTo(PickMode.Window)); break;
+            case 3: Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current)); break;
+            case 4: Ctx.ScrollCapture = true; Finish(PickOutcome.SwitchTo(PickMode.Element)); break;
+            case 5: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); break;
+        }
+        return true;
+    }
 
     protected override bool HandleKey(int vk)
     {
