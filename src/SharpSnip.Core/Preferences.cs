@@ -20,8 +20,6 @@ public sealed class Preferences
     public int IntervalSeconds { get; set; } = 5;
     public string FullScreenTarget { get; set; } = "CurrentMonitor";
     public int DefaultDelaySeconds { get; set; }
-    /// <summary>Off by default (owner direction, 2026-11-13): a capture goes to the clipboard and a file; the editor opens only when the user ticks this in Settings.</summary>
-    public bool OpenEditorAfterCapture { get; set; }
     public bool ShowToasts { get; set; } = true;
     public double DimmerOpacity { get; set; } = 0.47;
     public bool HighContrastHighlight { get; set; }
@@ -30,6 +28,8 @@ public sealed class Preferences
     public int[]? EditorBounds { get; set; }
     /// <summary>Last capture rectangle x,y,width,height in physical pixels, so "repeat last" survives a restart; null = none yet.</summary>
     public int[]? LastCaptureRect { get; set; }
+    /// <summary>Recording region x,y,width,height in physical pixels, set by the Recorder's "Pick region…"; null = fall back to the last capture rectangle.</summary>
+    public int[]? RecordingRegion { get; set; }
     public bool EditorMaximized { get; set; }
     /// <summary>True when SharpSnip has taken the Print Screen key over from Snipping Tool. On by default: replacing Snipping Tool is the point. A stored false (the user unticked it) is respected.</summary>
     public bool PrintScreenTakeover { get; set; } = true;
@@ -106,6 +106,7 @@ public sealed class Preferences
         MatteColor = MatteColor is "Transparent" or "Black" or "White" ? MatteColor : "Transparent";
         if (EditorBounds is { Length: not 4 }) EditorBounds = null;
         if (LastCaptureRect is not { Length: 4 } r || r[2] is < 1 or > 32767 || r[3] is < 1 or > 32767) LastCaptureRect = null;
+        if (RecordingRegion is not { Length: 4 } rr || rr[2] is < 1 or > 32767 || rr[3] is < 1 or > 32767) RecordingRegion = null;
         PrintScreenSnippingPrior = Math.Clamp(PrintScreenSnippingPrior, -1, 1);
         RecordingFps = RecordingPlan.ClampFps(RecordingFps);
         RecordingQualityName = RecordingQuality.Sanitize(RecordingQualityName);
