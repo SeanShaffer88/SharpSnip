@@ -76,6 +76,30 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr GetModuleHandle(string? name);
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
     [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT pt);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+
+    // Synthetic input (scrolling capture's wheel fallback)
+    public const uint INPUT_MOUSE = 0;
+    public const uint MOUSEEVENTF_WHEEL = 0x0800;
+    public const int WHEEL_DELTA = 120;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT mi; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT { public uint type; public INPUTUNION u; }
+
+    [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    /// <summary>Send mouse-wheel ticks at the current cursor position (negative = down).</summary>
+    public static void Wheel(int ticks)
+    {
+        var input = new INPUT { type = INPUT_MOUSE, u = new INPUTUNION { mi = new MOUSEINPUT { mouseData = unchecked((uint)(ticks * WHEEL_DELTA)), dwFlags = MOUSEEVENTF_WHEEL } } };
+        SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
+    }
     [DllImport("user32.dll")] public static extern uint GetDoubleClickTime();
     [DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
 
