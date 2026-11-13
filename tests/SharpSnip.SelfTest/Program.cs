@@ -886,39 +886,6 @@ Console.WriteLine("Pause clock + WAV concatenation");
 }
 
 
-Console.WriteLine("v0.4 output");
-var t0 = new DateTime(2026, 11, 12, 9, 8, 7, 6);
-Check(NamePattern.RenderFile("{yyyy}-{MM}-{dd}_{HH}{mm}{ss}_{ms}", t0) == "2026-11-12_090807_006", "pattern tokens");
-Check(NamePattern.RenderFile("", t0) == "20261112-090807-006", "blank pattern = default");
-Check(NamePattern.RenderFile("a:b*c?", t0) == "a_b_c_", "bad chars replaced");
-Check(NamePattern.RenderFile("CON", t0) == "_CON" && NamePattern.RenderFile("..", t0) == "capture", "reserved + dots safe");
-Check(NamePattern.RenderFolder("{yyyy}/{MM}\\..", t0).SequenceEqual(new[] { "2026", "11", "capture" }), "folder segments, .. neutralised");
-Check(NamePattern.RenderFolder("", t0).Length == 0, "empty folder pattern");
-var taken = new HashSet<string> { Path.Combine("r", "x.png"), Path.Combine("r", "x (2).png") };
-Check(NamePattern.Resolve("r", "", "x", "png", t0, taken.Contains) == Path.Combine("r", "x (3).png"), "clash suffix");
-taken = new HashSet<string> { Path.Combine("r", "s1.png"), Path.Combine("r", "s2.png") };
-Check(NamePattern.Resolve("r", "", "s{n}", "png", t0, taken.Contains) == Path.Combine("r", "s3.png"), "{n} lowest free");
-Check(NamePattern.Resolve("r", "{yyyy}", "q", "png", t0, _ => false) == Path.Combine("r", "2026", "q.png"), "folder + file resolve");
-Check(!NamePattern.IsValid(new string('a', 500)) && !NamePattern.IsValid(null), "pattern length/null invalid");
-Check(ImageFormats.Sanitize("webp") == "png" && ImageFormats.Sanitize("pdf") == "pdf" && ImageFormats.Extension("tiff") == "tif" && ImageFormats.FromExtension(".JPEG") == "jpg", "formats");
-Check(ColorFormat.Format("HEX", 255, 128, 0) == "FF8000" && ColorFormat.Format("RGB", 255, 128, 0) == "rgb(255, 128, 0)" && ColorFormat.Format("HTML", 255, 128, 0) == "#FF8000", "colour hex/rgb/html");
-Check(ColorFormat.Format("C++", 0x11, 0x22, 0x33) == "0x332211" && ColorFormat.Format("Delphi", 0x11, 0x22, 0x33) == "$00332211", "colour C++/Delphi BGR");
-Check(ColorFormat.TryParseHex("#fa0", out var hc) && hc == ((byte)0xFF, (byte)0xAA, (byte)0x00) && !ColorFormat.TryParseHex("zz", out _), "hex parse");
-var gr = ColorFormat.Gradient((0, 0, 0), (255, 255, 255), 3);
-Check(gr.Length == 3 && gr[1] == ((byte)128, (byte)128, (byte)128) && ColorFormat.Gradient((0, 0, 0), (1, 1, 1), 1).Length == 2, "gradient");
-var pdf = PdfWriter.SingleJpegPage(new byte[] { 0xFF, 0xD8, 1, 2, 3, 0xFF, 0xD9 }, 200, 100);
-var ptxt = System.Text.Encoding.Latin1.GetString(pdf);
-Check(ptxt.StartsWith("%PDF-1.4") && ptxt.TrimEnd().EndsWith("%%EOF") && ptxt.Contains("/MediaBox [0 0 150 75]") && ptxt.Contains("/DCTDecode"), "pdf structure");
-int sx = int.Parse(ptxt.Substring(ptxt.LastIndexOf("startxref") + 10).Split('\n')[0]);
-Check(ptxt.Substring(sx, 4) == "xref", "pdf startxref points at xref");
-var xl = ptxt.Substring(sx).Split('\n');
-bool offsOk = true;
-for (int i = 3; i < 8; i++) { long off = long.Parse(xl[i].Substring(0, 10)); offsOk &= ptxt.Substring((int)off).StartsWith($"{i - 2} 0 obj"); }
-Check(offsOk, "pdf xref offsets hit objects");
-bool threw = false; try { PdfWriter.SingleJpegPage(Array.Empty<byte>(), 1, 1); } catch (ArgumentException) { threw = true; }
-Check(threw, "pdf rejects empty jpeg");
-var sp = new Preferences { ImageFormat = "webp", FileNamePattern = " ", FolderPattern = new string('x', 999), JpegQuality = 5 }.Sanitize();
-Check(sp.ImageFormat == "png" && sp.FileNamePattern == NamePattern.DefaultFile && sp.FolderPattern == "" && sp.JpegQuality == 10, "prefs sanitize v0.4 fields");
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

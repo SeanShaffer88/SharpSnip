@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Markup;
@@ -12,8 +13,8 @@ namespace SharpSnip;
 /// TesselGUI revision 3 (Carmine, standard v2.0.0) applied to a window: values
 /// copied from the design standard's docs/tokens.json — background #1B1B1D,
 /// surface #1F1F22, raised #232326, selected #2A2A2F, foreground #E6E3E1, muted
-/// #89868A, edge #43434A, and the one Carmine accent #960018 carrying focus,
-/// selection and the action family (hover #A81226, pressed #7E0014), danger
+/// #89868A, edge #43434A, and the one Carmine accent #960018 carrying
+/// selection and the action family, with a light tint #E8939F for focus rings and check marks (the deep accent is only ~1.9:1 on the dark surfaces, below WCAG 3:1), (hover #A81226, pressed #7E0014), danger
 /// #E8939F; Segoe UI, 13px labels, 1px edges carry the structure.
 /// The OS title bar is not themed (that needs WindowChrome; out of scope here).
 /// </summary>
@@ -28,7 +29,7 @@ internal static class TesselTheme
     public static readonly Brush Foreground = B("#E6E3E1");
     public static readonly Brush Muted = B("#89868A");
     public static readonly Brush Edge = B("#43434A");
-    public static readonly Brush Focus = B("#960018");
+    public static readonly Brush Focus = B("#E8939F");
     public static readonly Brush Selection = B("#960018");
     public static readonly Brush AccentDeep = B("#33333A");
     public static readonly Brush Action = B("#960018");
@@ -38,11 +39,50 @@ internal static class TesselTheme
 
     public static void Apply(Window window)
     {
+        if (SystemParameters.HighContrast)
+        {
+            // Windows High Contrast: use the user's system colours and the stock control templates.
+            window.Background = SystemColors.WindowBrush;
+            window.Foreground = SystemColors.WindowTextBrush;
+            foreach (var d in Descendants(window))
+            {
+                if (d is Control c) { c.ClearValue(Control.BackgroundProperty); c.ClearValue(Control.ForegroundProperty); c.ClearValue(Control.BorderBrushProperty); }
+                else if (d is TextBlock t) t.ClearValue(TextBlock.ForegroundProperty);
+            }
+            Name(window);
+            return;
+        }
         window.Background = Background;
         window.Foreground = Foreground;
         window.FontFamily = new FontFamily("Segoe UI");
         window.FontSize = 13;
         foreach (var d in Descendants(window)) StyleOne(d);
+        Name(window);
+    }
+
+    /// <summary>
+    /// Gives screen readers names: a text label sitting in the same grid row, to the left of an input,
+    /// becomes that input's LabeledBy; a string tooltip becomes its help text. Existing names win.
+    /// </summary>
+    private static void Name(Window window)
+    {
+        foreach (var d in Descendants(window))
+        {
+            if (d is Grid g)
+            {
+                var kids = g.Children.OfType<FrameworkElement>().ToList();
+                foreach (var label in kids.OfType<TextBlock>().Where(t => !string.IsNullOrWhiteSpace(t.Text)))
+                {
+                    int row = Grid.GetRow(label), col = Grid.GetColumn(label);
+                    var target = kids.FirstOrDefault(k => k is not TextBlock && Grid.GetRow(k) == row && Grid.GetColumn(k) > col);
+                    if (target is not null && AutomationProperties.GetLabeledBy(target) is null
+                        && string.IsNullOrEmpty(AutomationProperties.GetName(target)))
+                        AutomationProperties.SetLabeledBy(target, label);
+                }
+            }
+            if (d is FrameworkElement fe && fe.ToolTip is string tip && string.IsNullOrEmpty(AutomationProperties.GetHelpText(fe)))
+                AutomationProperties.SetHelpText(fe, tip);
+        }
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
@@ -64,6 +104,8 @@ internal static class TesselTheme
                 break;
             case TextBox t:
                 t.Background = Surface; t.Foreground = Foreground; t.BorderBrush = Edge;
+                t.GotKeyboardFocus += (_, _) => t.BorderBrush = Focus;     // WPF's stock text box shows no focus ring on this theme
+                t.LostKeyboardFocus += (_, _) => t.BorderBrush = Edge;
                 t.BorderThickness = new Thickness(1); t.CaretBrush = Foreground;
                 t.SelectionBrush = Selection; t.Padding = new Thickness(6, 3, 6, 3);
                 break;
@@ -164,7 +206,7 @@ internal static class TesselTheme
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#89868A"/></Trigger>
-            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ToggleButton" Property="BorderBrush" Value="#960018"/></Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ToggleButton" Property="BorderBrush" Value="#E8939F"/></Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
         """;
@@ -201,7 +243,7 @@ internal static class TesselTheme
         <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="CheckBox">
           <StackPanel Orientation="Horizontal" Background="Transparent">
             <Border Name="Box" Width="16" Height="16" Margin="0,1,7,0" Background="#1F1F22" BorderBrush="#43434A" BorderThickness="1" CornerRadius="3">
-              <Path Name="Mark" Data="M3,8.5 L6.5,12 L13,4.5" Stroke="#960018" StrokeThickness="2" Visibility="Collapsed"
+              <Path Name="Mark" Data="M3,8.5 L6.5,12 L13,4.5" Stroke="#E8939F" StrokeThickness="2" Visibility="Collapsed"
                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
             </Border>
             <ContentPresenter VerticalAlignment="Center"/>
@@ -209,13 +251,13 @@ internal static class TesselTheme
           <ControlTemplate.Triggers>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Mark" Property="Visibility" Value="Visible"/>
-              <Setter TargetName="Box" Property="BorderBrush" Value="#960018"/>
+              <Setter TargetName="Box" Property="BorderBrush" Value="#E8939F"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Box" Property="BorderBrush" Value="#960018"/>
+              <Setter TargetName="Box" Property="BorderBrush" Value="#E8939F"/>
             </Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="Box" Property="BorderBrush" Value="#960018"/>
+              <Setter TargetName="Box" Property="BorderBrush" Value="#E8939F"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Foreground" Value="#89868A"/>

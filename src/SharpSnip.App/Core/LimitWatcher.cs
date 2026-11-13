@@ -7,6 +7,8 @@ namespace SharpSnip;
 internal interface IRecording : IDisposable
 {
     string OutputPath { get; }
+    /// <summary>Set when stop finished but something went wrong (e.g. audio could not be added); null when clean.</summary>
+    string? Warning => null;
     TimeSpan Elapsed { get; }
     bool IsPaused { get; }
     void SetPaused(bool paused);
@@ -36,11 +38,13 @@ internal sealed class LimitWatcher : IDisposable
         _timer = new System.Threading.Timer(Check, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
 
+    private bool _sizeWarned;
+
     private void Check(object? _)
     {
         if (_fired) return;
         long size = 0;
-        try { size = _sizeOf(); } catch { }
+        try { size = _sizeOf(); } catch (Exception ex) { if (!_sizeWarned) { _sizeWarned = true; Log.Warn("Recording size check failed: " + ex.Message); } }
         if (RecordingPlan.LimitHit(_clock.Elapsed, _maxSeconds, size, _maxBytes))
         {
             _fired = true;

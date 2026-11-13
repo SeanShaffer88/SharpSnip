@@ -33,6 +33,7 @@ public static class Program
   SharpSnip.exe --export PRESET --file PATH [--out PATH]
                                         convert a recording/GIF with the bundled FFmpeg
                                         (presets: webm, av1, h264, mkv, gifhq, mp3, m4a)
+  SharpSnip.exe --restore-printscreen   hand the Print Screen key back to Windows (after a crash or before uninstall)
   SharpSnip.exe --clean                 delete settings and logs, then exit
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
@@ -42,12 +43,16 @@ public static class Program
     public static int Main(string[] args)
     {
         NativeMethods.SetProcessDpiAwarenessContext(NativeMethods.DpiPerMonitorV2); // no-op when the manifest already did it
-        bool Has(string flag) => args.Contains(flag, StringComparer.OrdinalIgnoreCase);
+        bool Has(string flag) => CliArgs.Has(args, flag);
         if (Has("--verbose")) Log.Verbose = true;
 
         if (Has("--help") || Has("-h") || Has("/?")) return Print(Usage, 0);
         if (Has("--version")) return Print("SharpSnip " + Version, 0);
         if (Has("--clean")) return Clean();
+        if (Has("--restore-printscreen"))
+            return Print(PrintScreenKey.RestoreFromFile()
+                ? "Print Screen handed back to Windows."
+                : "Nothing to restore (SharpSnip has no override recorded).", 0);
         if (Has("--record")) return RecordCli(args);
         if (Has("--run-workflow")) return RunWorkflowCli(args);
         if (Has("--export")) return ExportCli(args);
@@ -62,6 +67,16 @@ public static class Program
             return 0;
         }
 
+        // Safety nets: the Print Screen override must never outlive the process. A clean exit restores it in
+        // AppHost.Dispose; these cover crashes, logoff and termination paths that skip it. All are idempotent.
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => PrintScreenKey.RestoreFromFile();
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Log.Error("Unhandled exception (process is ending)", e.ExceptionObject as Exception);
+            PrintScreenKey.RestoreFromFile();
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) => { Log.Error("Unobserved task exception", e.Exception); e.SetObserved(); };
+
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.DispatcherUnhandledException += (_, e) =>
         {
@@ -74,18 +89,14 @@ public static class Program
 
     private static int ExportCli(string[] args)
     {
-        string? Value(string flag)
-        {
-            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
+        string? Value(string flag) => CliArgs.Value(args, flag);
         string? presetName = Value("--export");
         string? file = Value("--file");
         if (presetName is null || file is null) return Print("Usage: SharpSnip.exe --export PRESET --file PATH [--out PATH]", 2);
         if (!File.Exists(file)) return Print("No such file: " + file, 2);
         var preset = FfmpegPlan.Find(presetName);
         if (preset is null) return Print("--export must be one of: " + string.Join(", ", FfmpegPlan.Presets.Select(p => p.Name)) + ".", 2);
-        var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+        var prefs = LoadPrefsChecked();
         string? ffmpeg = FfmpegLocator.Find(prefs);
         if (ffmpeg is null) return Print("FFmpeg not found (no bundled copy, no override in Settings).", 1);
         string output = Value("--out") ?? OutputNaming.UniquePath(FfmpegPlan.DefaultOutputPath(preset, Path.GetFullPath(file)), File.Exists);
@@ -97,16 +108,12 @@ public static class Program
 
     private static int RunWorkflowCli(string[] args)
     {
-        string? Value(string flag)
-        {
-            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
+        string? Value(string flag) => CliArgs.Value(args, flag);
         string? name = Value("--run-workflow");
         string? file = Value("--file");
         if (name is null || file is null) return Print("Usage: SharpSnip.exe --run-workflow NAME --file PATH", 2);
         if (!File.Exists(file)) return Print("No such file: " + file, 2);
-        var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+        var prefs = LoadPrefsChecked();
         var def = WorkflowPlan.Find(prefs.Workflows, name);
         if (def is null) return Print("No workflow named '" + name + "'.", 2);
         var (done, error, working) = WorkflowRunner.Run(def, Path.GetFullPath(file), prefs);
@@ -116,16 +123,12 @@ public static class Program
 
     private static int OneShot(string[] args)
     {
-        string? Value(string flag)
-        {
-            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
-        bool all = args.Contains("--all", StringComparer.OrdinalIgnoreCase);
+        string? Value(string flag) => CliArgs.Value(args, flag);
+        bool all = CliArgs.Has(args, "--all");
         int monitorArg = 0;
         if (Value("--monitor") is { } mv && (!int.TryParse(mv, out monitorArg) || monitorArg is < 1 or > 9))
             return Print("--monitor must be 1 to 9.", 2);
-        bool noClip = args.Contains("--no-clipboard", StringComparer.OrdinalIgnoreCase);
+        bool noClip = CliArgs.Has(args, "--no-clipboard");
         int delay = 0;
         if (Value("--delay") is { } d && (!int.TryParse(d, out delay) || DelayCycle.Sanitize(delay) != delay))
             return Print("--delay must be 0, 3, 5 or 10.", 2);
@@ -153,11 +156,7 @@ public static class Program
 
     private static int RecordCli(string[] args)
     {
-        string? Value(string flag)
-        {
-            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
+        string? Value(string flag) => CliArgs.Value(args, flag);
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
             return Print("Recording needs Windows 10 version 2004 (build 19041) or later.", 2);
         if (!int.TryParse(Value("--record"), out int secs) || secs is < 1 or > RecordingPlan.MaxSeconds)
@@ -207,12 +206,12 @@ public static class Program
             var monitor = mon > 0 ? VirtualDesktop.ByIndex(monitors, mon)
                 : monitors.FirstOrDefault(m => m.IsPrimary) ?? (monitors.Count > 0 ? monitors[0] : null);
             if (monitor is null) return Print(mon > 0 ? $"Monitor {mon} not found." : "No monitors found.", 2);
-            bool gif = args.Contains("--gif", StringComparer.OrdinalIgnoreCase);
+            bool gif = CliArgs.Has(args, "--gif");
             string path = Value("--out") ?? Path.Combine(Exporter.OutputFolder(prefs),
                 gif ? RecordingPlan.GifFileName(DateTime.Now) : RecordingPlan.FileName(DateTime.Now));
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var audio = new AudioOptions(System: !args.Contains("--no-audio", StringComparer.OrdinalIgnoreCase),
-                                         Mic: args.Contains("--mic", StringComparer.OrdinalIgnoreCase));
+            var audio = new AudioOptions(System: !CliArgs.Has(args, "--no-audio"),
+                                         Mic: CliArgs.Has(args, "--mic"));
             string corner = "BottomRight";
             if (Value("--webcam-corner") is { } cv)
             {
@@ -220,7 +219,7 @@ public static class Program
                     return Print("--webcam-corner must be BottomRight, BottomLeft, TopRight or TopLeft.", 2);
                 corner = cv;
             }
-            var webcam = new WebcamOptions(args.Contains("--webcam", StringComparer.OrdinalIgnoreCase), corner);
+            var webcam = new WebcamOptions(CliArgs.Has(args, "--webcam"), corner);
             string sizeName = RecordingSize.Default;
             if (Value("--size") is { } sv)
             {
@@ -249,11 +248,7 @@ public static class Program
 
     private static int IntervalCli(string[] args)
     {
-        string? Value(string flag)
-        {
-            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
+        string? Value(string flag) => CliArgs.Value(args, flag);
         if (!int.TryParse(Value("--interval"), out int secs) || secs is < IntervalPlan.MinSeconds or > IntervalPlan.MaxSeconds)
             return Print($"--interval must be {IntervalPlan.MinSeconds} to {IntervalPlan.MaxSeconds} seconds.", 2);
         if (!int.TryParse(Value("--count"), out int count) || count is < 1 or > IntervalPlan.MaxShots)
@@ -263,7 +258,7 @@ public static class Program
         try
         {
             var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
-            var requested = args.Contains("--all", StringComparer.OrdinalIgnoreCase) ? FullScreenTarget.All : mon > 0 ? FullScreenTarget.Monitor(mon) : FullScreenTarget.Current;
+            var requested = CliArgs.Has(args, "--all") ? FullScreenTarget.All : mon > 0 ? FullScreenTarget.Monitor(mon) : FullScreenTarget.Current;
             var target = IntervalCapture.ResolveStartTarget(requested);
             string folder = Value("--out") ?? Path.Combine(Exporter.OutputFolder(prefs), IntervalPlan.FolderName(DateTime.Now));
             if (AnimationPlan.Kind(prefs.ImageFormat) == "gif")
@@ -306,6 +301,14 @@ public static class Program
             Log.Error("Interval CLI failed", ex);
             return Print("Interval capture failed: " + ex.Message, 1);
         }
+    }
+
+    /// <summary>Loads settings for a CLI run; flags the lock when the launch-relevant settings changed outside the app.</summary>
+    private static Preferences LoadPrefsChecked()
+    {
+        var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+        if (WorkflowTrust.IsTampered(prefs)) { prefs.WorkflowsLocked = true; Log.Warn("Workflow settings changed outside SharpSnip; program-launching steps are blocked."); }
+        return prefs;
     }
 
     private static int Clean()

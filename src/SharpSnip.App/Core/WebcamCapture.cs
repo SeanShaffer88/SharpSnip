@@ -71,7 +71,7 @@ internal sealed class WebcamCapture : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        try { _reader.StopAsync().AsTask().Wait(TimeSpan.FromSeconds(1)); } catch { }
+        try { _reader.StopAsync().AsTask().Wait(TimeSpan.FromSeconds(1)); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
         _reader.Dispose();
         _capture.Dispose();
     }

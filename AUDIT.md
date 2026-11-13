@@ -3,7 +3,7 @@
 Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed, not run), **Unverified** (not run, depends on real Windows), **Not implemented**.
 
 ## What was actually done
-- Compiled for `net8.0-windows10.0.19041.0` (cross-build on Linux): 0 errors, 0 warnings, warnings-as-errors on.
+- Compiled for `net10.0-windows10.0.19041.0` (cross-build on Linux): 0 errors, 0 warnings, warnings-as-errors on.
 - Ran the self-test project: 80 passed, 0 failed (Linux).
 - **Nothing in the Windows layer has been executed.** No overlay, hook, UI Automation, capture, clipboard or editor code has run on a real machine.
 
@@ -108,6 +108,13 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 - Editor Copy text (OCR): `OcrText` reading-order assembly is **Verified (logic)** (line grouping by median-height tolerance, ordering, blank filtering). The WinRT call site (`OcrService`: PNG hand-off to BitmapDecoder, OcrEngine from user profile languages) is compile-verified only; recognition quality is the OS engine's and varies with installed language packs.
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
+
+## v0.11.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- Print Screen recovery: `PrintScreenKey.Restore` / `RestoreFromFile`, ProcessExit and UnhandledException hooks, `--restore-printscreen`, tray item. Logic is simple but **unverified on hardware**; a hard kill (Task Manager, power loss) still skips every hook, so `--restore-printscreen` and the next clean exit are the only recovery there.
+- Recorder mux fallback and the "keep the raw video" path: **unverified** (needs a forced mux failure).
+- Accessibility: contrast ratios are **Verified (logic)** by the self-test; UIA names, High Contrast mapping and the text-box focus ring are **unverified** — need a Narrator pass and a High Contrast theme pass.
+- Workflow trust: `WorkflowTrust`, `CliArgs`, `WorkflowPlan.ExpandArgs/QuoteArg`, `LogPolicy` are **Verified (logic)**. A blank hash is accepted, so a config planted *before* the first run is not caught.
+- .NET 10: builds with 0 warnings; WGC/WinRT interop behaviour on .NET 10 is **unverified at runtime**.
 
 ## v0.4.0 additions (compile-verified on Linux only; not run on Windows)
 - PDF export: `PdfWriter` is **Verified (logic)** — structure, xref offsets, stream length and Flate round-trip are self-tested, and a sample file was verified with Poppler (`pdfinfo`: title/page size; `pdfimages`: embedded image extracted pixel-exact; a `pdftoppm` page render resamples and is not pixel-exact on noise, which is a renderer artifact, not a file defect). The WPF BGR→RGB call site is compile-verified only.

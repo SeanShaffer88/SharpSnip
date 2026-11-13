@@ -9,7 +9,8 @@ internal static class FfmpegLocator
 {
     public static string? Find(Preferences prefs)
     {
-        if (!string.IsNullOrWhiteSpace(prefs.FfmpegPath) && File.Exists(prefs.FfmpegPath.Trim()))
+        // A settings file changed outside the app must not redirect FFmpeg to another program (WorkflowTrust).
+        if (!prefs.WorkflowsLocked && !string.IsNullOrWhiteSpace(prefs.FfmpegPath) && File.Exists(prefs.FfmpegPath.Trim()))
             return prefs.FfmpegPath.Trim();
         string bundled = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe");
         return File.Exists(bundled) ? bundled : null;
@@ -42,7 +43,7 @@ internal static class FfmpegExport
         }
         catch (OperationCanceledException)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { }
+            try { proc.Kill(entireProcessTree: true); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
             throw;
         }
         string tail;

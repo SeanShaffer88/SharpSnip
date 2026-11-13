@@ -34,6 +34,7 @@ internal sealed record WebcamOptions(bool Enabled, string Corner);
 [SupportedOSPlatform("windows10.0.19041.0")]
 internal sealed class ScreenRecorder : IRecording
 {
+    public string? Warning { get; private set; }
     private readonly WgcStream _stream;
     private readonly MediaStreamSource _source;
     private readonly FileStream _file;
@@ -112,7 +113,7 @@ internal sealed class ScreenRecorder : IRecording
             if (captures.Count == 0)
             {
                 Log.Warn("Recording audio was requested but no audio endpoint opened; recording video only.");
-                try { Directory.Delete(audioDir, true); } catch { }
+                try { Directory.Delete(audioDir, true); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
                 audioDir = null;
             }
         }
@@ -170,7 +171,7 @@ internal sealed class ScreenRecorder : IRecording
         {
             foreach (var cap in captures) cap.Dispose();
             cam?.Dispose();
-            if (audioDir is not null) { try { Directory.Delete(audioDir, true); } catch { } }
+            if (audioDir is not null) { try { Directory.Delete(audioDir, true); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); } }
             recorder.Dispose();
             return null;
         }
@@ -264,13 +265,29 @@ internal sealed class ScreenRecorder : IRecording
             foreach (var c in _captures) c.Dispose();
             _captures.Clear();
             _file.Dispose(); // the temp video must be closed before the mux reads it
-            try { await MuxWithAudioAsync(Path.Combine(_audioDir, "video.mp4")); }
+            string tempVideo = Path.Combine(_audioDir, "video.mp4");
+            bool keepTemp = false;
+            try { await MuxWithAudioAsync(tempVideo); }
             catch (Exception ex)
             {
                 Log.Error("Audio mux failed; keeping the silent video", ex);
-                try { File.Copy(Path.Combine(_audioDir, "video.mp4"), OutputPath, overwrite: true); } catch { }
+                try
+                {
+                    File.Copy(tempVideo, OutputPath, overwrite: true);
+                    Warning = "Audio could not be added; the video was saved without sound.";
+                }
+                catch (Exception copyEx)
+                {
+                    keepTemp = true;   // the only copy of the recording: never delete it
+                    Log.Error($"Could not save the silent video to {OutputPath}; the recording is kept at {tempVideo}", copyEx);
+                    Warning = "The recording could not be saved. The raw video is kept at " + tempVideo;
+                }
             }
-            try { Directory.Delete(_audioDir, recursive: true); } catch { }
+            if (!keepTemp)
+            {
+                try { Directory.Delete(_audioDir, recursive: true); }
+                catch (Exception ex) { Log.Warn("Could not remove the temp audio folder: " + ex.Message); }
+            }
         }
     }
 

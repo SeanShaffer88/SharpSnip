@@ -123,7 +123,7 @@ internal sealed class WasapiCapture : IDisposable
         _disposed = true;
         _stop = true;
         _thread.Join(TimeSpan.FromSeconds(2));
-        try { _client.Stop(); } catch { }
+        try { _client.Stop(); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
         _writer.Dispose();
         _file.Dispose();
     }

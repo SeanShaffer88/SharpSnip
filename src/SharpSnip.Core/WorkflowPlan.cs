@@ -120,6 +120,43 @@ public static class WorkflowPlan
             .Replace("%ext%", ext, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Like Expand, for an argument string: a value that lands outside double quotes is quoted (so a path
+    /// with spaces stays one argument); inside quotes the user already did it and the raw value is used.
+    /// </summary>
+    public static string ExpandArgs(string template, string filePath)
+    {
+        string dir = Path.GetDirectoryName(filePath) ?? "";
+        string name = Path.GetFileNameWithoutExtension(filePath);
+        string ext = Path.GetExtension(filePath).TrimStart('.');
+        var sb = new System.Text.StringBuilder();
+        bool inQuote = false;
+        for (int i = 0; i < template.Length;)
+        {
+            char c = template[i];
+            if (c == '"') { inQuote = !inQuote; sb.Append(c); i++; continue; }
+            string? val = null; int len = 0;
+            if (c == '%')
+            {
+                foreach (var (token, v) in new[] { ("%path%", filePath), ("%dir%", dir), ("%name%", name), ("%ext%", ext) })
+                    if (string.Compare(template, i, token, 0, token.Length, StringComparison.OrdinalIgnoreCase) == 0) { val = v; len = token.Length; break; }
+            }
+            if (val is null) { sb.Append(c); i++; continue; }
+            sb.Append(inQuote ? val : QuoteArg(val));
+            i += len;
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Windows command-line quoting of one argument (only when it needs it).</summary>
+    public static string QuoteArg(string v)
+    {
+        if (v.Length > 0 && v.IndexOfAny(new[] { ' ', '\t', '"' }) < 0) return v;
+        int trailing = 0;
+        while (trailing < v.Length && v[v.Length - 1 - trailing] == '\\') trailing++;
+        return "\"" + v.Replace("\"", "\\\"") + new string('\\', trailing) + "\"";
+    }
+
     /// <summary>Splits a run step's argument into program and its (unexpanded) arguments template.</summary>
     public static (string Program, string Args) SplitRun(string arg)
     {

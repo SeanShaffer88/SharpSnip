@@ -36,6 +36,12 @@ internal static class Log
                 Directory.CreateDirectory(AppPaths.LogDir);
                 PruneOnce();
                 string file = Path.Combine(AppPaths.LogDir, $"sharpsnip-{DateTime.Now:yyyyMMdd}.log");
+                try
+                {
+                    var fi = new FileInfo(file);
+                    if (fi.Exists && LogPolicy.ShouldRoll(fi.Length)) File.Move(file, file + ".1", overwrite: true);
+                }
+                catch (IOException) { /* in use: keep appending */ }
                 File.AppendAllText(file, $"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)} [{level}] {msg}{Environment.NewLine}");
             }
         }
