@@ -30,6 +30,20 @@ jobs:
       - name: Publish app (self-contained win-x64)
         run: dotnet publish src/SharpSnip.App -c Release -r win-x64 --self-contained true -o dist/files
 
+      - name: Stage the pinned FFmpeg bundle (LGPL)
+        shell: pwsh
+        run: |
+          $pin = Get-Content tools/ffmpeg.json | ConvertFrom-Json
+          Invoke-WebRequest -Uri $pin.url -OutFile ffmpeg-bundle.zip
+          $hash = (Get-FileHash ffmpeg-bundle.zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $pin.sha256) { throw "FFmpeg bundle SHA256 mismatch: got $hash, pin says $($pin.sha256)" }
+          Expand-Archive ffmpeg-bundle.zip -DestinationPath ffmpeg-bundle
+          New-Item -ItemType Directory -Force dist/files/ffmpeg | Out-Null
+          Copy-Item ffmpeg-bundle/*/bin/ffmpeg.exe dist/files/ffmpeg/
+          Copy-Item ffmpeg-bundle/*/bin/*.dll dist/files/ffmpeg/
+          Copy-Item ffmpeg-bundle/*/LICENSE.txt dist/files/ffmpeg/
+          Copy-Item THIRD-PARTY-NOTICES.md dist/files/
+
       - name: Check out SeanPak
         uses: actions/checkout@v4
         with:
