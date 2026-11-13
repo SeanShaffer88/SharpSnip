@@ -23,6 +23,7 @@ internal sealed class MenuPicker : PickerBase
         new ModeBarButton(ModeBarIcon.Region, "Region", "Region (R)"),
         new ModeBarButton(ModeBarIcon.Window, "Window", "Window (W)"),
         new ModeBarButton(ModeBarIcon.FullScreen, "Full screen", "Full screen, this monitor (D); F = all monitors"),
+        new ModeBarButton(ModeBarIcon.Freehand, "Freehand", "Freehand outline capture (H)"),
         new ModeBarButton(ModeBarIcon.Scrolling, "Scrolling", "Scrolling capture (C)"),
         new ModeBarButton(ModeBarIcon.Delay, Ctx.DelaySeconds > 0 ? $"{Ctx.DelaySeconds}s delay" : "Delay", "Delay (Space cycles)"),
     };
@@ -71,8 +72,9 @@ internal sealed class MenuPicker : PickerBase
             case 1: Finish(PickOutcome.SwitchTo(PickMode.Region)); break;
             case 2: Finish(PickOutcome.SwitchTo(PickMode.Window)); break;
             case 3: Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current)); break;
-            case 4: Ctx.ScrollCapture = true; Finish(PickOutcome.SwitchTo(PickMode.Element)); break;
-            case 5: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); break;
+            case 4: Finish(PickOutcome.SwitchTo(PickMode.Freehand)); break;
+            case 5: Ctx.ScrollCapture = true; Finish(PickOutcome.SwitchTo(PickMode.Element)); break;
+            case 6: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); break;
         }
         return true;
     }
