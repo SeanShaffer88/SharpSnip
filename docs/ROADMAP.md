@@ -28,7 +28,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Multiple-area capture (several regions, one action) | 🔜 |
 | Freehand and polygon capture | 🔜 (mask drawn into transparent PNG) |
 | Scrolling capture (web pages, documents, wide tables) | ✅ v0.5.0 — UIA ScrollPattern first, wheel-and-stitch fallback |
-| Windows.Graphics.Capture backend (DRM-aware, HDR) | 🟡 replaces GDI as primary |
+| Windows.Graphics.Capture backend (DRM-aware, HDR) | ✅ unreleased — WGC is now the primary stills backend with automatic GDI fallback; runtime field check still owed |
 | Webcam still | 🟡 WinRT MediaCapture |
 | Printer capture | ❓ needs a virtual printer driver; large scope |
 
@@ -75,7 +75,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 ## Phase 5 — v0.6+ Recording
 | Feature | Status |
 |---|---|
-| Screen recording (full / window / region), 4K, frame-rate and quality settings, auto-save | ❓ needs a capture + encode pipeline; Windows.Graphics.Capture + Media Foundation H.264 (MP4), no package if done via WinRT/MF |
+| Screen recording (full / window / region), 4K, frame-rate and quality settings, auto-save | 🟡 owner-approved 2026-11-13 as part of the recording suite — engine shipped unreleased (monitor → MP4 via WGC + MediaTranscoder, `--record` CLI); region, window, audio, webcam and in-app controls follow in the suite's slices |
 | System audio, microphone | ❓ WASAPI loopback via P/Invoke, or a package (NAudio) |
 | Webcam picture-in-picture, background blur, camera swap | ❓ |
 | Cursor highlight, click animation, on-screen drawing while recording | 🔜 after recorder exists |
