@@ -21,7 +21,7 @@ public static class Program
   SharpSnip.exe --interval N --count M [--all | --monitor K] [--out DIR]
                                         M frames, one every N seconds, into DIR (default: new Interval-... folder)
                                         In GIF format the frames become one looping animation.gif instead
-  SharpSnip.exe --record N [--monitor K] [--fps F] [--quality Q] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--webcam-corner C] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
+  SharpSnip.exe --record N [--monitor K] [--fps F] [--quality Q] [--size S] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--webcam-corner C] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
                                         record monitor K (default: primary) for N seconds to an MP4
                                         --region records only that rectangle of the monitor (offsets in pixels)
                                         system sound is recorded by default; --mic adds the microphone, --no-audio mutes both
@@ -29,11 +29,16 @@ public static class Program
                                         --gif records an animated GIF instead (silent, max 20 fps)
                                         --max-mb stops early at that file size; --at waits until the given time to start
                                         (default: a timestamped recording-....mp4 in the output folder)
+  SharpSnip.exe --run-workflow NAME --file PATH
+                                        run a named workflow (Settings) on an existing file
+  SharpSnip.exe --export PRESET --file PATH [--out PATH]
+                                        convert a recording/GIF with the bundled FFmpeg
+                                        (presets: webm, av1, h264, mkv, gifhq, mp3, m4a)
   SharpSnip.exe --clean                 delete settings and logs, then exit
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
-    private const string Version = "0.7.0";
+    private const string Version = "0.8.0";
 
     [STAThread]
     public static int Main(string[] args)
@@ -46,6 +51,8 @@ public static class Program
         if (Has("--version")) return Print("SharpSnip " + Version, 0);
         if (Has("--clean")) return Clean();
         if (Has("--record")) return RecordCli(args);
+        if (Has("--run-workflow")) return RunWorkflowCli(args);
+        if (Has("--export")) return ExportCli(args);
         if (Has("--interval")) return IntervalCli(args);
         if (Has("--fullscreen")) return OneShot(args);
 
@@ -65,6 +72,48 @@ public static class Program
         };
         using var host = new AppHost();
         return app.Run();
+    }
+
+    private static int ExportCli(string[] args)
+    {
+        string? Value(string flag)
+        {
+            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+        }
+        string? presetName = Value("--export");
+        string? file = Value("--file");
+        if (presetName is null || file is null) return Print("Usage: SharpSnip.exe --export PRESET --file PATH [--out PATH]", 2);
+        if (!File.Exists(file)) return Print("No such file: " + file, 2);
+        var preset = FfmpegPlan.Find(presetName);
+        if (preset is null) return Print("--export must be one of: " + string.Join(", ", FfmpegPlan.Presets.Select(p => p.Name)) + ".", 2);
+        var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+        string? ffmpeg = FfmpegLocator.Find(prefs);
+        if (ffmpeg is null) return Print("FFmpeg not found (no bundled copy, no override in Settings).", 1);
+        string output = Value("--out") ?? OutputNaming.UniquePath(FfmpegPlan.DefaultOutputPath(preset, Path.GetFullPath(file)), File.Exists);
+        if (!FfmpegPlan.TryBuildArgs(preset.Name, Path.GetFullPath(file), output, out var ffArgs)) return Print("Unknown preset.", 2);
+        var (exit, tail) = FfmpegExport.RunAsync(ffmpeg, ffArgs).GetAwaiter().GetResult();
+        if (exit == 0 && File.Exists(output)) return Print(output, 0);
+        return Print($"FFmpeg failed (exit {exit}). Last log lines:\n{tail}", 1);
+    }
+
+    private static int RunWorkflowCli(string[] args)
+    {
+        string? Value(string flag)
+        {
+            int i = Array.FindIndex(args, a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+        }
+        string? name = Value("--run-workflow");
+        string? file = Value("--file");
+        if (name is null || file is null) return Print("Usage: SharpSnip.exe --run-workflow NAME --file PATH", 2);
+        if (!File.Exists(file)) return Print("No such file: " + file, 2);
+        var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
+        var def = WorkflowPlan.Find(prefs.Workflows, name);
+        if (def is null) return Print("No workflow named '" + name + "'.", 2);
+        var (done, error, working) = WorkflowRunner.Run(def, Path.GetFullPath(file), prefs);
+        if (error is not null) return Print($"Workflow '{def.Name}' stopped after {done} step(s): {error}", 3);
+        return Print($"Workflow '{def.Name}' finished: {done} step(s). Result: {working}", 0);
     }
 
     private static int OneShot(string[] args)
@@ -174,9 +223,16 @@ public static class Program
                 corner = cv;
             }
             var webcam = new WebcamOptions(args.Contains("--webcam", StringComparer.OrdinalIgnoreCase), corner);
+            string sizeName = RecordingSize.Default;
+            if (Value("--size") is { } sv)
+            {
+                if (Array.IndexOf(RecordingSize.All, sv) < 0)
+                    return Print("--size must be Original, 1080p, 720p or 480p.", 2);
+                sizeName = sv;
+            }
             IRecording? rec = gif
-                ? GifRecorder.StartAsync(monitor, path, fps, crop, webcam, 0, maxBytes).GetAwaiter().GetResult()
-                : ScreenRecorder.StartAsync(monitor, path, fps, crop, audio, quality, webcam, 0, maxBytes).GetAwaiter().GetResult();
+                ? GifRecorder.StartAsync(monitor, path, fps, crop, webcam, 0, maxBytes, sizeName).GetAwaiter().GetResult()
+                : ScreenRecorder.StartAsync(monitor, path, fps, crop, audio, quality, webcam, 0, maxBytes, sizeName).GetAwaiter().GetResult();
             if (rec is null) return Print("Recording could not start (capture or encoder unavailable).", 1);
             using (rec)
             {
@@ -212,7 +268,7 @@ public static class Program
             var requested = args.Contains("--all", StringComparer.OrdinalIgnoreCase) ? FullScreenTarget.All : mon > 0 ? FullScreenTarget.Monitor(mon) : FullScreenTarget.Current;
             var target = IntervalCapture.ResolveStartTarget(requested);
             string folder = Value("--out") ?? Path.Combine(Exporter.OutputFolder(prefs), IntervalPlan.FolderName(DateTime.Now));
-            if (GifPlan.IsAnimatedFormat(prefs.ImageFormat))
+            if (AnimationPlan.Kind(prefs.ImageFormat) == "gif")
             {
                 // GIF format = one animated file for the whole run, frame delay = the interval.
                 using var gif = new AnimatedGifSink(folder);
@@ -225,6 +281,20 @@ public static class Program
                 }
                 gif.Dispose();
                 return Print(gif.FinalPath, 0);
+            }
+            if (AnimationPlan.Kind(prefs.ImageFormat) == "apng")
+            {
+                // APNG format = one lossless animated file for the whole run.
+                using var apng = new AnimatedApngSink(folder);
+                for (int i = 1; i <= count; i++)
+                {
+                    var cap = IntervalCapture.CaptureBitmap(prefs, target);
+                    if (!apng.Add(cap, GifPlan.DelayHundredths(secs)))
+                        return Print("Interval capture failed: frame size changed during the run (display layout changed).", 1);
+                    if (i < count) Thread.Sleep(secs * 1000);
+                }
+                apng.Dispose();
+                return Print(apng.FinalPath, 0);
             }
             for (int i = 1; i <= count; i++)
             {
