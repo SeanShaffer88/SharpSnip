@@ -1073,5 +1073,31 @@ Console.WriteLine("EffectSettings");
     Check(dflt.FrameThickness == 0 && dflt.ShadowBlur == 0 && dflt.EdgeDepth == 0 && dflt.ShadowOpacityPercent == 45, "effects: defaults are automatic");
 }
 
+Console.WriteLine("ImageCut");
+{
+    // 4x3 image, each pixel's blue channel = its index so moves are visible
+    int cw = 4, ch = 3;
+    var cs = new byte[cw * ch * 4];
+    for (int i = 0; i < cw * ch; i++) { cs[i * 4] = (byte)i; cs[i * 4 + 3] = 255; }
+    var rows = ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Rows, 1, 1));
+    Check(rows.Width == 4 && rows.Height == 2 && rows.Pixels[4 * 4] == 8 && rows.Pixels[0] == 0, "cut: removing the middle row joins top and bottom");
+    var cols = ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Columns, 1, 2));
+    Check(cols.Width == 2 && cols.Height == 3 && cols.Pixels[0] == 0 && cols.Pixels[4] == 3 && cols.Pixels[2 * 4] == 4 && cols.Pixels[3 * 4] == 7, "cut: removing columns 1-2 joins left and right on every row");
+    Check(ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Rows, 0, 1)).Height == 2 && ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Rows, 2, 1)).Pixels[(1 * 4) * 4] == 4, "cut: top and bottom strips can go");
+    var whole = ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Rows, 0, 3));
+    Check(whole.Height == 3 && whole.Pixels.SequenceEqual(cs), "cut: a band covering everything is refused");
+    var oob = ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Rows, 2, 99));
+    Check(oob.Height == 2, "cut: out-of-range band is clamped to the image");
+    Check(ImageCut.Remove(cs, cw, ch, new ImageCut.Band(CutAxis.Columns, 1, 0)).Pixels.SequenceEqual(cs), "cut: empty band changes nothing");
+    Check(cs[0] == 0 && cs[4 * 4] == 4 && cs.Length == 48, "cut: input is not modified");
+    Check(ImageCut.Plan(0, 40, 200, 30, 200, 100) is { Axis: CutAxis.Rows, Start: 40, Length: 30 }, "cut plan: a wide drag cuts rows");
+    Check(ImageCut.Plan(60, 0, 20, 100, 200, 100) is { Axis: CutAxis.Columns, Start: 60, Length: 20 }, "cut plan: a tall drag cuts columns");
+    Check(ImageCut.Plan(10, 10, 100, 50, 200, 100) is { Axis: CutAxis.Rows }, "cut plan: a tie cuts rows");
+    Check(ImageCut.Plan(0, 0, 300, 100, 200, 100) is null, "cut plan: a drag over the whole image is refused");
+    Check(ImageCut.Plan(0, -20, 200, 40, 200, 100) is { Start: 0, Length: 20 }, "cut plan: a drag past the top edge is clamped");
+    Check(ImageCut.Plan(0, 0, 0, 5, 200, 100) is null && ImageCut.Plan(0, 0, 5, 5, 1, 1) is null, "cut plan: degenerate input is refused");
+    Check(ImageCut.Plan(0, 150, 200, 20, 200, 100) is null, "cut plan: a drag fully outside the image cuts nothing");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
