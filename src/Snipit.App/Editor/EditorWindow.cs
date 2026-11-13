@@ -278,6 +278,11 @@ internal sealed class EditorWindow : Window
                 if (EditorDialogs.BrightContrast(this) is { } bc)
                     TransformBase("Brightness/contrast", (px, w, h) => { PixelAdjust.BrightnessContrast(px, bc.Brightness, bc.Contrast); return (px, w, h); });
             });
+            item("Hue / colour balance…", "Rotate hues and add or remove red, green and blue, then apply to the whole image. Annotations are baked in; Undo restores.", () =>
+            {
+                if (EditorDialogs.HueBalance(this) is { } hb && (hb.Hue != 0 || hb.Red != 0 || hb.Green != 0 || hb.Blue != 0))
+                    TransformBase("Hue/balance", (px, w, h) => { PixelAdjust.HueShift(px, hb.Hue); PixelAdjust.ColorBalance(px, hb.Red, hb.Green, hb.Blue); return (px, w, h); });
+            });
             item("Sharpen", "Sharpen the whole image a little. Repeat for more. Annotations are baked in; Undo restores.", () => TransformBase("Sharpen", (px, w, h) => { PixelAdjust.Sharpen(px, w, h, 0.8); return (px, w, h); }));
             item("More colour", "Make colours 30% more vivid. Annotations are baked in; Undo restores.", () => TransformBase("More colour", (px, w, h) => { PixelAdjust.Saturation(px, 1.3); return (px, w, h); }));
             item("Less colour", "Make colours 30% more muted. Annotations are baked in; Undo restores.", () => TransformBase("Less colour", (px, w, h) => { PixelAdjust.Saturation(px, 0.7); return (px, w, h); }));

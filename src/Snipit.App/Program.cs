@@ -40,7 +40,7 @@ public static class Program
   Snipit.exe --verbose               start with debug logging
   Snipit.exe --version | --help";
 
-    private const string Version = "0.23.0";
+    private const string Version = "0.24.0";
 
     [STAThread]
     public static int Main(string[] args)

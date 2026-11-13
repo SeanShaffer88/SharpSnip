@@ -106,6 +106,43 @@ public static class PixelAdjust
             }
     }
 
+    /// <summary>
+    /// Rotate hue by <paramref name="degrees"/> (any value; wrapped to a turn) with the luma-preserving
+    /// YIQ-style rotation matrix. 0 = identity; grey stays grey. Alpha untouched.
+    /// </summary>
+    public static void HueShift(byte[] bgra, double degrees)
+    {
+        ValidatePixels(bgra);
+        double a = degrees * Math.PI / 180.0, cos = Math.Cos(a), sin = -Math.Sin(a);   // sign so +degrees runs red → green → blue, as in HSL
+        // Standard hue-rotation matrix about the grey axis (Rec.601 weights).
+        double m00 = .299 + .701 * cos + .168 * sin, m01 = .587 - .587 * cos + .330 * sin, m02 = .114 - .114 * cos - .497 * sin;
+        double m10 = .299 - .299 * cos - .328 * sin, m11 = .587 + .413 * cos + .035 * sin, m12 = .114 - .114 * cos + .292 * sin;
+        double m20 = .299 - .300 * cos + 1.250 * sin, m21 = .587 - .588 * cos - 1.050 * sin, m22 = .114 + .886 * cos - .203 * sin;
+        for (int i = 0; i < bgra.Length; i += 4)
+        {
+            double r = bgra[i + 2], g = bgra[i + 1], b = bgra[i];
+            bgra[i + 2] = (byte)Math.Clamp(Math.Round(m00 * r + m01 * g + m02 * b), 0, 255);
+            bgra[i + 1] = (byte)Math.Clamp(Math.Round(m10 * r + m11 * g + m12 * b), 0, 255);
+            bgra[i] = (byte)Math.Clamp(Math.Round(m20 * r + m21 * g + m22 * b), 0, 255);
+        }
+    }
+
+    /// <summary>
+    /// Colour balance: add <paramref name="red"/>, <paramref name="green"/>, <paramref name="blue"/> (each clamped
+    /// to [−255, 255]) to the matching channel, clamping the result to 0..255. All zero = identity. Alpha untouched.
+    /// </summary>
+    public static void ColorBalance(byte[] bgra, int red, int green, int blue)
+    {
+        ValidatePixels(bgra);
+        red = Math.Clamp(red, -255, 255); green = Math.Clamp(green, -255, 255); blue = Math.Clamp(blue, -255, 255);
+        for (int i = 0; i < bgra.Length; i += 4)
+        {
+            bgra[i + 2] = (byte)Math.Clamp(bgra[i + 2] + red, 0, 255);
+            bgra[i + 1] = (byte)Math.Clamp(bgra[i + 1] + green, 0, 255);
+            bgra[i] = (byte)Math.Clamp(bgra[i] + blue, 0, 255);
+        }
+    }
+
     public static void FlipHorizontal(byte[] bgra, int width, int height)
     {
         ValidateFrame(bgra, width, height);

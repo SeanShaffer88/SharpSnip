@@ -1168,5 +1168,25 @@ Console.WriteLine("AreaMask");
     Check(thrownLp, "loupe: factor below 1 rejected");
 }
 
+
+{
+    var px = new byte[] { 0, 0, 255, 255,  90, 90, 90, 40 };   // BGRA: pure red alpha 255; grey alpha 40
+    var h0 = (byte[])px.Clone(); PixelAdjust.HueShift(h0, 0);
+    Check(h0.SequenceEqual(px), "hue: 0 degrees is identity");
+    var h360 = (byte[])px.Clone(); PixelAdjust.HueShift(h360, 360);
+    Check(h360.SequenceEqual(px), "hue: 360 degrees wraps to identity");
+    var h120 = (byte[])px.Clone(); PixelAdjust.HueShift(h120, 120);
+    Check(h120[1] > h120[2] && h120[1] > h120[0] && h120[1] > 150, "hue: red rotated 120 degrees becomes green-dominant");
+    Check(Math.Abs(h120[4] - 90) <= 1 && Math.Abs(h120[5] - 90) <= 1 && Math.Abs(h120[6] - 90) <= 1 && h120[7] == 40 && h120[3] == 255, "hue: grey stays grey, alpha untouched");
+
+    var cb = new byte[] { 10, 100, 250, 77 };
+    PixelAdjust.ColorBalance(cb, 20, -50, 5);
+    Check(cb[2] == 255 && cb[1] == 50 && cb[0] == 15 && cb[3] == 77, "balance: per-channel add, clamped, alpha untouched");
+    var cb0 = new byte[] { 1, 2, 3, 4 }; PixelAdjust.ColorBalance(cb0, 0, 0, 0);
+    Check(cb0.SequenceEqual(new byte[] { 1, 2, 3, 4 }), "balance: zero is identity");
+    var cbBig = new byte[] { 100, 100, 100, 255 }; PixelAdjust.ColorBalance(cbBig, 9999, -9999, 0);
+    Check(cbBig[2] == 255 && cbBig[1] == 0 && cbBig[0] == 100, "balance: offsets clamped to +-255");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

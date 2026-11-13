@@ -186,3 +186,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.23.0 manual rows (deferred by owner)
 - [ ] Editor Magnify (M): drag a circle over small text; it shows larger, centred on the same spot; near an image edge it still shows image (no blank); Undo removes; saved image includes it.
+
+## v0.24.0 manual rows (deferred by owner)
+- [ ] Adjust > Hue / colour balance…: hue +120 turns reds toward green; red +50 warms the image; OK with all zero does nothing; Undo restores.

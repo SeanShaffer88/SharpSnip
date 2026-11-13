@@ -177,4 +177,23 @@ internal static class EditorDialogs
         win.Owner = owner;
         return win.ShowDialog() == true ? result : null;
     }
+
+    /// <summary>Returns hue shift in degrees and red/green/blue offsets, or null when cancelled.</summary>
+    public static (double Hue, int Red, int Green, int Blue)? HueBalance(Window owner)
+    {
+        var (grid, add) = Grid2();
+        Slider S(double min, double max, string tip) => new() { Minimum = min, Maximum = max, Value = 0, ToolTip = tip };
+        var hue = S(-180, 180, "Rotate hues, in degrees. 0 = unchanged.");
+        var red = S(-100, 100, "Add or remove red. 0 = unchanged.");
+        var green = S(-100, 100, "Add or remove green. 0 = unchanged.");
+        var blue = S(-100, 100, "Add or remove blue. 0 = unchanged.");
+        add("Hue", hue); add("Red", red); add("Green", green); add("Blue", blue);
+        (double, int, int, int)? result = null;
+        var win = Base("Hue / colour balance", new StackPanel());
+        var stack = (StackPanel)win.Content;
+        stack.Children.Add(grid);
+        stack.Children.Add(Buttons(win, () => { result = (hue.Value, (int)red.Value, (int)green.Value, (int)blue.Value); win.DialogResult = true; }));
+        win.Owner = owner;
+        return win.ShowDialog() == true ? result : null;
+    }
 }
