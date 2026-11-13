@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.9.0] - 2026-11-13
+
+### Changed
+- **Captures no longer open the editor by default** (owner direction): a capture goes straight to the clipboard and its file, with a toast. The editor opens after a capture only when "Open the editor after a capture" is ticked in Settings. Existing installs keep whatever their saved setting says — untick it once in Settings to get the new behavior.
+
+### Added
+- **Workflows can convert recordings**: a `format:` step in a recording workflow now names an FFmpeg preset (`format: webm`, also av1, h264, mkv, gifhq, mp3, m4a) and converts through the bundled FFmpeg, continuing the chain with the converted file — so "record → make a WebM → copy it to the share folder" is one hands-free chain. Still workflows keep using image formats, and mismatches (a preset on a still, an image format on a recording, FFmpeg missing) stop the chain with a plain reason.
+
 ## [0.8.1] - 2026-11-13
 
 ### Fixed
