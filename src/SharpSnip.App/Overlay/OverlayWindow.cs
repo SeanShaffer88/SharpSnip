@@ -102,11 +102,12 @@ internal sealed class OverlayWindow : Window
             _handles.Add(new Rectangle { Width = 8, Height = 8, Fill = Brushes.White, Stroke = accent, StrokeThickness = 1, Visibility = Visibility.Collapsed });
 
         bool hc = style.HighContrast;
-        _bar.Background = hc ? new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0x00)) : new SolidColorBrush(Color.FromArgb(0xE6, 0x26, 0x28, 0x2D));
-        _bar.BorderBrush = hc ? Brushes.Black : new SolidColorBrush(Color.FromRgb(0x45, 0x48, 0x4D));
+        _bar.Background = hc ? Brushes.Black : Frozen(0x23, 0x23, 0x26);
+        _bar.BorderBrush = hc ? Brushes.White : Frozen(0x43, 0x43, 0x4A);
         _bar.BorderThickness = new Thickness(1, 0, 1, 1);
-        _bar.CornerRadius = new CornerRadius(0, 0, 14, 14);
+        _bar.CornerRadius = new CornerRadius(0, 0, 12, 12);
         _bar.Padding = new Thickness(ModeBarLayout.PadX, 6, ModeBarLayout.PadX, 6);
+        if (!hc) _bar.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 8, ShadowDepth = 4, Direction = 270, Opacity = 0.4, Color = Colors.Black };
         _bar.Child = _barRow;
 
         _canvas.Children.Add(_dim);
@@ -198,53 +199,72 @@ internal sealed class OverlayWindow : Window
         if (buttons is null) { _bar.Visibility = Visibility.Collapsed; return; }
 
         bool hc = _style.HighContrast;
-        Brush ink = hc ? Brushes.Black : Brushes.White;
-        Brush hoverBg = hc ? Brushes.Black : new SolidColorBrush(Color.FromRgb(0x3A, 0x3D, 0x42));
-        Brush hoverInk = hc ? new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0x00)) : Brushes.White;
+        Brush ink = hc ? Brushes.White : Frozen(0xE6, 0xE3, 0xE1);
+        Brush muted = hc ? Brushes.White : Frozen(0x89, 0x86, 0x8A);
+        Brush hoverBg = hc ? Brushes.White : Frozen(0x28, 0x28, 0x2D);
+        Brush hoverInk = hc ? Brushes.Black : ink;
+        const double h = ModeBarLayout.CellHeight;
 
         _barRow.Children.Clear();
         for (int i = 0; i < buttons.Count; i++)
         {
             bool hot = hover == i;
-            var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            var icon = (FrameworkElement)ModeBarIcons.Create(buttons[i].Icon, hot ? hoverInk : ink);
-            icon.Margin = new Thickness(0, 9, 0, 0);
+            var fg = hot ? hoverInk : ink;
+            var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var icon = (FrameworkElement)ModeBarIcons.Create(buttons[i].Icon, fg);
             icon.HorizontalAlignment = HorizontalAlignment.Center;
             inner.Children.Add(icon);
             inner.Children.Add(new TextBlock
             {
                 Text = buttons[i].Label, FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
-                Foreground = hot ? hoverInk : ink, HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0),
+                Foreground = fg, HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 3, 0, 0),
             });
+            var grid = new Grid();
+            grid.Children.Add(inner);
+            if (buttons[i].Key.Length > 0)
+                grid.Children.Add(new TextBlock
+                {
+                    Text = buttons[i].Key, FontFamily = new FontFamily("Consolas"), FontSize = 10,
+                    Foreground = hot ? hoverInk : muted, HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 5, 0),
+                });
             var cell = new Border
             {
-                Width = ModeBarLayout.ButtonWidth, Height = 80, CornerRadius = new CornerRadius(8),
-                Background = hot ? hoverBg : Brushes.Transparent, Child = inner,
+                Width = ModeBarLayout.ButtonWidth, Height = h, CornerRadius = new CornerRadius(8),
+                Background = hot ? hoverBg : Brushes.Transparent, Child = grid,
             };
             AutomationProperties.SetName(cell, buttons[i].AutomationName);
             _barRow.Children.Add(cell);
         }
         _barRow.Children.Add(new Border
         {
-            Width = 1, Height = 56, Margin = new Thickness(6, 12, 6, 12),
-            Background = hc ? Brushes.Black : new SolidColorBrush(Color.FromRgb(0x45, 0x48, 0x4D)),
+            Width = 1, Height = h - 12, Margin = new Thickness(4, 6, 4, 6),
+            Background = hc ? Brushes.White : Frozen(0x43, 0x43, 0x4A),
         });
         bool closeHot = hover == -1;
+        var closeFg = closeHot ? hoverInk : ink;
+        var closeStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var closeIcon = (FrameworkElement)ModeBarIcons.Create(ModeBarIcon.Close, closeFg);
+        closeIcon.HorizontalAlignment = HorizontalAlignment.Center;
+        closeStack.Children.Add(closeIcon);
+        closeStack.Children.Add(new TextBlock
+        {
+            Text = "Esc", FontFamily = new FontFamily("Consolas"), FontSize = 10,
+            Foreground = closeHot ? hoverInk : muted, HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 3, 0, 0),
+        });
         var closeCell = new Border
         {
-            Width = ModeBarLayout.CloseWidth, Height = 80, CornerRadius = new CornerRadius(8),
-            Background = closeHot ? hoverBg : Brushes.Transparent,
-            Child = new Grid { Children = { ModeBarIcons.Create(ModeBarIcon.Close, closeHot ? hoverInk : ink) } },
+            Width = ModeBarLayout.CloseWidth, Height = h, CornerRadius = new CornerRadius(8),
+            Background = closeHot ? hoverBg : Brushes.Transparent, Child = closeStack,
         };
-        ((FrameworkElement)closeCell.Child).HorizontalAlignment = HorizontalAlignment.Center;
-        ((FrameworkElement)closeCell.Child).VerticalAlignment = VerticalAlignment.Center;
         AutomationProperties.SetName(closeCell, "Close (Esc)");
         _barRow.Children.Add(closeCell);
 
         _bar.Visibility = Visibility.Visible;
         PositionBar();
-        if (animateIn)
+        if (animateIn && SystemParameters.ClientAreaAnimation)
         {
             var slide = new TranslateTransform(0, -ModeBarLayout.BarHeight);
             _bar.RenderTransform = slide;
@@ -253,6 +273,13 @@ internal sealed class OverlayWindow : Window
                 { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         }
         else _bar.RenderTransform = null;
+    }
+
+    private static SolidColorBrush Frozen(byte r, byte g, byte b)
+    {
+        var br = new SolidColorBrush(Color.FromRgb(r, g, b));
+        br.Freeze();
+        return br;
     }
 
     private void PositionBar()

@@ -545,18 +545,18 @@ Console.WriteLine("Print Screen override");
 
 Console.WriteLine("ModeBarLayout");
 {
-    Check(ModeBarLayout.BarWidth(6) == 6 + 6 * 76 + 13 + 46 + 6, "mode bar: width = padding + buttons + separator + close");
+    Check(ModeBarLayout.BarWidth(6) == 6 + 6 * 64 + 9 + 36 + 6, "mode bar: width = padding + buttons + separator + close");
     Check(ModeBarLayout.BarWidth(0) == 0, "mode bar: no buttons -> no bar");
-    var hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(0) + 38, 46, 6);
+    var hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(0) + 32, 36, 6);
     Check(hit is { Index: 0, IsClose: false }, "mode bar: first button centre hits button 0");
-    hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(5) + 75.9, 46, 6);
+    hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(5) + 63.9, 36, 6);
     Check(hit is { Index: 5, IsClose: false }, "mode bar: last button's right edge still hits it");
-    Check(ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(6) + 6, 46, 6) is null, "mode bar: separator hits nothing");
-    hit = ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 23, 46, 6);
+    Check(ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(6) + 4, 36, 6) is null, "mode bar: separator hits nothing");
+    hit = ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 18, 36, 6);
     Check(hit is { IsClose: true }, "mode bar: close zone hits close");
-    Check(ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 46, 46, 6) is null, "mode bar: past close hits nothing");
+    Check(ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 36, 36, 6) is null, "mode bar: past close hits nothing");
     Check(ModeBarLayout.HitTest(40, ModeBarLayout.BarHeight, 6) is null && ModeBarLayout.HitTest(40, -1, 6) is null, "mode bar: above/below hits nothing");
-    Check(ModeBarLayout.HitTest(3, 46, 6) is null, "mode bar: left padding hits nothing");
+    Check(ModeBarLayout.HitTest(3, 36, 6) is null, "mode bar: left padding hits nothing");
 }
 
 Console.WriteLine("PixelBlit");

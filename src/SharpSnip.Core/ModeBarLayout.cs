@@ -10,11 +10,12 @@ namespace SharpSnip.Core;
 /// </summary>
 public static class ModeBarLayout
 {
-    public const double ButtonWidth = 76;
-    public const double BarHeight = 92;
-    public const double CloseWidth = 46;
-    public const double SeparatorWidth = 13;
+    public const double ButtonWidth = 64;
+    public const double BarHeight = 72;
+    public const double CloseWidth = 36;
+    public const double SeparatorWidth = 9;
     public const double PadX = 6;
+    public const double CellHeight = 60;
 
     public static double BarWidth(int buttonCount) =>
         buttonCount <= 0 ? 0 : PadX + buttonCount * ButtonWidth + SeparatorWidth + CloseWidth + PadX;
