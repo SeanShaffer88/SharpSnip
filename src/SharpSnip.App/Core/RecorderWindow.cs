@@ -21,11 +21,17 @@ internal sealed class RecorderWindow : Window
     private readonly Action _cancelSchedule;
     private readonly Func<bool> _isScheduled;
     private readonly Action<MonitorInfo> _draw;
+    private readonly Func<Task<RectPx?>> _pickRegion;
+    private readonly Action<RectPx> _saveRegion;
+    private RectPx? _regionRect;
+    private string _regionSource = "";
+    private readonly Button _pickBtn = new() { Content = "Pick region…", Padding = new Thickness(14, 5, 14, 5) };
+    private readonly TextBlock _regionInfo = new() { TextWrapping = TextWrapping.Wrap, Foreground = TesselTheme.Muted, Margin = new Thickness(0, 4, 0, 0) };
     private readonly Button _drawBtn = new() { Content = "Draw on screen", Padding = new Thickness(14, 5, 14, 5) };
     private readonly TextBox _maxMin = new(), _maxMb = new(), _at = new(), _dur = new();
     private readonly Button _scheduleBtn = new() { Content = "Schedule", Padding = new Thickness(14, 5, 14, 5) };
     private readonly ComboBox _monitor = new(), _fps = new(), _quality = new(), _format = new(), _size = new();
-    private readonly CheckBox _region = new() { Content = "Record the last capture region instead" };
+    private readonly CheckBox _region = new() { Content = "Record a region instead of the whole monitor" };
     private readonly CheckBox _sysAudio = new() { Content = "System sound" };
     private readonly CheckBox _mic = new() { Content = "Microphone" };
     private readonly CheckBox _webcam = new() { Content = "Webcam overlay" };
@@ -34,17 +40,18 @@ internal sealed class RecorderWindow : Window
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, Foreground = TesselTheme.Muted };
     private readonly TextBlock _error = new() { Foreground = TesselTheme.Danger, TextWrapping = TextWrapping.Wrap };
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private readonly bool _regionAvailable;
+    private bool _regionAvailable;
     private bool _busy;
 
     public RecorderWindow(IReadOnlyList<MonitorInfo> monitors, Preferences prefs,
         Func<RecordRequest, Task<string?>> start, Func<Task> stop,
         Func<(bool Recording, string? Path, TimeSpan Elapsed)> state,
         Func<RecordRequest, string, string, string?> schedule, Action cancelSchedule, Func<bool> isScheduled,
-        Action<MonitorInfo> draw)
+        Action<MonitorInfo> draw, Func<Task<RectPx?>> pickRegion, Action<RectPx> saveRegion)
     {
         _monitors = monitors; _start = start; _stop = stop; _state = state;
         _schedule = schedule; _cancelSchedule = cancelSchedule; _isScheduled = isScheduled; _draw = draw;
+        _pickRegion = pickRegion; _saveRegion = saveRegion;
         Title = "SharpSnip — Record screen";
         SizeToContent = SizeToContent.WidthAndHeight; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -68,11 +75,14 @@ internal sealed class RecorderWindow : Window
         _format.ToolTip = "GIF is silent, limited to 20 frames per second, and much larger per second — for short clips and sharing in chat.";
         _format.SelectionChanged += (_, _) => Refresh();
         _region.IsChecked = false;
-        _regionAvailable = prefs.LastCaptureRect is not null;
+        if (prefs.RecordingRegion is { Length: 4 } pr) { _regionRect = new RectPx(pr[0], pr[1], pr[2], pr[3]); _regionSource = "picked region"; }
+        else if (prefs.LastCaptureRect is { Length: 4 } lr) { _regionRect = new RectPx(lr[0], lr[1], lr[2], lr[3]); _regionSource = "last capture"; }
+        _regionAvailable = _regionRect is not null;
         _region.IsEnabled = _regionAvailable;
-        _region.ToolTip = prefs.LastCaptureRect is not null
-            ? "Records only the rectangle of your most recent capture (on whichever monitor holds it)."
-            : "Take a region capture first — its rectangle becomes the recording area.";
+        _region.ToolTip = "Records only a rectangle of the screen instead of a whole monitor. Pick one with the button below, or reuse the rectangle of your most recent capture.";
+        _pickBtn.ToolTip = "Drag a rectangle on the screen to use as the recording area. It is remembered for next time.";
+        _pickBtn.Click += async (_, _) => await PickRegionAsync();
+        RefreshRegionInfo();
         _sysAudio.IsChecked = prefs.RecordSystemAudio;
         _sysAudio.ToolTip = "Records what the computer plays (system sound) into the video.";
         _mic.IsChecked = prefs.RecordMic;
@@ -114,7 +124,11 @@ internal sealed class RecorderWindow : Window
             grid.Children.Add(l); grid.Children.Add(c); row++;
         }
         Add("Monitor", _monitor);
-        Add("", _region);
+        var regionStack = new StackPanel();
+        regionStack.Children.Add(_region);
+        regionStack.Children.Add(_pickBtn);
+        regionStack.Children.Add(_regionInfo);
+        Add("", regionStack);
         Add("Format", _format);
         Add("Frame rate", _fps);
         Add("Quality", _quality);
@@ -154,7 +168,30 @@ internal sealed class RecorderWindow : Window
             _quality.SelectedItem as string ?? RecordingQuality.Default,
             _webcam.IsChecked == true, _corner.SelectedItem as string ?? "BottomRight",
             maxMin, maxMb, _format.SelectedItem as string == "GIF",
-            _size.SelectedItem as string ?? RecordingSize.Default);
+            _size.SelectedItem as string ?? RecordingSize.Default,
+            _region.IsChecked == true ? _regionRect : null);
+    }
+
+    private void RefreshRegionInfo()
+    {
+        _regionInfo.Text = _regionRect is { } r
+            ? $"Region: {r.Width}×{r.Height} at {r.X},{r.Y} ({_regionSource})."
+            : "No region yet — pick one, or take a region capture first.";
+    }
+
+    private async Task PickRegionAsync()
+    {
+        Hide();
+        RectPx? picked;
+        try { picked = await _pickRegion(); }
+        finally { Show(); Activate(); }
+        if (picked is not { } r) return;
+        _saveRegion(r);
+        _regionRect = r; _regionSource = "picked region";
+        _regionAvailable = true;
+        _region.IsEnabled = true; _region.IsChecked = true;
+        RefreshRegionInfo();
+        _status.Text = "Recording region set.";
     }
 
     private void OnSchedule()

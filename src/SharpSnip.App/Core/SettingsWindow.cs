@@ -9,6 +9,7 @@ internal sealed class SettingsWindow : Window
 {
     private readonly Preferences _prefs;
     private readonly Func<Preferences, string?> _apply;
+    private readonly Action<string>? _warn;
     private readonly TextBox _folder = new(), _hkMenu = new(), _hkFull = new(), _hkWin = new(), _hkRepeat = new(), _hkMon = new(), _fixW = new(), _fixH = new(), _interval = new(), _hkPreset = new(), _extEditor = new(), _ffmpeg = new();
     private readonly TextBlock _presetInfo = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _useLast = new() { Content = "Use last capture region", Padding = new Thickness(8, 3, 8, 3) };
@@ -17,16 +18,15 @@ internal sealed class SettingsWindow : Window
     private readonly Button _wfManage = new() { Content = "Manage workflows…", Padding = new Thickness(8, 3, 8, 3) };
     private List<WorkflowDef> _workflows = new();
     private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new(), _effect = new();
-    private readonly CheckBox _editor = new() { Content = "Open the editor after a capture" };
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
     private readonly CheckBox _contrast = new() { Content = "High-contrast highlight" };
     private readonly CheckBox _prtsc = new() { Content = "Print Screen replaces Snipping Tool" };
     private readonly Slider _dim = new() { Minimum = 20, Maximum = 90, Width = 200, TickFrequency = 10, IsSnapToTickEnabled = false };
     private readonly TextBlock _error = new() { Foreground = TesselTheme.Danger, TextWrapping = TextWrapping.Wrap };
 
-    public SettingsWindow(Preferences prefs, Func<Preferences, string?> apply)
+    public SettingsWindow(Preferences prefs, Func<Preferences, string?> apply, Action<string>? warn = null)
     {
-        _prefs = prefs; _apply = apply;
+        _prefs = prefs; _apply = apply; _warn = warn;
         Title = "SharpSnip settings";
         SizeToContent = SizeToContent.WidthAndHeight; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -73,8 +73,7 @@ internal sealed class SettingsWindow : Window
         _target.SelectedIndex = prefs.FullScreenTarget == "AllMonitors" ? 1 : 0; _target.ToolTip = "What the one-shot hotkey captures.";
         _delay.SelectedItem = prefs.DefaultDelaySeconds; _delay.ToolTip = "Countdown before every capture, in seconds. Useful for menus and tooltips.";
         _matte.SelectedItem = prefs.MatteColor; _matte.ToolTip = "Fill for empty corners when monitors form an L-shape.";
-        _effect.SelectedItem = AutoEffects.Sanitize(prefs.AutoEffect); _effect.ToolTip = "Applied automatically when a capture opens in the editor (undoable there). Border draws a thin black frame; Grayscale converts to grey.";
-        _editor.IsChecked = prefs.OpenEditorAfterCapture; _editor.ToolTip = "Off = capture goes straight to clipboard and file.";
+        _effect.SelectedItem = AutoEffects.Sanitize(prefs.AutoEffect); _effect.ToolTip = "Applied automatically to every capture. Border draws a thin black frame; Grayscale converts to grey.";
         _toasts.IsChecked = prefs.ShowToasts; _toasts.ToolTip = "Balloon notifications after saving or on errors.";
         _contrast.IsChecked = prefs.HighContrastHighlight; _contrast.ToolTip = "Thicker yellow highlight and opaque hint bars.";
         _prtsc.IsChecked = prefs.PrintScreenTakeover; _prtsc.ToolTip = "Gives the Print Screen key to SharpSnip instead of Snipping Tool: the Windows switch for it is turned off and Print Screen becomes the menu hotkey. Unticking restores both the switch and your old menu hotkey.";
@@ -101,7 +100,7 @@ internal sealed class SettingsWindow : Window
         Add("Fixed region width", _fixW); Add("Fixed region height", _fixH); Add("Interval (seconds)", _interval);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim); Add("Auto effect", _effect);
-        Add("", _editor); Add("", _toasts); Add("", _contrast); Add("", _prtsc);
+        Add("", _toasts); Add("", _contrast); Add("", _prtsc);
         Add("", _error);
 
         var ok = new Button { Content = "Save", IsDefault = true, Width = 80, Margin = new Thickness(4), ToolTip = "Apply and store settings." };
@@ -149,7 +148,7 @@ internal sealed class SettingsWindow : Window
             Workflows = _workflows, CaptureWorkflow = SelectedWorkflow(_wfCapture), RecordingWorkflow = SelectedWorkflow(_wfRecording),
             FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor",
             DefaultDelaySeconds = (int)_delay.SelectedItem, MatteColor = (string)_matte.SelectedItem,
-            OpenEditorAfterCapture = _editor.IsChecked == true, ShowToasts = _toasts.IsChecked == true,
+            ShowToasts = _toasts.IsChecked == true,
             HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
             EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
             LastCaptureRect = _prefs.LastCaptureRect,
@@ -162,6 +161,7 @@ internal sealed class SettingsWindow : Window
             RecordMic = _prefs.RecordMic, RecordingQualityName = _prefs.RecordingQualityName, RecordingSizeName = _prefs.RecordingSizeName,
             RecordWebcam = _prefs.RecordWebcam, WebcamCorner = _prefs.WebcamCorner,
             RecordMaxMinutes = _prefs.RecordMaxMinutes, RecordMaxMb = _prefs.RecordMaxMb,
+            RecordingRegion = _prefs.RecordingRegion,
         };
         // Print Screen takeover drives the menu hotkey: on = Print Screen (old key remembered), off = remembered key back.
         if (p.PrintScreenTakeover && !_prefs.PrintScreenTakeover)
@@ -175,24 +175,45 @@ internal sealed class SettingsWindow : Window
             p.HotkeyMenuBeforeTakeover = "";
         }
         else p.HotkeyMenuBeforeTakeover = _prefs.HotkeyMenuBeforeTakeover;
-        // Reject bad or duplicate hotkeys with a message instead of silently falling back to defaults.
+        // Per-field validation (owner field report, 2026-11-13): one bad field must
+        // never discard the whole save — an invalid entry keeps its previous value
+        // and is named in the warning, everything else applies and persists.
+        var problems = new List<string>();
         if (!int.TryParse(_fixW.Text, out int fw) || !int.TryParse(_fixH.Text, out int fh)
             || fw is < FixedRegion.MinSize or > FixedRegion.MaxSize || fh is < FixedRegion.MinSize or > FixedRegion.MaxSize)
-        { _error.Text = $"Fixed region size must be {FixedRegion.MinSize} to {FixedRegion.MaxSize} pixels."; return; }
+        { fw = _prefs.FixedWidth; fh = _prefs.FixedHeight; problems.Add($"Fixed region size must be {FixedRegion.MinSize} to {FixedRegion.MaxSize} pixels — kept {fw}×{fh}."); }
         if (!int.TryParse(_interval.Text, out int iv) || iv is < IntervalPlan.MinSeconds or > IntervalPlan.MaxSeconds)
-        { _error.Text = $"Interval must be {IntervalPlan.MinSeconds} to {IntervalPlan.MaxSeconds} seconds."; return; }
+        { iv = _prefs.IntervalSeconds; problems.Add($"Interval must be {IntervalPlan.MinSeconds} to {IntervalPlan.MaxSeconds} seconds — kept {iv}."); }
         p.FixedWidth = fw; p.FixedHeight = fh; p.IntervalSeconds = iv;
         if (!HotkeyList.TryParse(p.HotkeyMonitors, out var monKeys))
-        { _error.Text = "Monitor hotkeys: invalid or duplicate entry. Example: Ctrl+Alt+Shift+1;Ctrl+Alt+Shift+2"; return; }
-        var keys = new List<(string, string)> { ("Menu", p.HotkeyMenu), ("Full-screen", p.HotkeyFullScreen), ("Active-window", p.HotkeyActiveWindow), ("Repeat-last", p.HotkeyRepeatLast) };
-        if (!string.IsNullOrWhiteSpace(p.HotkeyPreset)) keys.Add(("Preset", p.HotkeyPreset));
-        foreach (var (name, text) in keys)
-            if (!HotkeySpec.TryParse(text, out _)) { _error.Text = $"{name} hotkey is not valid. Example: Win+Shift+X"; return; }
-        var everyKey = keys.Select(k => { HotkeySpec.TryParse(k.Item2, out var sp); return sp; }).Concat(monKeys).ToList();
+        { p.HotkeyMonitors = _prefs.HotkeyMonitors; HotkeyList.TryParse(p.HotkeyMonitors, out monKeys); problems.Add("Monitor hotkeys were invalid — kept the previous ones."); }
+        var keyFields = new List<(string Name, string Text, string Old, Action<string> Set)>
+        {
+            ("Menu", p.HotkeyMenu, _prefs.HotkeyMenu, v => p.HotkeyMenu = v),
+            ("Full-screen", p.HotkeyFullScreen, _prefs.HotkeyFullScreen, v => p.HotkeyFullScreen = v),
+            ("Active-window", p.HotkeyActiveWindow, _prefs.HotkeyActiveWindow, v => p.HotkeyActiveWindow = v),
+            ("Repeat-last", p.HotkeyRepeatLast, _prefs.HotkeyRepeatLast, v => p.HotkeyRepeatLast = v),
+        };
+        if (!string.IsNullOrWhiteSpace(p.HotkeyPreset)) keyFields.Add(("Preset", p.HotkeyPreset, _prefs.HotkeyPreset, v => p.HotkeyPreset = v));
+        foreach (var (name, text, old, set) in keyFields)
+            if (!HotkeySpec.TryParse(text, out _)) { set(old); problems.Add($"{name} hotkey was not valid — kept {old}."); }
+        var finalTexts = new List<string> { p.HotkeyMenu, p.HotkeyFullScreen, p.HotkeyActiveWindow, p.HotkeyRepeatLast };
+        if (!string.IsNullOrWhiteSpace(p.HotkeyPreset)) finalTexts.Add(p.HotkeyPreset);
+        var everyKey = finalTexts.Select(t => { HotkeySpec.TryParse(t, out var sp); return sp; }).Concat(monKeys).ToList();
         if (everyKey.Distinct().Count() != everyKey.Count)
-        { _error.Text = "Each hotkey must be different."; return; }
-        string? problem = _apply(p);
-        if (problem is not null) { _error.Text = problem; return; }
+        {
+            p.HotkeyMenu = _prefs.HotkeyMenu; p.HotkeyFullScreen = _prefs.HotkeyFullScreen;
+            p.HotkeyActiveWindow = _prefs.HotkeyActiveWindow; p.HotkeyRepeatLast = _prefs.HotkeyRepeatLast;
+            p.HotkeyPreset = _prefs.HotkeyPreset; p.HotkeyMonitors = _prefs.HotkeyMonitors;
+            problems.Add("Each hotkey must be different — kept the previous hotkeys.");
+        }
+        string? warning = _apply(p);
+        if (warning is not null) problems.Add(warning);
+        if (problems.Count > 0)
+        {
+            string msg = "Settings saved, with notes: " + string.Join(" ", problems);
+            if (_warn is not null) _warn(msg); else _error.Text = msg;
+        }
         Close();
     }
 }

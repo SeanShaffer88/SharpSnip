@@ -24,53 +24,105 @@ internal static class WgcCapture
         get { try { return GraphicsCaptureSession.IsSupported(); } catch { return false; } }
     }
 
+    // The D3D11 device is process-shared (§1.4 pre-warm): creating one per capture
+    // made the first capture pay full device + pipeline setup. Captures are
+    // serialized by the app (the session gate), so the shared context sees one
+    // caller at a time; any failure drops the cache, that capture falls back to
+    // GDI as before, and the next capture builds a fresh device.
+    private static readonly object _deviceLock = new();
+    private static (IDirect3DDevice Device, IntPtr D3d, IntPtr Context)? _shared;
+
+    private static (IDirect3DDevice Device, IntPtr D3d, IntPtr Context)? SharedDevice()
+    {
+        lock (_deviceLock)
+        {
+            _shared ??= CreateDevice();
+            return _shared;
+        }
+    }
+
+    private static void InvalidateDevice()
+    {
+        lock (_deviceLock)
+        {
+            if (_shared is not { } s) return;
+            _shared = null;
+            try { s.Device.Dispose(); } catch { }
+            if (s.Context != IntPtr.Zero) Marshal.Release(s.Context);
+            if (s.D3d != IntPtr.Zero) Marshal.Release(s.D3d);
+        }
+    }
+
+    /// <summary>
+    /// §1.4 pre-warm, run once at startup on a background thread: create the
+    /// shared device and pull one throwaway frame through the full WGC pipeline
+    /// (broker, pool, session) so the user's first capture is served warm.
+    /// Best-effort — any failure just leaves the cold path (and the GDI fallback).
+    /// </summary>
+    public static void Prewarm()
+    {
+        try
+        {
+            if (!IsSupported) return;
+            var dev = SharedDevice();
+            if (dev is null) return;
+            MonitorEnumerator.Refresh();
+            MonitorInfo? primary = null;
+            foreach (var m in MonitorEnumerator.Current) { if (m.IsPrimary) { primary = m; break; } primary ??= m; }
+            if (primary is null) return;
+            var hmon = MonitorFromRect(primary.Bounds);
+            if (hmon == IntPtr.Zero) return;
+            var item = CreateItemForMonitor(hmon);
+            if (item is null) return;
+            using (var pool = Direct3D11CaptureFramePool.CreateFreeThreaded(dev.Value.Device, DirectXPixelFormat.B8G8R8A8UIntNormalized, 1, item.Size))
+            using (var session = pool.CreateCaptureSession(item))
+            {
+                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
+                    session.IsCursorCaptureEnabled = false;
+                using var arrived = new ManualResetEventSlim();
+                pool.FrameArrived += (p, _) => { using var f = p.TryGetNextFrame(); arrived.Set(); };
+                session.StartCapture();
+                arrived.Wait(TimeSpan.FromSeconds(2));
+            }
+            Log.Info("WGC pre-warm complete");
+        }
+        catch (Exception ex) { Log.Info("WGC pre-warm skipped: " + ex.Message); }
+    }
+
     /// <summary>The monitor's full frame as tight BGRA (stride = width×4), or null when WGC could not serve it.</summary>
     public static (byte[] Bgra, int Width, int Height)? TryCaptureMonitor(MonitorInfo monitor)
     {
-        IntPtr d3dDevice = IntPtr.Zero, context = IntPtr.Zero;
         try
         {
             var hmon = MonitorFromRect(monitor.Bounds);
             if (hmon == IntPtr.Zero) return null;
             var item = CreateItemForMonitor(hmon);
             if (item is null) return null;
+            var dev = SharedDevice();
+            if (dev is null) return null;
+            using (var pool = Direct3D11CaptureFramePool.CreateFreeThreaded(dev.Value.Device, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, item.Size))
+            using (var session = pool.CreateCaptureSession(item))
             {
-                int hr = D3D11CreateDevice(IntPtr.Zero, D3D_DRIVER_TYPE_HARDWARE, IntPtr.Zero,
-                    D3D11_CREATE_DEVICE_BGRA_SUPPORT, IntPtr.Zero, 0, D3D11_SDK_VERSION,
-                    out d3dDevice, out _, out context);
-                if (hr < 0 || d3dDevice == IntPtr.Zero) return null;
-                var device = CreateDirect3DDevice(d3dDevice);
-                if (device is null) return null;
-                using (device)
-                using (var pool = Direct3D11CaptureFramePool.CreateFreeThreaded(device, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, item.Size))
-                using (var session = pool.CreateCaptureSession(item))
-                {
-                    // IsBorderRequired exists only in newer SDK contracts than the 19041
-                    // target, so it cannot be set from here; for a full-monitor item the
-                    // border overlay sits on the screen edge, outside the captured frame.
-                    if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
-                        session.IsCursorCaptureEnabled = false; // match GDI: the cursor is not part of a still
+                // IsBorderRequired exists only in newer SDK contracts than the 19041
+                // target, so it cannot be set from here; for a full-monitor item the
+                // border overlay sits on the screen edge, outside the captured frame.
+                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
+                    session.IsCursorCaptureEnabled = false; // match GDI: the cursor is not part of a still
 
-                    using var arrived = new ManualResetEventSlim();
-                    Direct3D11CaptureFrame? frame = null;
-                    pool.FrameArrived += (p, _) => { frame ??= p.TryGetNextFrame(); arrived.Set(); };
-                    session.StartCapture();
-                    if (!arrived.Wait(TimeSpan.FromSeconds(2)) || frame is null) return null;
-                    using (frame)
-                    {
-                        var pixels = ReadSurface(frame, d3dDevice, context, item.Size);
-                        if (pixels is null || LooksBlack(pixels)) return null;
-                        return (pixels, item.Size.Width, item.Size.Height);
-                    }
+                using var arrived = new ManualResetEventSlim();
+                Direct3D11CaptureFrame? frame = null;
+                pool.FrameArrived += (p, _) => { frame ??= p.TryGetNextFrame(); arrived.Set(); };
+                session.StartCapture();
+                if (!arrived.Wait(TimeSpan.FromSeconds(2)) || frame is null) return null;
+                using (frame)
+                {
+                    var pixels = ReadSurface(frame, dev.Value.D3d, dev.Value.Context, item.Size);
+                    if (pixels is null || LooksBlack(pixels)) return null;
+                    return (pixels, item.Size.Width, item.Size.Height);
                 }
             }
         }
-        catch { return null; }
-        finally
-        {
-            if (context != IntPtr.Zero) Marshal.Release(context);
-            if (d3dDevice != IntPtr.Zero) Marshal.Release(d3dDevice);
-        }
+        catch { InvalidateDevice(); return null; }
     }
 
     /// <summary>A frame with no visible content at all (every sampled RGB byte 0) means the path failed, not that the screen is black.</summary>

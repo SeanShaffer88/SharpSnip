@@ -16,7 +16,7 @@ namespace SharpSnip;
 internal sealed record AudioOptions(bool System, bool Mic);
 
 /// <summary>Everything the Recorder window asks the host to start — one object so the surface and the host stay in step.</summary>
-internal sealed record RecordRequest(MonitorInfo Monitor, bool UseRegion, int Fps, bool SystemAudio, bool Mic, string Quality, bool Webcam, string WebcamCorner, int MaxMinutes, int MaxMb, bool Gif, string SizeName);
+internal sealed record RecordRequest(MonitorInfo Monitor, bool UseRegion, int Fps, bool SystemAudio, bool Mic, string Quality, bool Webcam, string WebcamCorner, int MaxMinutes, int MaxMb, bool Gif, string SizeName, RectPx? RegionRect = null);
 
 /// <summary>Webcam picture-in-picture: the overlay forces the pixel path so frames can be composited.</summary>
 internal sealed record WebcamOptions(bool Enabled, string Corner);
@@ -282,14 +282,65 @@ internal sealed class ScreenRecorder : IRecording
         if (File.Exists(micPath) && new FileInfo(micPath).Length > 44) tracks.Add((micPath, ReadWavRate(micPath)));
         if (tracks.Count == 0) return null;
         if (tracks.Count == 1) return tracks[0].Path;
-        var (aSamples, aRate) = ReadWavData(tracks[0]);
-        var (bSamples, bRate) = ReadWavData(tracks[1]);
-        if (bRate != aRate) bSamples = PcmMix.Resample(bSamples, 2, bRate, aRate);
-        var mixed = PcmMix.Mix(aSamples, bSamples);
         string mixedPath = Path.Combine(_audioDir!, "mixed.wav");
-        using (var fs = new FileStream(mixedPath, FileMode.Create, FileAccess.Write))
-        using (var w = new WavWriter(fs, aRate, 2)) w.Write(mixed);
+        MixTracksStreaming(tracks[0], tracks[1], mixedPath);
         return mixedPath;
+    }
+
+    /// <summary>
+    /// Mixes two captured tracks (system + mic) into one WAV without ever holding
+    /// a whole track in memory: A is read in chunks, B is resampled on the fly
+    /// (Core PcmResampler — sample-identical to the whole-array resample) and
+    /// metered out against A's position, so the pairing matches PcmMix.Mix over
+    /// the full tracks while memory stays bounded by the chunk size.
+    /// </summary>
+    private static void MixTracksStreaming((string Path, int Rate) a, (string Path, int Rate) b, string mixedPath)
+    {
+        const int ChunkFrames = 8192;
+        using var aReader = new WavReader(File.OpenRead(a.Path));
+        using var bReader = new WavReader(File.OpenRead(b.Path));
+        using var outFs = new FileStream(mixedPath, FileMode.Create, FileAccess.Write);
+        using var writer = new WavWriter(outFs, aReader.SampleRate, aReader.Channels);
+        var resampler = new PcmResampler(bReader.Channels, bReader.SampleRate, aReader.SampleRate);
+        var aBuf = new short[ChunkFrames * aReader.Channels];
+        var bBuf = new short[ChunkFrames * bReader.Channels];
+        var bPending = new List<short>();
+        int bOff = 0;
+        bool bDone = false, bFinished = false;
+
+        void TopUpB(int wantSamples)
+        {
+            while (bPending.Count - bOff < wantSamples && !bDone)
+            {
+                int n = bReader.Read(bBuf);
+                if (n == 0) { bDone = true; break; }
+                bPending.AddRange(resampler.Process(bBuf.AsSpan(0, n)));
+            }
+            if (bDone && !bFinished)
+            {
+                bFinished = true;
+                bPending.AddRange(resampler.Finish());
+            }
+            if (bOff > ChunkFrames * 2) { bPending.RemoveRange(0, bOff); bOff = 0; }
+        }
+
+        while (true)
+        {
+            int aRead = aReader.Read(aBuf);
+            if (aRead == 0)
+            {
+                // A is over: whatever resampled B remains plays out on its own.
+                TopUpB(int.MaxValue);
+                int left = bPending.Count - bOff;
+                if (left > 0) writer.Write(bPending.GetRange(bOff, left).ToArray());
+                break;
+            }
+            TopUpB(aRead);
+            int take = Math.Min(aRead, bPending.Count - bOff);
+            var bSlice = take > 0 ? bPending.GetRange(bOff, take).ToArray() : Array.Empty<short>();
+            bOff += take;
+            writer.Write(PcmMix.Mix(aBuf.AsSpan(0, aRead), bSlice));
+        }
     }
 
     private static int ReadWavRate(string path)
@@ -298,15 +349,6 @@ internal sealed class ScreenRecorder : IRecording
         fs.Position = 24;
         var b = new byte[4]; _ = fs.Read(b, 0, 4);
         return BitConverter.ToInt32(b, 0);
-    }
-
-    private static (short[] Samples, int Rate) ReadWavData((string Path, int Rate) track)
-    {
-        var bytes = File.ReadAllBytes(track.Path);
-        int dataBytes = BitConverter.ToInt32(bytes, 40);
-        var samples = new short[dataBytes / 2];
-        for (int i = 0; i < samples.Length; i++) samples[i] = BitConverter.ToInt16(bytes, 44 + i * 2);
-        return (samples, track.Rate);
     }
 
     public void Dispose()

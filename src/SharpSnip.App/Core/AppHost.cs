@@ -87,6 +87,7 @@ internal sealed class AppHost : IDisposable
         if (warn is not null) Notify("SharpSnip", warn, null);
         MonitorEnumerator.Refresh();
         Log.Info("SharpSnip started");
+        _ = Task.Run(WgcCapture.Prewarm);   // §1.4: warm the WGC pipeline so the first capture is not the slow one
     }
 
     private WinForms.ContextMenuStrip BuildMenu()
@@ -240,7 +241,7 @@ internal sealed class AppHost : IDisposable
     private void ShowSettings()
     {
         if (_settings is not null) { _settings.Activate(); return; }
-        _settings = new SettingsWindow(_prefs.Sanitize(), Apply);
+        _settings = new SettingsWindow(_prefs.Sanitize(), Apply, msg => Notify("SharpSnip", msg, null));
         _settings.Closed += (_, _) => _settings = null;
         _settings.Show();
     }
@@ -251,7 +252,9 @@ internal sealed class AppHost : IDisposable
         _recorderWindow = new RecorderWindow(MonitorEnumerator.Refresh(), _prefs,
             StartRecordingAsync, StopRecordingAsync, RecorderState,
             ScheduleRecording, CancelSchedule, () => _schedReq is not null,
-            m => ToggleDrawOverlay(m));
+            m => ToggleDrawOverlay(m),
+            () => _router.PickRegionAsync(),
+            r => { _prefs.RecordingRegion = new[] { r.X, r.Y, r.Width, r.Height }; SavePrefs(); });
         _recorderWindow.Closed += (_, _) => _recorderWindow = null;
         _recorderWindow.Show();
     }
@@ -266,20 +269,10 @@ internal sealed class AppHost : IDisposable
         RectPx? crop = null;
         if (req.UseRegion)
         {
-            if (_prefs.LastCaptureRect is not { Length: 4 } r) return "No capture region yet — take a region capture first.";
-            var last = new RectPx(r[0], r[1], r[2], r[3]);
-            MonitorInfo? best = null; RectPx bestCrop = RectPx.Empty; int bestArea = 0;
-            foreach (var m in MonitorEnumerator.Refresh())
-            {
-                var hit = last.Intersect(m.Bounds);
-                if (!hit.IsEmpty && (int)hit.Area > bestArea)
-                {
-                    bestArea = (int)hit.Area; best = m;
-                    bestCrop = new RectPx(hit.X - m.Bounds.X, hit.Y - m.Bounds.Y, hit.Width, hit.Height);
-                }
-            }
-            if (best is null) return "The last capture region is not on any current monitor.";
-            target = best; crop = bestCrop;
+            if (req.RegionRect is not { } region) return "No recording region — pick one in the Recorder first.";
+            var monitorsNow = MonitorEnumerator.Refresh();
+            if (RegionCrop.Resolve(region, monitorsNow) is not { } hit) return "The recording region is not on any current monitor.";
+            target = monitorsNow[hit.MonitorIndex]; crop = hit.Crop;
         }
         string path = Path.Combine(Exporter.OutputFolder(_prefs),
             req.Gif ? RecordingPlan.GifFileName(DateTime.Now) : RecordingPlan.FileName(DateTime.Now));
@@ -416,7 +409,12 @@ internal sealed class AppHost : IDisposable
     /// <summary>Returns an error message, or null on success. Old hotkeys are restored if any new one is taken.</summary>
     private string? Apply(Preferences p)
     {
+        // Applies everything it can and returns a warning for the rest — a failed
+        // hotkey or registry write must never discard the whole save (owner field
+        // report, 2026-11-13: a hotkey owned by another program silently ate every
+        // Settings save, including unrelated options).
         var old = _prefs;
+        var warnings = new List<string>();
         bool enabling = p.PrintScreenTakeover && !old.PrintScreenTakeover;
         bool disabling = !p.PrintScreenTakeover && old.PrintScreenTakeover;
         if (enabling)
@@ -429,7 +427,11 @@ internal sealed class AppHost : IDisposable
             catch (Exception ex)
             {
                 Log.Error("Print Screen takeover failed", ex);
-                return "Could not change the Windows Print Screen setting: " + ex.Message;
+                p.PrintScreenTakeover = false;
+                p.HotkeyMenu = old.HotkeyMenu;
+                p.HotkeyMenuBeforeTakeover = old.HotkeyMenuBeforeTakeover;
+                enabling = false;
+                warnings.Add("Could not change the Windows Print Screen setting: " + ex.Message);
             }
         }
         var failed = RegisterAll(p);
@@ -440,8 +442,15 @@ internal sealed class AppHost : IDisposable
                 try { PrintScreenKey.Write(PrintScreenKey.Prior(p.PrintScreenSnippingPrior)); }
                 catch (Exception ex) { Log.Error("Print Screen rollback failed", ex); }
             }
+            // Only the hotkeys fall back to the previous ones; every other setting applies.
+            p.HotkeyMenu = old.HotkeyMenu; p.HotkeyFullScreen = old.HotkeyFullScreen;
+            p.HotkeyActiveWindow = old.HotkeyActiveWindow; p.HotkeyRepeatLast = old.HotkeyRepeatLast;
+            p.HotkeyMonitors = old.HotkeyMonitors; p.HotkeyPreset = old.HotkeyPreset;
+            p.PrintScreenTakeover = old.PrintScreenTakeover;
+            p.PrintScreenSnippingPrior = old.PrintScreenSnippingPrior;
+            p.HotkeyMenuBeforeTakeover = old.HotkeyMenuBeforeTakeover;
             RegisterAll(old);
-            return $"{string.Join(", ", failed)} is already used by another program.";
+            warnings.Add($"{string.Join(", ", failed)} is already used by another program — kept your previous hotkeys.");
         }
         if (disabling)
         {
@@ -457,7 +466,7 @@ internal sealed class AppHost : IDisposable
         _prefs = p.Sanitize();
         _router.Prefs = _prefs;
         SavePrefs();
-        return null;
+        return warnings.Count > 0 ? string.Join(" ", warnings) : null;
     }
 
     // ---- interval capture ----------------------------------------------------------------------
