@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.2.0.** Compiles cleanly and the pure-logic layer is tested (80 checks), but it has **not yet been run on a real Windows machine**. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.4.0.** Compiles cleanly and the pure-logic layer is tested (176 checks), but it has **not yet been field-run on a real Windows machine**. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
@@ -31,11 +31,11 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 | Repeat last capture | `Win+Shift+R` |
 | Capture monitor 1..4 | `Ctrl+Alt+Shift+1..4` (configurable, up to 9) |
 | Fixed-size region | `S` in the menu |
-| Interval capture | tray menu, or `--interval N --count M` |
+| Interval capture | tray menu, or `--interval N --count M` (in GIF format the run becomes one looping `animation.gif`) |
 
 In the menu: `E` element, `R` region, `W` window, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`.
 
-Hotkeys, output folder, format (PNG/JPEG), delay and more are in tray → Settings. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
+Hotkeys, output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
 
 ### Command line
 
@@ -58,7 +58,7 @@ No third-party packages are used (WPF, Windows Forms for the tray icon, UI Autom
 
 ## Documents
 
-[CHANGELOG](CHANGELOG.md) · [DESCRIPTION](DESCRIPTION.md) · [AUDIT](AUDIT.md) · [CREDITS](CREDITS.md) · [ROADMAP](docs/ROADMAP.md) · [TEST-PLAN](docs/TEST-PLAN.md) · [BLUEPRINT](docs/BLUEPRINT.md)
+[CHANGELOG](CHANGELOG.md) · [DESCRIPTION](DESCRIPTION.md) · [AUDIT](AUDIT.md) · [REVIEW](docs/REVIEW.md) · [CREDITS](CREDITS.md) · [ROADMAP](docs/ROADMAP.md) · [TEST-PLAN](docs/TEST-PLAN.md) · [BLUEPRINT](docs/BLUEPRINT.md)
 
 ## Screenshots
 

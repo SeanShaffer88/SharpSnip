@@ -28,7 +28,7 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | §3D.6 display change mid-countdown | Partial | re-enumerate, fall back to primary monitor |
 | §4.5 clipboard PNG + DIB | Unverified | |
 | §5 editor | Partial | all listed tools except Share (see Deviations) |
-| §6 export | Partial | PNG, JPEG, atomic write |
+| §6 export | Partial | PNG, JPEG, atomic write; BMP/GIF/TIFF added unreleased (logic Verified, encoders Unverified on Windows) |
 | §11 threading | Partial | UIA on STA thread, overlays on UI thread |
 | §11 watchdog 60 s | Partial | |
 | §11 security / privacy | Partial | no network code, no UIA tree persisted, SetWindowDisplayAffinity on overlays and chip |
@@ -39,7 +39,7 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | Item | State | Note |
 |---|---|---|
 | Active-window hotkey | Unverified | `GetForegroundWindow` + extended frame bounds; refuses SharpSnip's own windows; no check for fullscreen/exclusive apps |
-| Repeat-last hotkey | Unverified | stores last physical rectangle in memory only; lost on restart; ignores display changes except clipping to the current desktop |
+| Repeat-last hotkey | Unverified | originally session-only; the unreleased bundle persists the rectangle in settings (sanitised on load, clipped to the current desktop on use) — still not run on Windows |
 | Default hotkeys Win+Shift+W / Win+Shift+R | Unverified | may be taken by other software; failure is reported and Settings can change them |
 
 ## Deviations from the blueprint
@@ -58,7 +58,7 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 - Elevated (administrator) windows: UI Automation from a non-elevated SharpSnip is blocked by UIPI, so those apps fall back to region mode.
 - Per-pixel correctness at the seam of mixed-DPI monitors is untested.
 - WPF windows moved across monitors with different DPI can be resized by the framework; the overlay re-applies exact physical bounds in `OnDpiChanged`. Unverified.
-- No CI workflow (workflow files need browser-side approval on this account).
+- CI workflow exists locally (unreleased commits) but is not live until pushed; workflow files on this account have needed browser-side approval.
 - Overlay colours are neutral (accent #2D9CFF). Conformance to the TesselGUI standard is **pending Sean's confirmation**; no mockups were made (standing instruction).
 - No automated tests exist for the Windows layer.
 
@@ -73,6 +73,13 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | Window size/position persisted and validated against monitors | Editor only (the only resizable window) |
 | Tooltips on interactive controls | Met in editor and settings |
 | Remember window geometry on display change | Partial |
+
+## v0.4.0 additions (compile-verified on Linux only; not run on Windows)
+- PDF export: `PdfWriter` is **Verified (logic)** — structure, xref offsets, stream length and Flate round-trip are self-tested, and a sample file was verified with Poppler (`pdfinfo`: title/page size; `pdfimages`: embedded image extracted pixel-exact; a `pdftoppm` page render resamples and is not pixel-exact on noise, which is a renderer artifact, not a file defect). The WPF BGR→RGB call site is compile-verified only.
+- CI workflow added (windows-latest, build + self-test) — **not yet live**: it takes effect on push, and workflow files on this account have previously needed a browser-side approval.
+- Reliability bundle: repeat-last persistence, unique auto-save names, single-buffer capture pixels (`CapturePixels`, byte-tested against the previous algorithm's semantics), and 30-day log retention — all **Verified (logic)**; their Windows call sites are compile-verified only.
+- Animated GIF (interval runs): the Core `GifWriter` is **Verified (logic)** — the self-test decodes its output with an independent test-side decoder (structure, delays, loop block, pixel round-trips incl. dictionary-growth/clear cases), and a sample file was additionally decoded pixel-exact by Pillow (frames, 2 s delays, loop-forever). The WPF quantisation step (`FormatConvertedBitmap` to the halftone palette) and the tray/CLI wiring are compile-verified only — **Unverified** on Windows. Palette is 256 colours, so gradients will band; that is inherent to GIF.
+- Export formats BMP/GIF/TIFF: format selection, alias canonicalisation, alpha-flatten policy and file naming are **Verified (logic)** in `ImageFormats` (self-test). The WPF encoder calls (`BmpBitmapEncoder`, `GifBitmapEncoder`, `TiffBitmapEncoder` with LZW) are compile-verified only — **Unverified** on Windows until the TEST-PLAN export-format rows are run. GIF output is a single still frame. This also fixes a pre-existing mislabel: `--out file.bmp` (etc.) previously received PNG bytes.
 
 ## v0.3.0 additions (compile-verified on Linux only; not run on Windows)
 - Fixed-size region picker: unverified on hardware (cursor follow, arrow nudge, clamp across mixed DPI).

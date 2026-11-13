@@ -2,6 +2,27 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+## [0.4.0] - 2026-11-13
+
+### Added
+- PDF export: captures can be saved as a single-image PDF (Settings format, editor save, `--out file.pdf`) — hand-written writer in the pure-logic layer (`PdfWriter`, no package), pixels embedded losslessly (Flate), page sized to the image at 96 dpi. Cross-verified with Poppler: `pdfinfo` reads the metadata/page size and `pdfimages` extracts the embedded image pixel-exact.
+- CI workflow (`.github/workflows/ci.yml`): build + self-test on windows-latest for pushes and PRs. Takes effect when these commits are pushed; AUDIT.md notes workflow files on this account may need a browser-side approval.
+- Animated GIF for interval capture: when the format is GIF, an interval run (tray or `--interval`) now produces one looping `animation.gif` — frame delay equals the interval — instead of a folder of still GIFs. Frames are quantised by WPF to a 256-colour palette and streamed through a hand-written GIF89a writer in the pure-logic layer (`GifWriter`, no package), so memory stays at one frame. The writer's output was cross-verified with an independent decoder (Pillow) as well as the self-test's own decoder. A single capture in GIF format remains a still image.
+- Export formats BMP, GIF and TIFF (in-box WPF encoders), alongside PNG and JPEG: selectable in Settings, honoured by interval capture, and chosen by extension for `--out FILE`. Previously any `--out` path that was not `.jpg` was silently written as PNG bytes under that name; the written bytes now always match the file name.
+- Format policy lives in the tested pure-logic layer (`ImageFormats`): aliases canonicalise (`jpeg` → `jpg`, `tiff` → `tif`, case-insensitive), unsupported formats fall back to PNG in settings, and JPEG/BMP/GIF flatten alpha while PNG/TIFF keep it.
+
+### Changed
+- One existing self-test fixture used `gif` as an example of an unsupported format; it now uses `webp` (still unsupported — WPF has no WebP encoder).
+- Self-test: 176 checks.
+
+### Fixed
+- "Repeat last" now survives a restart: the last capture rectangle is stored in settings (validated on load; re-checked against the current desktop before use, as before).
+- Auto-generated save names can no longer overwrite an earlier capture when two saves land in the same millisecond; they gain a `-2`, `-3`, ... suffix instead. Paths named explicitly with `--out` still overwrite, as asked.
+- Capture post-processing uses one pixel buffer instead of three full-frame copies, and the alpha/matte logic moved into the tested pure-logic layer (`CapturePixels`).
+- Daily log files are now pruned after 30 days (previously they accumulated forever; `--clean` still removes everything).
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
