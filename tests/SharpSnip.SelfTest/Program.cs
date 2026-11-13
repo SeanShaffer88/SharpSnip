@@ -131,6 +131,7 @@ var defs = new Preferences();
 var all4 = new[] { defs.HotkeyMenu, defs.HotkeyFullScreen, defs.HotkeyActiveWindow, defs.HotkeyRepeatLast };
 Check(all4.All(k => HotkeySpec.TryParse(k, out _)), "all four default hotkeys parse");
 Check(all4.Select(k => { HotkeySpec.TryParse(k, out var sp); return sp; }).Distinct().Count() == 4, "default hotkeys are all different");
+Check(!defs.OpenEditorAfterCapture, "editor stays closed after a capture by default (clipboard + file only)");
 var bad = new Preferences { HotkeyActiveWindow = "x", HotkeyRepeatLast = "" }.Sanitize();
 Check(bad.HotkeyActiveWindow == "Win+Shift+W" && bad.HotkeyRepeatLast == "Win+Shift+R", "bad new hotkeys fall back to defaults");
 string oldFile = Path.Combine(Path.GetTempPath(), "sharpsnip-v01-" + Guid.NewGuid().ToString("N") + ".json");
@@ -810,6 +811,11 @@ Console.WriteLine("FfmpegPlan");
     var custom = FfmpegPlan.ParseCustomArgs("-i %in% -vf \"scale=320:-1\" -y %out%", "a b.mp4", "c.gif");
     Check(custom.SequenceEqual(new[] { "-i", "a b.mp4", "-vf", "scale=320:-1", "-y", "c.gif" }), "ffmpeg: custom template tokenizes quotes and expands placeholders");
     Check(FfmpegPlan.ParseCustomArgs("", "a", "b").Length == 0 && FfmpegPlan.ParseCustomArgs(null, "a", "b").Length == 0, "ffmpeg: empty custom template yields no args");
+    Check(WorkflowPlan.TryParseStep("format: webm", out var webmStep) && webmStep.Arg == "webm" && WorkflowPlan.IsFfmpegFormat(webmStep), "workflow: format accepts an FFmpeg preset for recordings");
+    Check(WorkflowPlan.TryParseStep("format: GIFHQ", out var gifhqStep) && gifhqStep.Arg == "gifhq" && WorkflowPlan.IsFfmpegFormat(gifhqStep), "workflow: preset names canonicalize case-insensitively");
+    Check(WorkflowPlan.TryParseStep("format: jpg", out var jpgStep) && !WorkflowPlan.IsFfmpegFormat(jpgStep), "workflow: still formats stay still formats");
+    Check(!WorkflowPlan.TryParseStep("format: bogus", out _), "workflow: unknown format still rejected");
+    Check(WorkflowPlan.IsRecordingFile("a/b.MP4") && WorkflowPlan.IsRecordingFile("x.gif") && !WorkflowPlan.IsRecordingFile("x.png") && !WorkflowPlan.IsRecordingFile(null), "workflow: recording-file detection");
 }
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");
