@@ -16,7 +16,7 @@ internal sealed class SettingsWindow : Window
     private readonly CheckBox _contrast = new() { Content = "High-contrast highlight" };
     private readonly CheckBox _prtsc = new() { Content = "Print Screen replaces Snipping Tool" };
     private readonly Slider _dim = new() { Minimum = 20, Maximum = 90, Width = 200, TickFrequency = 10, IsSnapToTickEnabled = false };
-    private readonly TextBlock _error = new() { Foreground = System.Windows.Media.Brushes.Firebrick, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _error = new() { Foreground = TesselTheme.Danger, TextWrapping = TextWrapping.Wrap };
 
     public SettingsWindow(Preferences prefs, Func<Preferences, string?> apply)
     {
@@ -30,7 +30,7 @@ internal sealed class SettingsWindow : Window
         _delay.ItemsSource = DelayCycle.Steps;
         _matte.ItemsSource = new[] { "Transparent", "Black", "White" };
 
-        _folder.Text = prefs.OutputFolder; _folder.ToolTip = "Where captures are saved. Empty = Pictures\\SharpSnip.";
+        _folder.Text = prefs.OutputFolder; _folder.ToolTip = "Where captures are saved. Empty = your Pictures folder.";
         _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. PNG and TIFF keep transparency; JPEG, BMP, GIF and PDF drop it. A still GIF is a single frame; interval captures in GIF become one animated file. PDF holds one image, losslessly.";
         _hkMenu.Text = prefs.HotkeyMenu; _hkMenu.ToolTip = "Opens the mode menu. Example: Win+Shift+X. Needs at least one modifier.";
         _hkFull.Text = prefs.HotkeyFullScreen; _hkFull.ToolTip = "One-shot full-screen capture straight to clipboard. Print Screen alone is allowed.";
@@ -72,12 +72,17 @@ internal sealed class SettingsWindow : Window
         Add("", _error);
 
         var ok = new Button { Content = "Save", IsDefault = true, Width = 80, Margin = new Thickness(4), ToolTip = "Apply and store settings." };
-        var cancel = new Button { Content = "Cancel", IsCancel = true, Width = 80, Margin = new Thickness(4), ToolTip = "Close without changes." };
+        var cancel = new Button { Content = "Cancel", Width = 80, Margin = new Thickness(4), ToolTip = "Close without changes." };
         ok.Click += (_, _) => Commit();
+        // The window is shown modeless (Show, not ShowDialog), where IsCancel and
+        // DialogResult do nothing — Cancel and Esc close explicitly.
+        cancel.Click += (_, _) => Close();
+        KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Close(); };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 16, 12) };
         buttons.Children.Add(ok); buttons.Children.Add(cancel);
         var root = new StackPanel(); root.Children.Add(grid); root.Children.Add(buttons);
         Content = root;
+        TesselTheme.Apply(this);
     }
 
     private void Commit()
@@ -127,6 +132,6 @@ internal sealed class SettingsWindow : Window
         { _error.Text = "Each hotkey must be different."; return; }
         string? problem = _apply(p);
         if (problem is not null) { _error.Text = problem; return; }
-        DialogResult = true;
+        Close();
     }
 }

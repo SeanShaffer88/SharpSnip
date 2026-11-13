@@ -42,9 +42,23 @@ internal sealed class AppHost : IDisposable
             null, Timeout.Infinite, executeOnlyOnce: false);
         if (_prefs.PrintScreenTakeover)
         {
-            // Re-assert the takeover: the Windows switch may have been flipped back outside SharpSnip.
-            try { PrintScreenKey.Write(0); }
-            catch (Exception ex) { Log.Error("Could not re-assert the Print Screen takeover", ex); }
+            try
+            {
+                if (!PrintScreenPlan.IsPrintScreen(_prefs.HotkeyMenu))
+                {
+                    // Takeover is on but was never applied — it is on by default, so a
+                    // first run lands here: record the live Windows switch, turn it off,
+                    // and give Print Screen to the menu, remembering the old menu key.
+                    _prefs.PrintScreenSnippingPrior = PrintScreenKey.Read() ?? -1;
+                    PrintScreenKey.Write(0);
+                    var (menu, remembered) = PrintScreenPlan.Enable(_prefs.HotkeyMenu, _prefs.HotkeyMenuBeforeTakeover);
+                    _prefs.HotkeyMenu = menu;
+                    _prefs.HotkeyMenuBeforeTakeover = remembered;
+                    SavePrefs();
+                }
+                else PrintScreenKey.Write(0); // re-assert: the switch may have been flipped back outside SharpSnip
+            }
+            catch (Exception ex) { Log.Error("Could not apply the Print Screen takeover", ex); }
         }
 
         _hotkeys.HotkeyPressed += id =>
