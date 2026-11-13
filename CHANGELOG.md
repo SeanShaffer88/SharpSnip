@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.16.0] - 2026-11-13
+
+### Changed
+
+- **SharpSnip is now Snipit.** Launch `Snipit.exe` and update any scripts or shortcuts that called the old executable. The new installer registers Snipit as a separate app.
+- Portable copies use the `data` folder beside the executable. Installed copies continue using an existing `%APPDATA%\SharpSnip` folder, including saved settings and Print Screen recovery. Fresh profiles use `%APPDATA%\Snipit`.
+- Release tags and downloads before v0.16.0 retain the SharpSnip name.
+
 ## [0.15.0] - 2026-11-13
 
 ### Added

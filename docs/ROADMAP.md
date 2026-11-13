@@ -62,7 +62,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Proprietary editable format (layers kept) | 🔜 |
 | Insert into Office documents | ❓ needs COM automation per app |
 | Screen magnifier, on-screen ruler / pixel measure, colour picker, whiteboard | 🔜 |
-| Hideable tray icon | ✅ v0.6.0 — context-menu option; running SharpSnip again restores it |
+| Hideable tray icon | ✅ v0.6.0 — context-menu option; running Snipit again restores it |
 | Scheduled captures, context-menu quick actions | 🔜 |
 
 ## Phase 4 — v0.5 Text recognition
@@ -84,7 +84,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Audio noise removal | ❓ needs a DSP library |
 
 ## Needs a decision before any work (⛔ / ❓)
-- **Cloud and sharing** (share links, Dropbox/Drive/OneDrive/Box, Slack/Teams, email, social, FTP, YouTube, short links, cloud sync, enterprise SSO/analytics): all need the network. SharpSnip is offline by charter. Proposal: ship as optional, off-by-default, separately toggled modules, each with its own tokens stored via DPAPI. Email via `mailto:` and "share" via the Windows share sheet need no accounts.
+- **Cloud and sharing** (share links, Dropbox/Drive/OneDrive/Box, Slack/Teams, email, social, FTP, YouTube, short links, cloud sync, enterprise SSO/analytics): all need the network. Snipit is offline by charter. Proposal: ship as optional, off-by-default, separately toggled modules, each with its own tokens stored via DPAPI. Email via `mailto:` and "share" via the Windows share sheet need no accounts.
 - **AI features** (AI Step Capture, AI background removal, AI captions/chapters, AI redaction risk scoring, Simplify, Smart Move): need a model. Options: local model files shipped or downloaded on demand (size, licence, new runtime dependency), or a cloud API (breaks offline). Not started.
 - **New packages**: SQLite (library), NAudio (audio), an ONNX runtime (local AI). Each needs explicit approval and pinned versions.
 - **Enterprise tier** (SSO, team analytics, custom branding, unlimited storage): out of scope for a single-user offline tool unless requested.

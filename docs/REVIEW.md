@@ -1,5 +1,7 @@
 # Review — 2026-11-13
 
+This historical review covers v0.3.0, when Snipit was named SharpSnip. Its project paths and verification status reflect that version.
+
 A full review of SharpSnip as it stands (v0.3.0 on GitHub plus the unreleased
 local work), written from the code, the blueprint, the roadmap and the audit —
 not from aspirations. Every claim below names its evidence. "Verified" means

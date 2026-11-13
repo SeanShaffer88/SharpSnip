@@ -24,11 +24,11 @@ jobs:
 
       - name: Build + self-test
         run: |
-          dotnet build SharpSnip.sln -c Release
-          dotnet run --project tests/SharpSnip.SelfTest -c Release
+          dotnet build Snipit.sln -c Release
+          dotnet run --project tests/Snipit.SelfTest -c Release
 
       - name: Publish app (self-contained win-x64)
-        run: dotnet publish src/SharpSnip.App -c Release -r win-x64 --self-contained true -o dist/files
+        run: dotnet publish src/Snipit.App -c Release -r win-x64 --self-contained true -o dist/files
 
       - name: Stage the pinned FFmpeg bundle (LGPL)
         shell: pwsh
