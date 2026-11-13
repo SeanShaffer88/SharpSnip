@@ -1128,5 +1128,32 @@ Console.WriteLine("AreaMask");
     Check(shortBufThrew, "areas: a short buffer is refused");
 }
 
+
+{
+    var sat = new byte[] { 0, 0, 255, 255, 50, 100, 150, 77 };   // red; muted orange-ish, alpha 77
+    var s1 = (byte[])sat.Clone(); PixelAdjust.Saturation(s1, 1.0);
+    Check(s1.SequenceEqual(sat), "saturation: factor 1 is identity");
+    var s0 = (byte[])sat.Clone(); PixelAdjust.Saturation(s0, 0.0);
+    Check(s0[0] == s0[1] && s0[1] == s0[2] && s0[0] == 76 && s0[7] == 77, "saturation: factor 0 = Rec.601 grey, alpha untouched");
+    var s2 = (byte[])sat.Clone(); PixelAdjust.Saturation(s2, 3.0);
+    Check(s2[2] == 255 && s2[0] == 0 && s2[1] == 0, "saturation: boost clamps to 0..255");
+    var thrownSat = false; try { PixelAdjust.Saturation(new byte[4], -1); } catch (ArgumentOutOfRangeException) { thrownSat = true; }
+    Check(thrownSat, "saturation: negative factor rejected");
+
+    var flatSh = Enumerable.Repeat((byte)90, 3 * 3 * 4).ToArray();
+    var fl = (byte[])flatSh.Clone(); PixelAdjust.Sharpen(fl, 3, 3, 2.0);
+    Check(fl.SequenceEqual(flatSh), "sharpen: flatSh image unchanged");
+    var edge = new byte[4 * 1 * 4];
+    for (int px = 2; px < 4; px++) for (int c = 0; c < 3; c++) edge[px * 4 + c] = 200;
+    for (int px = 0; px < 4; px++) edge[px * 4 + 3] = 255;
+    var ed = (byte[])edge.Clone(); PixelAdjust.Sharpen(ed, 4, 1, 1.0);
+    Check(ed[1 * 4] == 0 && ed[2 * 4] == 250, "sharpen: edge contrast increases (dark side stays dark, light side brighter)");
+    Check(ed[3] == 255 && ed[7] == 255, "sharpen: alpha untouched");
+    var id = (byte[])edge.Clone(); PixelAdjust.Sharpen(id, 4, 1, 0.0);
+    Check(id.SequenceEqual(edge), "sharpen: amount 0 is identity");
+    var thrownSh = false; try { PixelAdjust.Sharpen(new byte[8], 3, 1, 1.0); } catch (ArgumentException) { thrownSh = true; }
+    Check(thrownSh, "sharpen: buffer/size mismatch rejected");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
