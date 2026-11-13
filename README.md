@@ -18,8 +18,8 @@ Offline only. No telemetry, no accounts, no network code.
 | Draw on screen | A live annotation overlay (tray item): draw over the screen; the strokes appear in captures and recordings. |
 | Window | Window under cursor, full frame or client area only (`C`). |
 | Full screen | One monitor, all monitors, or a chosen monitor (`1`..`9`). Mixed DPI and L-shaped layouts are stitched 1:1 in physical pixels. |
-| One-shot full screen | Dedicated hotkey, no UI: capture straight to clipboard and file. |
-| Active window / repeat last | Two more one-shot hotkeys: foreground window, or the previous rectangle again. |
+| One-shot full screen | From the command line (`--fullscreen`, also `--all` / `--monitor N`): capture straight to clipboard and file, no UI. |
+| Active window | The foreground window, from the menu's Window mode. |
 | Delay | 0 / 3 / 5 / 10 s countdown for menus and tooltips. `Esc` cancels. The countdown chip never appears in the image. |
 | Editor | Pen, highlighter, arrow, rectangle, ellipse, text, step markers, blur (pixelate), crop, undo/redo, copy, save, capture metadata panel — plus Copy text (built-in Windows OCR), one-click Redact of emails, cards, IPs and key-shaped tokens, OCR find & replace text, resize, watermark, brightness/contrast, an optional auto-applied effect, and whole-image invert, grayscale, flip and rotate. Recent captures reopen from the tray menu, and an external editor can be wired up in Settings. |
 
@@ -37,9 +37,9 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 | Fixed-size region | `S` in the menu |
 | Interval capture | tray menu, or `--interval N --count M` (in GIF format the run becomes one looping `animation.gif`) |
 
-The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `H` freehand, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`. A preset region (Settings) can have its own one-shot hotkey too.
+The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `H` freehand, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`. A preset region (Settings) can be captured from the tray menu.
 
-Hotkeys, output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. SharpSnip takes over the Print Screen key from Snipping Tool by default (untick it in Settings to hand the key and your old menu hotkey back), captures land in your Pictures folder unless you pick another, the Settings window follows the TesselGUI revision 2 design standard, and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
+Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Print Screen is SharpSnip's only hotkey, and it is not a setting: while SharpSnip runs, Print Screen opens its menu instead of Snipping Tool's (the Windows switch for it is turned off at start), and quitting SharpSnip restores the switch to whatever it was before. Captures land in your Pictures folder unless you pick another, its windows follow the TesselGUI revision 3 (Carmine) design standard, and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
 
 ### Command line
 

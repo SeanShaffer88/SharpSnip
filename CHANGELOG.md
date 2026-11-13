@@ -2,6 +2,18 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.10.0] - 2026-11-13
+
+### Added
+- **Pause and resume recordings**: the Recorder window gains a Pause button (both MP4 and GIF). Paused time is cut, not kept — video frames drop while paused and every later timestamp shifts by the paused span, and the audio captures close a segment file at each pause and reopen on resume, the segments joining back into a single track when the recording stops. The window's clock shows media time, so it freezes while paused, and stopping from a pause works as expected.
+
+### Changed
+- **Print Screen is the only hotkey, and it is not optional**: SharpSnip now overrides Print Screen for as long as it runs — the Windows "Print Screen opens Snipping Tool" switch is turned off at startup and **restored to its previous state when SharpSnip exits** (the original state is recorded once and survives crashes, so a later exit still restores the truth). There is no Settings option for it and nothing to conflict, so the "already used by another program" message is gone for good.
+- **TesselGUI revision 3 (Carmine) theme**: every window (Settings, Recorder, Workflows, Export) moves from the revision 2 GitHub palette to the current standard — near-black charcoal surfaces, off-white text, and the deep Carmine accent carrying selection, focus and the action buttons.
+
+### Removed
+- **Every configurable hotkey**: the menu, full-screen, active-window, repeat-last, per-monitor and preset hotkeys and their Settings fields are gone, along with the Print Screen takeover checkbox. Captures are started from Print Screen, the tray menu, the mode bar's keys once a session is open, or the command line (`--fullscreen`, `--record`, …). Settings saved by older versions load fine — the old keys are ignored — and a preset region is still captured from the tray menu.
+
 ## [0.9.2] - 2026-11-13
 
 ### Changed
