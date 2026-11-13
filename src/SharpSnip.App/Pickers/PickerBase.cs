@@ -11,10 +11,10 @@ internal sealed record PickResult(RectPx Rect, CaptureMeta Meta, Func<IReadOnlyL
 
 internal enum PickKind { Cancel, Switch, Picked }
 
-internal sealed record PickOutcome(PickKind Kind, PickMode Next = PickMode.Menu, FullScreenTarget? Target = null, PickResult? Result = null)
+internal sealed record PickOutcome(PickKind Kind, PickMode Next = PickMode.Menu, FullScreenTarget? Target = null, PickResult? Result = null, bool ViaMouse = false)
 {
     public static PickOutcome Cancel() => new(PickKind.Cancel);
-    public static PickOutcome SwitchTo(PickMode m, FullScreenTarget? t = null) => new(PickKind.Switch, m, t);
+    public static PickOutcome SwitchTo(PickMode m, FullScreenTarget? t = null, bool viaMouse = false) => new(PickKind.Switch, m, t, ViaMouse: viaMouse);
     public static PickOutcome Picked(PickResult r) => new(PickKind.Picked, Result: r);
 }
 
@@ -42,12 +42,15 @@ internal abstract class PickerBase
     protected const int VkTab = 0x09, VkEnter = 0x0D, VkEsc = 0x1B, VkSpace = 0x20, VkPgUp = 0x21, VkPgDn = 0x22;
 
     private TaskCompletionSource<PickOutcome>? _tcs;
-    private bool _strandedUp;
+    private readonly ClickGate _gate = new();
 
     protected PickerBase(PickerContext ctx) => Ctx = ctx;
 
     protected PickerContext Ctx { get; }
     public abstract PickMode Mode { get; }
+
+    /// <summary>Set by the router when the switch that armed this picker came from a mouse click (the mode bar): that click's release is still in flight and must never read as this picker's capture click. See Core ClickGate for why this is event-stream state, not a physical probe.</summary>
+    public bool ArmedByMouse { get; set; }
 
     public async Task<PickOutcome> RunAsync(CancellationToken ct)
     {
@@ -56,15 +59,9 @@ internal abstract class PickerBase
         var h = Ctx.Hook;
         h.ClearHandlers();
         h.KeyDown = HandleKey;
-        // Pickers confirm on button-UP, and the click that switched to this picker
-        // (a mode-bar button above all) is still physically held when we take over —
-        // its release would land here as a phantom capture (owner field report on
-        // v0.8.0: choosing Window in the bar instantly "captured" the window under
-        // the bar). If the button is down at takeover, swallow the release that
-        // ends that held click; the next full click belongs to this picker.
-        _strandedUp = Native.NativeMethods.KeyDown(Native.NativeMethods.VK_LBUTTON);
-        h.LeftDown = (x, y) => { _strandedUp = false; return OnLeftDown(x, y); };
-        h.LeftUp = (x, y) => { if (_strandedUp) { _strandedUp = false; return true; } return OnLeftUp(x, y); };
+        _gate.Arm(ArmedByMouse);
+        h.LeftDown = (x, y) => { _gate.Press(); return OnLeftDown(x, y); };
+        h.LeftUp = (x, y) => _gate.Release() ? OnLeftUp(x, y) : true;
         h.RightDown = (_, _) => { Finish(PickOutcome.Cancel()); return true; };
         h.Move = OnMove;
         h.Wheel = OnWheel;

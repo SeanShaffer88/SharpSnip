@@ -68,12 +68,12 @@ internal sealed class MenuPicker : PickerBase
         if (hit.IsClose) { Finish(PickOutcome.Cancel()); return true; }
         switch (hit.Index)
         {
-            case 0: Finish(PickOutcome.SwitchTo(PickMode.Element)); break;
-            case 1: Finish(PickOutcome.SwitchTo(PickMode.Region)); break;
-            case 2: Finish(PickOutcome.SwitchTo(PickMode.Window)); break;
-            case 3: Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current)); break;
-            case 4: Finish(PickOutcome.SwitchTo(PickMode.Freehand)); break;
-            case 5: Ctx.ScrollCapture = true; Finish(PickOutcome.SwitchTo(PickMode.Element)); break;
+            case 0: Finish(PickOutcome.SwitchTo(PickMode.Element, viaMouse: true)); break;
+            case 1: Finish(PickOutcome.SwitchTo(PickMode.Region, viaMouse: true)); break;
+            case 2: Finish(PickOutcome.SwitchTo(PickMode.Window, viaMouse: true)); break;
+            case 3: Finish(PickOutcome.SwitchTo(PickMode.FullScreen, FullScreenTarget.Current, viaMouse: true)); break;
+            case 4: Finish(PickOutcome.SwitchTo(PickMode.Freehand, viaMouse: true)); break;
+            case 5: Ctx.ScrollCapture = true; Finish(PickOutcome.SwitchTo(PickMode.Element, viaMouse: true)); break;
             case 6: Ctx.DelaySeconds = DelayCycle.Next(Ctx.DelaySeconds); RefreshHint(); break;
         }
         return true;
