@@ -19,13 +19,13 @@ internal sealed class MenuPicker : PickerBase
 
     private IReadOnlyList<ModeBarButton> Buttons => new[]
     {
-        new ModeBarButton(ModeBarIcon.Element, "Element", "Element (E)"),
-        new ModeBarButton(ModeBarIcon.Region, "Region", "Region (R)"),
-        new ModeBarButton(ModeBarIcon.Window, "Window", "Window (W)"),
-        new ModeBarButton(ModeBarIcon.FullScreen, "Full screen", "Full screen, this monitor (D); F = all monitors"),
-        new ModeBarButton(ModeBarIcon.Freehand, "Freehand", "Freehand outline capture (H)"),
-        new ModeBarButton(ModeBarIcon.Scrolling, "Scrolling", "Scrolling capture (C)"),
-        new ModeBarButton(ModeBarIcon.Delay, Ctx.DelaySeconds > 0 ? $"{Ctx.DelaySeconds}s delay" : "Delay", "Delay (Space cycles)"),
+        new ModeBarButton(ModeBarIcon.Element, "Element", "Element (E)", "E"),
+        new ModeBarButton(ModeBarIcon.Region, "Region", "Region (R)", "R"),
+        new ModeBarButton(ModeBarIcon.Window, "Window", "Window (W)", "W"),
+        new ModeBarButton(ModeBarIcon.FullScreen, "Full screen", "Full screen, this monitor (D); F = all monitors", "D"),
+        new ModeBarButton(ModeBarIcon.Freehand, "Freehand", "Freehand outline capture (H)", "H"),
+        new ModeBarButton(ModeBarIcon.Scrolling, "Scrolling", "Scrolling capture (C)", "C"),
+        new ModeBarButton(ModeBarIcon.Delay, Ctx.DelaySeconds > 0 ? $"{Ctx.DelaySeconds}s delay" : "Delay", "Delay (Space cycles)", "Sp"),
     };
 
     protected override void Enter()

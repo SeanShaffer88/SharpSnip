@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.13.0] - 2026-11-13
+
+### Changed
+- **Capture mode bar redesigned to the TesselGUI revision 3 (Carmine) standard**, design approved by the owner from a mockup. Raised charcoal surface, 1px edge, popup shadow, 12px bottom corners, compact 64x60 cells (was 76x80) with a visible key hint on each (E, R, W, D, H, C, Sp, Esc). Hover is a quiet fill, never colour alone.
+- **New icon set in the Nothing-OS line-and-dot style**: 24x24 grid, 1.6 stroke, round caps and joins, one small dot accent each. The outline carries the meaning; the dots are decoration. Replaces the 28x28 hand-drawn glyphs.
+- **High Contrast mode is now black and white** (white ink and edge on black; hover inverts to black on white), not black on yellow.
+- The slide-in is skipped when Windows animations are turned off.
+- Core: `ModeBarLayout` constants resized (button 64, bar 72, close 36, separator 9) with `CellHeight`; self-tests updated. 394 checks.
+
 ## [0.12.0] - 2026-11-13
 
 ### Added

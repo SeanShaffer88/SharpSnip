@@ -109,6 +109,10 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.13.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- Mode bar restyle (`ModeBar.cs`, `OverlayWindow.SetModeBar`, `ModeBarLayout`): visual only. Hit-testing math is covered by the self-tests; rendering, the drop shadow, the High Contrast look and icon legibility at 100-200% scale are unverified on hardware.
+- Known gaps: the bar has no keyboard focus ring because it is not tabbable (keys are direct hotkeys); there is no persistent selected state because choosing a tool leaves the bar.
+
 ## v0.12.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - `ColorFormat` and `ImageFrames` (border, shadow) are **Verified (logic)**: exact bytes, margins, clamping, determinism and the opacity-0 and transparent-image cases are in the self-test.
 - Colour picker overlay, magnifier, key handling, clipboard text and the "monitor captured once, then sampled" approach are **unverified on hardware**. Assumes overlays stay out of the capture (as for the loupe). The colour comes from the capture backend, so HDR or colour-managed displays may differ slightly from what the eye sees; there is no HDR handling.
