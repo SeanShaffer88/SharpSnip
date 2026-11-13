@@ -22,6 +22,8 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Object / element / window capture | ✅ |
 | Window-control capture | ✅ (element picker) |
 | Menu capture (disappearing menus) | ✅ via delay; hotkey-while-menu-open 🔜 |
+| Print Screen key replaces Snipping Tool | ✅ v0.6.0 — Settings option; prior Windows switch value + old menu hotkey recorded and restored on untick / `--clean` |
+| Snipping-Tool-style mode bar (top-of-screen tab, icon buttons) | ✅ v0.6.0 — design A picked by SEAN 2026-11-13 from rendered mockups; replaces the text HUD menu, all keys unchanged |
 | Multiple-area capture (several regions, one action) | 🔜 |
 | Freehand and polygon capture | 🔜 (mask drawn into transparent PNG) |
 | Scrolling capture (web pages, documents, wide tables) | ✅ v0.5.0 — UIA ScrollPattern first, wheel-and-stitch fallback |
@@ -59,6 +61,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Proprietary editable format (layers kept) | 🔜 |
 | Insert into Office documents | ❓ needs COM automation per app |
 | Screen magnifier, on-screen ruler / pixel measure, colour picker, whiteboard | 🔜 |
+| Hideable tray icon | ✅ v0.6.0 — context-menu option; running SharpSnip again restores it |
 | Scheduled captures, context-menu quick actions | 🔜 |
 
 ## Phase 4 — v0.5 Text recognition

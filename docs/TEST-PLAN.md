@@ -4,14 +4,15 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-227 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, PDF writing, scroll stitching, OCR text assembly, redaction detection and pixel adjustments. Last result: **227 passed, 0 failed**.
+247 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments, Print Screen takeover planning and mode-bar layout. Last result: **247 passed, 0 failed**.
 
-## Manual (needs real Windows hardware — not yet done)
+## Manual (needs real Windows hardware)
+**Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
 Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Partially verified / Unverified.
 
 | # | Check | Pass when |
 |---|---|---|
-| 1 | Start `SharpSnip.exe`, press `Win+Shift+X` | Menu HUD in < 150 ms, tray icon present |
+| 1 | Start `SharpSnip.exe`, press `Win+Shift+X` | Mode bar slides in at the top of the screen, tray icon present |
 | 2 | Element mode on Chrome, Explorer, Notepad, VS Code, Win11 Settings | Highlight follows cursor, click captures exactly the rect (±1 px) |
 | 3 | `Tab`, `PgUp`, `PgDn`, `Ctrl+Wheel` in element mode | Deterministic and reversible |
 | 4 | Element mode over an app with no UIA (a game) | Switches to region picker, no error |
@@ -44,6 +45,15 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 5. `countdown.png` — delay chip in the corner.
 6. `editor.png` — editor with annotations and the metadata panel.
 7. `settings.png` — settings window.
+
+## Unreleased manual rows (mode bar)
+- [ ] Open the menu (hotkey or Print Screen with takeover on): the bar slides down from the top-centre of the monitor the cursor is on; hovering a button highlights it; clicking Element/Region/Window/Full screen/Scrolling starts that mode; clicking Delay cycles off → 3s → 5s → 10s and the label follows; ✕, Esc and right-click all cancel; on a second monitor the bar follows the cursor's monitor; at 150–200% scaling the bar is centred and its buttons hit where they are drawn.
+
+## Unreleased manual rows (Snipping Tool replacement)
+- [ ] Settings → tick "Print Screen replaces Snipping Tool" and Save: the menu hotkey becomes Print Screen, pressing Print Screen opens SharpSnip's menu (not Snipping Tool), and Windows Settings → Accessibility → Keyboard shows the Print-screen switch off.
+- [ ] Untick it and Save: the Windows switch is back to its previous state and the menu hotkey is the key from before the takeover.
+- [ ] With takeover on, run `SharpSnip.exe --clean` from a portable copy: the Windows Print-screen switch is restored before the settings are deleted.
+- [ ] Tray menu → Hide tray icon: the icon disappears and captures still work from the hotkeys; running SharpSnip again from the Start menu brings the icon back and opens Settings.
 
 ## Unreleased manual rows (editor adjustments)
 - [ ] Editor → Invert / Grayscale / Flip ↔ / Flip ↕ / Rotate on a capture with an annotation drawn first: each button transforms the whole picture (annotation baked in), Rotate swaps width/height, Undo restores the pre-transform image with its annotation editable again, and Save writes the transformed image.
