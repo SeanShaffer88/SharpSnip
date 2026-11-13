@@ -4,6 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-13
+
+### Changed
+- Print Screen replaces Snipping Tool **by default**: on a first run (or any profile that never stored the choice) SharpSnip now applies the takeover itself at startup — the live Windows switch value is recorded, the switch turned off, and Print Screen becomes the menu hotkey. Unticking the Settings option still hands everything back exactly as before.
+- The default output folder is now the user's Pictures folder itself (was a SharpSnip subfolder inside it). A folder set in Settings still wins.
+- The Settings window follows the TesselGUI revision 2 design standard (GitHub scheme): dark surfaces, 1px edges, Segoe UI, green Save action, themed text boxes, combo boxes and check boxes. The OS title bar is unchanged.
+
+### Fixed
+- Settings: the Cancel button did nothing. The window is shown modeless, where the old `IsCancel`/`DialogResult` wiring is inert — Cancel (and Esc) now close the window explicitly, and Save closes it the same way after applying.
+
 ## [0.6.0] - 2026-11-13
 
 ### Added

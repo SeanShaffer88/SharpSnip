@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.6.0.** Compiles cleanly and the pure-logic layer is tested (247 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works; the deep manual checklist in [docs/TEST-PLAN.md](docs/TEST-PLAN.md) has not been re-run row by row. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.6.1.** Compiles cleanly and the pure-logic layer is tested (247 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works; the deep manual checklist in [docs/TEST-PLAN.md](docs/TEST-PLAN.md) has not been re-run row by row. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
@@ -36,7 +36,7 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
 The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`.
 
-Hotkeys, output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Settings can also hand SharpSnip the Print Screen key so it replaces Snipping Tool (switch it back off there to restore), and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
+Hotkeys, output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. SharpSnip takes over the Print Screen key from Snipping Tool by default (untick it in Settings to hand the key and your old menu hotkey back), captures land in your Pictures folder unless you pick another, the Settings window follows the TesselGUI revision 2 design standard, and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
 
 ### Command line
 

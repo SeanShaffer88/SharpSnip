@@ -74,6 +74,10 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | Tooltips on interactive controls | Met in editor and settings |
 | Remember window geometry on display change | Partial |
 
+## v0.6.1 additions (compile-verified on Linux only; not run on Windows)
+
+- Owner-directed fixes from his v0.6.0 field captures, all compile-verified only: Print Screen takeover is the default and self-applies at startup when it was never applied (prior value recorded first, same machinery as the Settings path); the unset output folder resolves to the OS Pictures folder (`OutputNaming.ResolveFolder` contract updated, logic **Verified**); Settings Cancel/Esc close the modeless window explicitly (root cause: `IsCancel`/`DialogResult` are inert without `ShowDialog`); the Settings window is themed to TesselGUI revision 2 tokens (`TesselTheme`, values copied from the standard's `docs/tokens.json`) — its two XAML control templates are XML-validated here but only render on Windows, so the theme itself is Unverified until the owner's next look. Noted from the same captures, pre-existing and unchanged: a Settings Save is rejected while any hotkey conflicts (his Win+Shift+W / Win+Shift+R are owned by another program), so an in-Settings change cannot persist until those two are reassigned — the startup takeover apply does not depend on it.
+
 ## v0.6.0 additions (compile-verified on Linux only; not run on Windows)
 
 - Mode bar (owner-picked design A, from rendered mockups): `ModeBarLayout` (bar geometry + hit-testing in device-independent units) is **Verified (logic)**. The overlay rendering (`OverlayWindow.SetModeBar`: tab attached to the top edge of the cursor's monitor, slides in over 180 ms, hover states, high-contrast variant, screen-reader names with keys) and `MenuPicker` click/hover dispatch are compile-verified only. The text HUD menu is gone; all keys (E/R/W/S/F/D/C, 1..9, Space, Esc, right-click) behave as before, and the bar's Full screen button means "this monitor" (all monitors stays on F).
