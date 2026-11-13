@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-343 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing and the FFmpeg export plans. Last result: **343 passed, 0 failed**.
+361 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing, the FFmpeg export plans, the click gate and recording-region resolution. Last result: **361 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
@@ -27,7 +27,7 @@ Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Part
 | 13 | `Esc` from every picker, right-click | No leaked hook/timer/overlay (check Task Manager, input stays normal) |
 | 14 | 60 s idle in the menu | Watchdog closes the session |
 | 15 | Editor: each tool, undo/redo, crop+undo, blur, save, copy | Output matches canvas |
-| 16 | Settings: bad hotkey, taken hotkey | Clear message, old hotkey keeps working |
+| 16 | Settings: bad hotkey, taken hotkey | Clear message, old hotkey keeps working — and every other setting in the same save still applies and persists (a bad field never discards the save) |
 | 17 | Corrupt `settings.json` | Moved to `.bad-*`, defaults load, balloon shown |
 | 18 | `data` folder next to exe | Nothing written to `%APPDATA%` |
 | 19 | Idle: 10 minutes in the tray | ~0% CPU, working set < 15 MB target |
@@ -48,13 +48,13 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## Unreleased manual rows (recording)
 - [ ] `SharpSnip.exe --record 5` on the primary monitor: a timestamped MP4 lands in the output folder and plays back in a standard player, showing the desktop and cursor moving; `--record 5 --monitor 2 --fps 60 --out C:\Temp\rec.mp4` honours its arguments; `--region 100,100,800,600` records only that rectangle.
-- [ ] Tray → Record screen…: the window opens themed, Start begins (elapsed ticks, tray's Stop recording enables), Stop from either the window or the tray saves the MP4 and toasts its name; ticking "last capture region" after a region capture records just that rectangle.
+- [ ] Tray → Record screen…: the window opens themed, Start begins (elapsed ticks, tray's Stop recording enables), Stop from either the window or the tray saves the MP4 and toasts its name; ticking the region option after a region capture records just that rectangle; "Pick region…" hides the window, lets you drag a fresh rectangle (Esc cancels and changes nothing), and the window returns showing the new region's size and position; a recording started with the region ticked covers only that rectangle, and the picked region is still offered after a restart.
 - [ ] Record 10 s with music playing and Microphone ticked while speaking: the MP4 plays back with both the music and the voice audible and roughly in sync; `--record 5 --no-audio` produces a silent MP4.
 - [ ] Record with Webcam overlay ticked: the camera appears in the chosen corner, moving live; the same scene at Quality Low vs Ultra shows the expected file-size difference; `--record 5 --webcam --webcam-corner TopLeft` agrees.
 - [ ] Set Max minutes to 1 and record: the recording stops itself at about a minute with a "limit reached" toast; schedule a recording two minutes ahead for 1 minute: it starts and stops on its own; `--record 5 --at` with a time two minutes out waits, then records.
 - [ ] Record 5 s in GIF format (window and `--record 5 --gif`): the GIF plays back animated at a sensible speed in a browser.
 - [ ] While recording, click Draw on screen and scribble: the strokes show in the playback; Esc ends drawing; colours change with 1–5 and C clears.
-- [ ] Editor pack: Step clicks drop 1, 2, 3 badges (Undo removes them); Resize to half keeps the aspect and Undo restores; Watermark corner and tiled both stamp visibly; Bright/Contrast sliders + Apply B/C change the image; Replace text on a screenshot containing a repeated word covers and rewrites every occurrence; set Auto effect = Border in Settings, take a capture — the editor opens with the frame already applied, and the recording preferences (fps/audio) survive a Settings save.
+- [ ] Editor pack: Step clicks drop 1, 2, 3 badges (Undo removes them); Resize to half keeps the aspect and Undo restores; Watermark corner and tiled both stamp visibly; Bright/Contrast sliders + Apply B/C change the image; Replace text on a screenshot containing a repeated word covers and rewrites every occurrence; set Auto effect = Border in Settings, take a capture — the saved file and the clipboard image already carry the frame (captures never open the editor), and the recording preferences (fps/audio) survive a Settings save.
 - [ ] Capture pack: draw a freehand outline around an icon — the saved PNG is transparent outside the outline; the loupe shows a changing #hex readout that matches the pixel under the cursor; set a preset region + hotkey in Settings — the hotkey captures exactly that rectangle.
 - [ ] Integration: tray → Recent captures lists the newest captures; a still reopens in the editor, a recording opens in the default player; with an external editor path set in Settings, the editor's External editor… button opens the saved capture in that program.
 
