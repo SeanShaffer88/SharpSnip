@@ -74,7 +74,17 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | Tooltips on interactive controls | Met in editor and settings |
 | Remember window geometry on display change | Partial |
 
-## v0.5.0 additions (compile-verified on Linux only; not run on Windows)
+## v0.6.0 additions (compile-verified on Linux only; not run on Windows)
+
+- Mode bar (owner-picked design A, from rendered mockups): `ModeBarLayout` (bar geometry + hit-testing in device-independent units) is **Verified (logic)**. The overlay rendering (`OverlayWindow.SetModeBar`: tab attached to the top edge of the cursor's monitor, slides in over 180 ms, hover states, high-contrast variant, screen-reader names with keys) and `MenuPicker` click/hover dispatch are compile-verified only. The text HUD menu is gone; all keys (E/R/W/S/F/D/C, 1..9, Space, Esc, right-click) behave as before, and the bar's Full screen button means "this monitor" (all monitors stays on F).
+- Print Screen takeover (Settings → "Print Screen replaces Snipping Tool"): the key plan (`PrintScreenPlan`: enable points the menu hotkey at Print Screen and remembers the replaced key, disable gives it back, re-enable never overwrites the original) is **Verified (logic)**. The app layer (`PrintScreenKey` flips HKCU\Control Panel\Keyboard\PrintScreenKeyForSnippingEnabled, recording the prior value — including "value absent" — in settings; restore happens on untick, on hotkey-registration rollback, and in `--clean`; startup re-asserts the switch while takeover is on) is compile-verified only; TEST-PLAN.md has the manual rows.
+- Hide tray icon (tray menu): sets `ShowTrayIcon` off and hides the icon; a second launch signals the running instance over a named event to restore the icon and open Settings. Compile-verified only.
+
+## Field verification — 2026-11-13 (owner's machine, v0.5.0 release build)
+
+- SEAN ran the shipped v0.5.0 and reports: "Everything works." His captures show the tray context menu with every entry (including Scrolling capture) and the hotkey-conflict notification — Win+Shift+W and Win+Shift+R were already owned on his machine, and the app said so plainly instead of failing silently. The Windows layer is therefore no longer never-run: startup, tray icon and menu, notifications, and hotkey registration are field-observed working. The TEST-PLAN manual rows were not re-run one by one; the deep rows (scrolling capture end-to-end, OCR accuracy, idle memory) still stand as listed there.
+
+## v0.5.0 additions (compile-verified on Linux; the build was field-run 2026-11-13 — see Field verification)
 
 - Editor whole-image adjustments: `PixelAdjust` (invert, grayscale, brightness/contrast, flips, 90° rotation on raw BGRA buffers) is **Verified (logic)** — exact byte expectations including luma values, clamping, rotation provenance and argument validation. The editor wiring (`TransformBase`: flatten → BGRA convert → op → base swap through the shared `BaseEdit`, so Undo restores base + annotations) is compile-verified only. Brightness/contrast has no editor control yet.
 - Editor Redact: `Redactor` detectors (URL/email priority claiming, Luhn-validated cards, octet-validated IPv4, phone shapes, token shape = long + letters + digits) and span→word-box mapping are **Verified (logic)**, including the split-email case (OCR engines often break an address at the '@'; the detector tolerates one space either side). Boxes land in the editor as ordinary undoable annotations. The editor wiring is compile-verified only.

@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
+### Added
+- Mode bar: the mode menu is now a Snipping-Tool-style tab that slides down from the top-centre of the screen (design picked by the owner from rendered mockups) — icon buttons with labels underneath for Element, Region, Window, Full screen (this monitor), Scrolling and Delay (click cycles it), plus a close button. It replaces the text HUD; every keyboard shortcut works exactly as before (E/R/W/S/F/D/C, 1..9, Space, Esc), and Fixed-size region stays on its `S` key.
+- Settings → "Print Screen replaces Snipping Tool": turns off the Windows switch that gives Print Screen to Snipping Tool and makes Print Screen SharpSnip's menu hotkey. The previous switch value and menu hotkey are remembered and restored when the option is unticked, and `--clean` restores them too.
+- Tray icon can be hidden from its own context menu ("Hide tray icon"). Running SharpSnip again while it is running in the background brings the icon back and opens Settings.
+
 ## [0.5.0] - 2026-11-13
 
 ### Added
