@@ -24,6 +24,7 @@ internal sealed class RegionPicker : PickerBase
     private BitmapSource? _frozen;
     private RectPx _frozenRect;
     private RectPx _union;
+    private readonly List<RectPx> _areas = new();
 
     public RegionPicker(PickerContext ctx) : base(ctx) { }
     public override PickMode Mode => PickMode.Region;
@@ -53,14 +54,23 @@ internal sealed class RegionPicker : PickerBase
         Visuals();
     }
 
-    protected override void Leave() => Ctx.Overlays.Loupe(null, RectPx.Empty, 0, 0);
+    protected override void Leave() { Ctx.Overlays.Areas(Array.Empty<RectPx>()); Ctx.Overlays.Loupe(null, RectPx.Empty, 0, 0); }
 
     protected override void RefreshHint() =>
-        Ctx.Overlays.HintAt($"Region · drag to select · [Enter] capture · [Space] delay {DelayText} · [Esc] back", _x, _y);
+        Ctx.Overlays.HintAt(_areas.Count == 0
+            ? $"Region · drag to select · [A] add another area · [Enter] capture · [Space] delay {DelayText} · [Esc] back"
+            : $"Region · {_areas.Count} area{(_areas.Count == 1 ? "" : "s")} added · [A] add this one · [Back] remove last · [Enter] capture · [Esc] back", _x, _y);
 
     private void Visuals()
     {
-        if (_rect.IsEmpty)
+        Ctx.Overlays.Areas(_areas);
+        if (_rect.IsEmpty && _areas.Count > 0)
+        {
+            Ctx.Overlays.Dim(_ => true, null);
+            Ctx.Overlays.Highlight(null);
+            Ctx.Overlays.Adorn(null, false, null);
+        }
+        else if (_rect.IsEmpty)
         {
             Ctx.Overlays.Dim(_ => false, null);
             Ctx.Overlays.Highlight(null);
@@ -127,12 +137,27 @@ internal sealed class RegionPicker : PickerBase
     protected override bool HandleKey(int vk)
     {
         if (vk == VkEnter) { Confirm(); return true; }
+        if (vk == 0x41) // [A] keep this area and start another
+        {
+            if (!_rect.IsEmpty && _areas.Count < AreaMask.MaxAreas) { _areas.Add(_rect); _rect = RectPx.Empty; _drag = Drag.None; Visuals(); }
+            return true;
+        }
+        if (vk == 0x08) // [Backspace] drop the last added area
+        {
+            if (_rect.IsEmpty && _areas.Count > 0) _areas.RemoveAt(_areas.Count - 1);
+            else _rect = RectPx.Empty;
+            Visuals();
+            return true;
+        }
         return base.HandleKey(vk);
     }
 
     private void Confirm()
     {
-        if (_rect.IsEmpty) return;
-        Finish(PickOutcome.Picked(new PickResult(_rect, new CaptureMeta("Region"))));
+        var areas = new List<RectPx>(_areas);
+        if (!_rect.IsEmpty) areas.Add(_rect);
+        if (areas.Count == 0) return;
+        if (areas.Count == 1) { Finish(PickOutcome.Picked(new PickResult(areas[0], new CaptureMeta("Region")))); return; }
+        Finish(PickOutcome.Picked(new PickResult(AreaMask.Bounds(areas), new CaptureMeta("Multi-area"), Areas: areas)));
     }
 }

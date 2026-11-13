@@ -54,6 +54,9 @@ internal sealed class OverlayHost : IDisposable
         foreach (var w in _wins) w.SetDim(dimmed(w.Monitor), hole);
     }
 
+    /// <summary>Areas already added in multi-area capture: left undimmed and outlined.</summary>
+    public void Areas(IReadOnlyList<RectPx> areas) { foreach (var w in _wins) w.SetAreas(areas); }
+
     public void Highlight(RectPx? r) { foreach (var w in _wins) w.SetHighlight(r); }
 
     public void Outline(Func<MonitorInfo, bool> on) { foreach (var w in _wins) w.SetOutline(on(w.Monitor)); }

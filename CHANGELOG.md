@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.19.0] - 2026-11-13
+
+### Added
+- **Multiple-area capture** in the Region tool: draw an area, press **A** to keep it, draw another, and so on (up to 16). Enter captures them as one image: the bounding box of all areas, with everything between and around them transparent, so save as PNG. Areas you added stay undimmed and outlined; **Backspace** removes the last one (or the area you are drawing). A single area behaves exactly as before.
+- Core: `AreaMask` (`Bounds`, `ApplyAlpha`). 9 new self-test checks (463 total).
+
 ## [0.18.0] - 2026-11-13
 
 ### Added
