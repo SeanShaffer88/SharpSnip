@@ -1015,7 +1015,15 @@ Console.WriteLine("EdgeEffects");
     Check(wave.Min() == 0 && wave.Max() == 8 && wave.All(v => v is >= 0 and <= 8), "edges: wave spans 0..depth");
     Check(Math.Abs(wave[1] - wave[0]) <= 1, "edges: wave is smooth");
     Check(EdgeEffects.Profile(EdgeStyle.Torn, 300, 10, 3).All(v => v is >= 0 and <= 10), "edges: torn profile stays inside 0..depth");
-    Check(EdgeEffects.MaxDepthFor(1, 1) == 1 && EdgeEffects.MaxDepthFor(400, 400) == 100, "edges: max depth is a quarter of the short side");
+    Check(EdgeEffects.MaxDepthFor(1, 1) == 0 && EdgeEffects.MaxDepthFor(3, 80) == 0 &&
+          EdgeEffects.MaxDepthFor(4, 80) == 1 && EdgeEffects.MaxDepthFor(400, 400) == 100,
+          "edges: max depth is a quarter of the short side, rounded down");
+    var tinyCrop = Enumerable.Repeat((byte)255, 2 * 2 * 4).ToArray();
+    Check(EdgeEffects.Apply(tinyCrop, 2, 2, EdgeStyle.Torn, EdgeSides.All, 4, 0).SequenceEqual(tinyCrop),
+          "edges: torn leaves a two-by-two crop intact");
+    var narrowCrop = Enumerable.Repeat((byte)255, 80 * 3 * 4).ToArray();
+    Check(EdgeEffects.Apply(narrowCrop, 80, 3, EdgeStyle.Wave, EdgeSides.All, 4, 0).SequenceEqual(narrowCrop),
+          "edges: wave leaves a three-pixel-high crop intact");
 }
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");

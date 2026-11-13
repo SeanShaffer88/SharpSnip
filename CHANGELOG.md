@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Added
 - **Torn** and **Wave** edge effects in the editor. Torn rips all four edges like paper; Wave gives them a smooth ripple. The cut area becomes transparent, so save as PNG to keep it. The cut is about 1/40 of the shorter side deep and never more than a quarter of it. Both bake in annotations and are undoable like the other whole-image effects. Torn is different on every click.
-- Core: `EdgeEffects` (`Apply`, `Profile`, `EdgeStyle`, `EdgeSides`), deterministic per seed, same canvas size. 25 new self-test checks (419 total).
+- Core: `EdgeEffects` (`Apply`, `Profile`, `EdgeStyle`, `EdgeSides`), deterministic per seed, same canvas size. Self-tests cover depth limits and narrow crops.
 
 ## [0.14.0] - 2026-11-13
 

@@ -9,17 +9,16 @@ public enum EdgeStyle { Torn, Wave }
 
 /// <summary>
 /// Torn-edge and wave-edge effects on a BGRA buffer (4 bytes per pixel, row-major, straight alpha, no row padding).
-/// The canvas size does not change: pixels outside the cut become fully transparent. The cut never goes deeper than
-/// <paramref name="depth"/> pixels, so the picture is never eaten away. Deterministic for a given seed. Pure logic.
+/// The canvas size does not change. Cut pixels become fully transparent. The cut is deterministic for a given seed.
 /// </summary>
 public static class EdgeEffects
 {
     public const int MaxDepth = 256;
 
-    /// <summary>The deepest cut that is allowed for this image: a quarter of the shorter side, at least 1.</summary>
-    public static int MaxDepthFor(int w, int h) => Math.Clamp(Math.Min(w, h) / 4, 1, MaxDepth);
+    /// <summary>A quarter of the shorter side, rounded down and capped at <see cref="MaxDepth"/> pixels.</summary>
+    public static int MaxDepthFor(int w, int h) => Math.Clamp(Math.Min(w, h) / 4, 0, MaxDepth);
 
-    /// <summary>Returns a new buffer; the input is not modified.</summary>
+    /// <summary>Returns a new buffer with a cut of up to <paramref name="depth"/> pixels, within the image's depth limit.</summary>
     public static byte[] Apply(byte[] bgra, int w, int h, EdgeStyle style, EdgeSides sides, int depth, int seed)
     {
         if (bgra is null) throw new ArgumentNullException(nameof(bgra));
