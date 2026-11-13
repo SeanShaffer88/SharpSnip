@@ -24,6 +24,20 @@ internal static class Exporter
         // path's extension (falling back to the configured format), never silently PNG.
         string format = ImageFormats.FromPath(path, prefs.ImageFormat);
 
+        if (format == "apng")
+        {
+            // A still saved as APNG is a proper one-frame APNG: WPF's PNG bytes
+            // carried into the hand-rolled animation container.
+            var pngEnc = new PngBitmapEncoder();
+            pngEnc.Frames.Add(BitmapFrame.Create(image));
+            using var ms = new MemoryStream();
+            pngEnc.Save(ms);
+            byte[] png = ms.ToArray();
+            WriteAtomic(path, fs => { using var w = new ApngWriter(fs, png, 0); });
+            Log.Info($"Saved {path}");
+            return path;
+        }
+
         if (format == "pdf")
         {
             // One image per PDF, pixels embedded losslessly as RGB (no alpha).
