@@ -40,6 +40,8 @@ public sealed class Preferences
     public bool RecordMic { get; set; }
     /// <summary>Recording quality preset name (RecordingQuality).</summary>
     public string RecordingQualityName { get; set; } = RecordingQuality.Default;
+    /// <summary>Recording output height cap: Original, 1080p, 720p or 480p.</summary>
+    public string RecordingSizeName { get; set; } = RecordingSize.Default;
     /// <summary>Overlay the webcam on recordings, picture-in-picture.</summary>
     public bool RecordWebcam { get; set; }
     /// <summary>Webcam overlay corner (PipCorner name).</summary>
@@ -56,6 +58,14 @@ public sealed class Preferences
     public int[]? PresetRect { get; set; }
     /// <summary>External image editor executable for the editor's "External editor…" button. Empty = none.</summary>
     public string ExternalEditorPath { get; set; } = "";
+    /// <summary>Override path to an ffmpeg.exe. Empty = use the bundled FFmpeg (owner-approved bundle, 2026-11-13).</summary>
+    public string FfmpegPath { get; set; } = "";
+    /// <summary>Named post-capture workflows (owner program v0.8.0); each runs locally on a finished file.</summary>
+    public List<WorkflowDef> Workflows { get; set; } = new();
+    /// <summary>Workflow auto-run after a still capture is saved; empty = none.</summary>
+    public string CaptureWorkflow { get; set; } = "";
+    /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
+    public string RecordingWorkflow { get; set; } = "";
     /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded when takeover was switched on: -1 = the value did not exist, 0/1 = its DWORD. Written back when takeover is switched off.</summary>
     public int PrintScreenSnippingPrior { get; set; } = -1;
     /// <summary>Menu hotkey from before takeover, restored when takeover is switched off; empty = none recorded.</summary>
@@ -98,12 +108,24 @@ public sealed class Preferences
         PrintScreenSnippingPrior = Math.Clamp(PrintScreenSnippingPrior, -1, 1);
         RecordingFps = RecordingPlan.ClampFps(RecordingFps);
         RecordingQualityName = RecordingQuality.Sanitize(RecordingQualityName);
+        RecordingSizeName = RecordingSize.Sanitize(RecordingSizeName);
         WebcamCorner = PipLayout.ParseCorner(WebcamCorner).ToString();
         RecordMaxMinutes = Math.Clamp(RecordMaxMinutes, 0, 1440);
         RecordMaxMb = Math.Clamp(RecordMaxMb, 0, 102400);
         AutoEffect = AutoEffects.Sanitize(AutoEffect);
         HotkeyPreset ??= "";
         ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
+        FfmpegPath = (FfmpegPath ?? "").Trim();
+        Workflows ??= new();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Workflows = Workflows
+            .Where(w => w is not null)
+            .Select(w => { w.Name = (w.Name ?? "").Trim(); w.ApplyTo = WorkflowPlan.SanitizeApplyTo(w.ApplyTo); w.Steps = WorkflowPlan.SanitizeSteps(w.Steps); return w; })
+            .Where(w => w.Name.Length > 0 && seenNames.Add(w.Name))
+            .Take(WorkflowPlan.MaxWorkflows)
+            .ToList();
+        CaptureWorkflow = WorkflowPlan.Find(Workflows, CaptureWorkflow)?.Name ?? "";
+        RecordingWorkflow = WorkflowPlan.Find(Workflows, RecordingWorkflow)?.Name ?? "";
         if (PresetRect is not { Length: 4 } pr || pr[2] is < 1 or > 32767 || pr[3] is < 1 or > 32767) PresetRect = null;
         HotkeyMenuBeforeTakeover ??= "";
         if (HotkeyMenuBeforeTakeover.Length > 0 && !HotkeySpec.TryParse(HotkeyMenuBeforeTakeover, out _)) HotkeyMenuBeforeTakeover = "";

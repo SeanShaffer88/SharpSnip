@@ -2,13 +2,14 @@ namespace SharpSnip.Core;
 
 /// <summary>
 /// Save formats SharpSnip can write: the encoders built into WPF (PNG, JPEG,
-/// BMP, GIF, TIFF) plus "pdf", written by the hand-rolled <see cref="PdfWriter"/>.
+/// BMP, GIF, TIFF) plus two hand-rolled writers — "pdf" (<see cref="PdfWriter"/>)
+/// and "apng" (<see cref="ApngWriter"/>, which wraps WPF's PNG output).
 /// Canonical names are the file extensions: "jpeg" canonicalises to "jpg" and
 /// "tiff" to "tif". WebP is deliberately absent: WPF has no WebP encoder (see AUDIT.md).
 /// </summary>
 public static class ImageFormats
 {
-    public static readonly IReadOnlyList<string> All = new[] { "png", "jpg", "bmp", "gif", "tif", "pdf" };
+    public static readonly IReadOnlyList<string> All = new[] { "png", "jpg", "bmp", "gif", "tif", "pdf", "apng" };
 
     public const string Default = "png";
 

@@ -38,6 +38,24 @@ public static class RecordingPlan
     }
 }
 
+/// <summary>Output height caps for recordings: the frame is scaled to fit, never upscaled, dimensions kept even.</summary>
+public static class RecordingSize
+{
+    public static readonly string[] All = { "Original", "1080p", "720p", "480p" };
+    public const string Default = "Original";
+
+    public static string Sanitize(string? name) =>
+        name is not null && Array.IndexOf(All, name) >= 0 ? name : Default;
+
+    public static (int Width, int Height) Target(int width, int height, string? name)
+    {
+        int cap = Sanitize(name) switch { "1080p" => 1080, "720p" => 720, "480p" => 480, _ => 0 };
+        if (cap == 0 || height <= cap) return RecordingPlan.EvenSize(width, height);
+        double scale = (double)cap / height;
+        return RecordingPlan.EvenSize((int)Math.Round(width * scale), cap);
+    }
+}
+
 /// <summary>Named recording quality presets — a bits-per-pixel-per-frame factor behind a friendly label.</summary>
 public static class RecordingQuality
 {
