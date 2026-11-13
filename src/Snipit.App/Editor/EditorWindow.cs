@@ -16,7 +16,7 @@ namespace Snipit;
 /// <summary>Mini editor (§9). Annotations live in a canvas above the image; undo/redo is an action stack.</summary>
 internal sealed class EditorWindow : Window
 {
-    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Blur, Spotlight, Loupe, Crop, Cut }
+    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Callout, Stamp, Blur, Spotlight, Loupe, Crop, Cut }
 
     private interface IEdit { void Undo(); void Redo(); }
 
@@ -64,7 +64,7 @@ internal sealed class EditorWindow : Window
     private static readonly Dictionary<Key, Tool> ToolKeys = new()
     {
         [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
-        [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.S] = Tool.Spotlight, [Key.M] = Tool.Loupe, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
+        [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.S] = Tool.Spotlight, [Key.M] = Tool.Loupe, [Key.K] = Tool.Callout, [Key.G] = Tool.Stamp, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
     };
     private readonly Dictionary<Tool, ToggleButton> _toolCells = new();
 
@@ -84,7 +84,7 @@ internal sealed class EditorWindow : Window
     {
         _prefs = prefs; _persist = persist; _notify = notify; _meta = meta; _base = cap.Image;
         Title = "Snipit";
-        Width = 1100; Height = 720; MinWidth = 1020; MinHeight = 420;
+        Width = 1200; Height = 720; MinWidth = 1100; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         AutomationProperties_Name(this, "Snipit editor");
 
@@ -130,7 +130,12 @@ internal sealed class EditorWindow : Window
             if (_editing is not null) return;
             if (e.Key == Key.Escape) { Close(); e.Handled = true; return; }
             if (Keyboard.Modifiers != ModifierKeys.None || Keyboard.FocusedElement is TextBox) return;
-            if (ToolKeys.TryGetValue(e.Key, out var t) && _toolCells.TryGetValue(t, out var cell)) { SelectTool(t, cell); e.Handled = true; }
+            if (ToolKeys.TryGetValue(e.Key, out var t))
+            {
+                if (_toolCells.TryGetValue(t, out var cell)) SelectTool(t, cell);
+                else { _tool = t; foreach (var c in _toolCells.Values) c.IsChecked = false; }
+                e.Handled = true;
+            }
         };
 
         _status.Text = meta.Mode + (cap.HasGaps ? " · monitor layout has gaps (matte fill)" : "");
@@ -180,6 +185,7 @@ internal sealed class EditorWindow : Window
         AddTool("Ellipse", "ellipse", "O", Tool.Ellipse, "Drag an ellipse outline.");
         AddTool("Text", "text", "T", Tool.Text, "Click to type. Enter commits, Esc discards.");
         AddTool("Step", "step", "N", Tool.Step, "Click to drop the next numbered step marker (1, 2, 3…).");
+        AddTool("Callout", "callout", "K", Tool.Callout, "Click, type, Enter: a speech bubble with a tail pointing at the spot you clicked. Esc discards.");
         left.Children.Add(new Border { Width = 1, Margin = new Thickness(6, 8, 6, 8), Background = c.Edge });
         AddTool("Blur", "blur", "B", Tool.Blur, "Drag over sensitive content to pixelate it.");
         AddTool("Spotlight", "spotlight", "S", Tool.Spotlight, "Drag the area to keep bright; everything else is dimmed. An annotation: Undo removes it.");
@@ -225,6 +231,16 @@ internal sealed class EditorWindow : Window
             fill(item, () => menu.Items.Add(c.Sep()));
             optsRight.Children.Add(btn);
         }
+        Add("Stamp", "Place a ready-made mark: check, cross, question, exclamation or star. Key: G repeats the last one.", (item, sep) =>
+        {
+            foreach (var (name, glyph) in new[] { ("Check", "\u2713"), ("Cross", "\u2717"), ("Question", "?"), ("Exclamation", "!"), ("Star", "\u2605") })
+                item($"{glyph}  {name}", $"Click the image to drop a {name.ToLowerInvariant()} stamp in the chosen colour.", () =>
+                {
+                    _stampGlyph = glyph; _tool = Tool.Stamp;
+                    foreach (var cell in _toolCells.Values) cell.IsChecked = false;
+                    _status.Text = $"Stamp: {name}. Click the image.";
+                });
+        });
         Add("Text", "Recognise, redact or replace text in the image; watermark.", (item, sep) =>
         {
             item("Copy text", "Recognise the text in this image (built-in Windows OCR, offline) and copy it to the clipboard.", () => _ = CopyTextAsync());
@@ -380,6 +396,12 @@ internal sealed class EditorWindow : Window
                 break;
             case Tool.Step:
                 PlaceStep(_start); _layer.ReleaseMouseCapture();
+                break;
+            case Tool.Callout:
+                BeginText(_start, true); _layer.ReleaseMouseCapture();
+                break;
+            case Tool.Stamp:
+                PlaceStamp(_start); _layer.ReleaseMouseCapture();
                 break;
             default:
                 _draft = _tool is Tool.Ellipse or Tool.Loupe ? new Ellipse() : new Rectangle();
@@ -634,8 +656,48 @@ internal sealed class EditorWindow : Window
         Push(new AddEdit(_layer, grid));
     }
 
-    private void BeginText(Point at)
+    private bool _calloutText;
+    private string _stampGlyph = "\u2713";
+
+    /// <summary>A speech bubble: white body, ring in the chosen colour, tail whose tip sits at the element's top-left corner.</summary>
+    private StackPanel MakeCallout(string text, double fontSize)
     {
+        var ring = Stroke(); var white = Brushes.White;
+        var body = new Border
+        {
+            Background = white, BorderBrush = ring, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 6, 10, 6),
+            Child = new TextBlock { Text = text, FontSize = fontSize, Foreground = Brushes.Black, FontFamily = new FontFamily("Segoe UI"), TextWrapping = TextWrapping.Wrap, MaxWidth = 360 },
+        };
+        // The tail hangs below the left of the body; the bubble's top-left sits where you clicked.
+        var tail = new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse("M0 0 L16 0 L0 14 Z"), Fill = white, Stroke = ring, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round,
+            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14, -2, 0, 0),
+        };
+        var sp = new StackPanel();
+        sp.Children.Add(body); sp.Children.Add(tail);
+        return sp;
+    }
+
+    private void PlaceStamp(Point at)
+    {
+        const double size = 34;
+        var grid = new Grid { Width = size, Height = size };
+        grid.Children.Add(new Ellipse { Fill = Stroke(), Stroke = Brushes.White, StrokeThickness = 2 });
+        grid.Children.Add(new TextBlock
+        {
+            Text = _stampGlyph, Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 20, FontFamily = new FontFamily("Segoe UI Symbol"),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+        });
+        Canvas.SetLeft(grid, Math.Clamp(at.X - size / 2, 0, Math.Max(0, _layer.Width - size)));
+        Canvas.SetTop(grid, Math.Clamp(at.Y - size / 2, 0, Math.Max(0, _layer.Height - size)));
+        _layer.Children.Add(grid);
+        Push(new AddEdit(_layer, grid));
+    }
+
+    private void BeginText(Point at, bool callout = false)
+    {
+        _calloutText = callout;
         var tb = new TextBox
         {
             MinWidth = 80, FontSize = Math.Max(14, _thickness.Value * 4), Foreground = Stroke(), Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
@@ -659,6 +721,14 @@ internal sealed class EditorWindow : Window
         _editing = null;
         _layer.Children.Remove(tb);
         if (string.IsNullOrWhiteSpace(tb.Text)) return;
+        if (_calloutText)
+        {
+            var bubble = MakeCallout(tb.Text, tb.FontSize);
+            Canvas.SetLeft(bubble, Math.Clamp(Canvas.GetLeft(tb), 0, Math.Max(0, _layer.Width - 40)));
+            Canvas.SetTop(bubble, Math.Clamp(Canvas.GetTop(tb), 0, Math.Max(0, _layer.Height - 40)));
+            _layer.Children.Add(bubble); Push(new AddEdit(_layer, bubble));
+            return;
+        }
         var t = new TextBlock { Text = tb.Text, FontSize = tb.FontSize, Foreground = tb.Foreground, FontFamily = new FontFamily("Segoe UI") };
         Canvas.SetLeft(t, Canvas.GetLeft(tb)); Canvas.SetTop(t, Canvas.GetTop(tb));
         _layer.Children.Add(t); Push(new AddEdit(_layer, t));

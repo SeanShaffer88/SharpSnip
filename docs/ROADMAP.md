@@ -37,7 +37,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Feature | Status |
 |---|---|
 | Arrows, shapes, text, pen, highlighter, blur/pixelate, crop | ✅ |
-| Lines/connectors, speech-bubble callouts, step numbers, stamps | 🔜 |
+| Lines/connectors, speech-bubble callouts, step numbers, stamps | step numbers ✅, callouts ✅ v0.25, stamps ✅ v0.25; connectors 🔜 |
 | Spotlight / dim surroundings, magnify / loupe annotation | spotlight ✅ v0.22; magnify ✅ v0.23 |
 | Redaction (manual) | 🔜 |
 | Rotate, flip | ✅ v0.5.0 — editor buttons over tested Core `PixelAdjust` |

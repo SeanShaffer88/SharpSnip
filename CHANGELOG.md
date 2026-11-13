@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.0] - 2026-11-13
+
+### Added
+- **Callout tool** in the editor (key K): click, type, Enter, and a white speech bubble ringed in the chosen colour appears with a tail below it. Esc discards.
+- **Stamp** menu in the options row (key G repeats the last stamp): check, cross, question, exclamation and star marks in a coloured disc. Click the image to drop one.
+- Editor window opens at 1200 wide (minimum 1100) so all tool cells fit.
+
 ## [0.24.0] - 2026-11-13
 
 ### Added
