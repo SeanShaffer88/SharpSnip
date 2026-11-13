@@ -8,7 +8,7 @@ namespace SharpSnip;
 internal static class Exporter
 {
     public static string OutputFolder(Preferences prefs) =>
-        OutputNaming.ResolveFolder(prefs.OutputFolder, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        OutputNaming.ResolveFolder(prefs.OutputFolder, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
 
     /// <summary>Write the image atomically (temp file, flush, move). Returns the final path.</summary>
     public static string Save(BitmapSource image, Preferences prefs, string? pathOverride = null)
