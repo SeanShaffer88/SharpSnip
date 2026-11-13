@@ -73,15 +73,12 @@ public sealed class Preferences
         _ => 0x00000000u,
     };
 
-    /// <summary>Canonical file extension for <see cref="ImageFormat"/> (aliases already folded).</summary>
-    public string Extension => ImageFormats.Normalize(ImageFormat) ?? ImageFormats.Default;
 
     /// <summary>Clamp every field to a legal value. Never throws.</summary>
     public Preferences Sanitize()
     {
         SchemaVersion = CurrentSchema;
         OutputFolder ??= "";
-        ImageFormat = ImageFormats.Normalize(ImageFormat) ?? ImageFormats.Default;
         FixedWidth = FixedRegion.ClampSize(FixedWidth);
         FixedHeight = FixedRegion.ClampSize(FixedHeight);
         IntervalSeconds = IntervalPlan.SanitizeSeconds(IntervalSeconds);

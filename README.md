@@ -39,7 +39,6 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
 The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `H` freehand, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`. A preset region (Settings) can be captured from the tray menu.
 
-Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Print Screen is SharpSnip's only hotkey, and it is not a setting: while SharpSnip runs, Print Screen opens its menu instead of Snipping Tool's (the Windows switch for it is turned off at start), and quitting SharpSnip restores the switch to whatever it was before. Captures land in your Pictures folder unless you pick another, its windows follow the TesselGUI revision 3 (Carmine) design standard, and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
 
 ### Command line
 
