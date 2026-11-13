@@ -19,6 +19,8 @@ internal sealed class AppHost : IDisposable
     private SettingsWindow? _settings;
     private WinForms.ToolStripMenuItem? _intervalItem;
     private CancellationTokenSource? _interval;
+    private readonly EventWaitHandle _showSignal = new(false, EventResetMode.AutoReset, Program.ShowEventName);
+    private readonly RegisteredWaitHandle _showWait;
 
     public AppHost()
     {
@@ -34,6 +36,16 @@ internal sealed class AppHost : IDisposable
         };
         _tray.MouseClick += (_, e) => { if (e.Button == WinForms.MouseButtons.Left) _ = _router.RunSessionAsync(); };
         _tray.BalloonTipClicked += (_, _) => OpenLastFolder();
+        _tray.Visible = _prefs.ShowTrayIcon;
+        _showWait = ThreadPool.RegisterWaitForSingleObject(_showSignal, (_, _) =>
+            Application.Current?.Dispatcher.InvokeAsync(() => { RestoreTrayIcon(); ShowSettings(); }),
+            null, Timeout.Infinite, executeOnlyOnce: false);
+        if (_prefs.PrintScreenTakeover)
+        {
+            // Re-assert the takeover: the Windows switch may have been flipped back outside SharpSnip.
+            try { PrintScreenKey.Write(0); }
+            catch (Exception ex) { Log.Error("Could not re-assert the Print Screen takeover", ex); }
+        }
 
         _hotkeys.HotkeyPressed += id =>
         {
@@ -68,6 +80,7 @@ internal sealed class AppHost : IDisposable
         Item("Open output folder", "Open the folder where captures are saved.", () => OpenFolder(Exporter.OutputFolder(_prefs)));
         Item("Open log folder", "Logs stay on this computer.", () => OpenFolder(AppPaths.LogDir));
         Item("Settings…", "Hotkeys, output folder, delay and more.", ShowSettings);
+        Item("Hide tray icon", "Hide the tray icon. Run SharpSnip again (for example from the Start menu) to bring it back.", HideTrayIcon);
         m.Items.Add(new WinForms.ToolStripSeparator());
         Item("Exit", "Quit SharpSnip and release the hotkeys.", () => Application.Current.Shutdown());
         return m;
@@ -119,15 +132,59 @@ internal sealed class AppHost : IDisposable
         _settings.Show();
     }
 
+    private void HideTrayIcon()
+    {
+        _tray.Visible = false;
+        _prefs.ShowTrayIcon = false;
+        SavePrefs();
+    }
+
+    private void RestoreTrayIcon()
+    {
+        _tray.Visible = true;
+        if (!_prefs.ShowTrayIcon) { _prefs.ShowTrayIcon = true; SavePrefs(); }
+    }
+
     /// <summary>Returns an error message, or null on success. Old hotkeys are restored if any new one is taken.</summary>
     private string? Apply(Preferences p)
     {
         var old = _prefs;
+        bool enabling = p.PrintScreenTakeover && !old.PrintScreenTakeover;
+        bool disabling = !p.PrintScreenTakeover && old.PrintScreenTakeover;
+        if (enabling)
+        {
+            try
+            {
+                p.PrintScreenSnippingPrior = PrintScreenKey.Read() ?? -1;
+                PrintScreenKey.Write(0);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Print Screen takeover failed", ex);
+                return "Could not change the Windows Print Screen setting: " + ex.Message;
+            }
+        }
         var failed = RegisterAll(p);
         if (failed.Count > 0)
         {
+            if (enabling)
+            {
+                try { PrintScreenKey.Write(PrintScreenKey.Prior(p.PrintScreenSnippingPrior)); }
+                catch (Exception ex) { Log.Error("Print Screen rollback failed", ex); }
+            }
             RegisterAll(old);
             return $"{string.Join(", ", failed)} is already used by another program.";
+        }
+        if (disabling)
+        {
+            try { PrintScreenKey.Write(PrintScreenKey.Prior(old.PrintScreenSnippingPrior)); }
+            catch (Exception ex)
+            {
+                Log.Error("Print Screen restore failed", ex);
+                Notify("SharpSnip", "Could not restore the Windows Print Screen setting. It is in Windows Settings → Accessibility → Keyboard.", null);
+            }
+            p.PrintScreenSnippingPrior = -1;
+            p.HotkeyMenuBeforeTakeover = "";
         }
         _prefs = p.Sanitize();
         _router.Prefs = _prefs;
@@ -226,6 +283,8 @@ internal sealed class AppHost : IDisposable
     public void Dispose()
     {
         _interval?.Cancel();
+        _showWait.Unregister(null);
+        _showSignal.Dispose();
         _tray.Visible = false;
         _tray.Dispose();
         _hotkeys.Dispose();

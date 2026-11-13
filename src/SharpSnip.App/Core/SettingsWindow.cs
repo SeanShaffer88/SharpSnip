@@ -14,6 +14,7 @@ internal sealed class SettingsWindow : Window
     private readonly CheckBox _editor = new() { Content = "Open the editor after a capture" };
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
     private readonly CheckBox _contrast = new() { Content = "High-contrast highlight" };
+    private readonly CheckBox _prtsc = new() { Content = "Print Screen replaces Snipping Tool" };
     private readonly Slider _dim = new() { Minimum = 20, Maximum = 90, Width = 200, TickFrequency = 10, IsSnapToTickEnabled = false };
     private readonly TextBlock _error = new() { Foreground = System.Windows.Media.Brushes.Firebrick, TextWrapping = TextWrapping.Wrap };
 
@@ -45,6 +46,7 @@ internal sealed class SettingsWindow : Window
         _editor.IsChecked = prefs.OpenEditorAfterCapture; _editor.ToolTip = "Off = capture goes straight to clipboard and file.";
         _toasts.IsChecked = prefs.ShowToasts; _toasts.ToolTip = "Balloon notifications after saving or on errors.";
         _contrast.IsChecked = prefs.HighContrastHighlight; _contrast.ToolTip = "Thicker yellow highlight and opaque hint bars.";
+        _prtsc.IsChecked = prefs.PrintScreenTakeover; _prtsc.ToolTip = "Gives the Print Screen key to SharpSnip instead of Snipping Tool: the Windows switch for it is turned off and Print Screen becomes the menu hotkey. Unticking restores both the switch and your old menu hotkey.";
         _dim.Value = prefs.DimmerOpacity * 100; _dim.ToolTip = "How dark the screen gets while picking.";
 
         var grid = new Grid { Margin = new Thickness(16) };
@@ -66,7 +68,7 @@ internal sealed class SettingsWindow : Window
         Add("Fixed region width", _fixW); Add("Fixed region height", _fixH); Add("Interval (seconds)", _interval);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim);
-        Add("", _editor); Add("", _toasts); Add("", _contrast);
+        Add("", _editor); Add("", _toasts); Add("", _contrast); Add("", _prtsc);
         Add("", _error);
 
         var ok = new Button { Content = "Save", IsDefault = true, Width = 80, Margin = new Thickness(4), ToolTip = "Apply and store settings." };
@@ -92,7 +94,22 @@ internal sealed class SettingsWindow : Window
             HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
             EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
             LastCaptureRect = _prefs.LastCaptureRect,
+            PrintScreenTakeover = _prtsc.IsChecked == true,
+            PrintScreenSnippingPrior = _prefs.PrintScreenSnippingPrior,
+            ShowTrayIcon = _prefs.ShowTrayIcon,
         };
+        // Print Screen takeover drives the menu hotkey: on = Print Screen (old key remembered), off = remembered key back.
+        if (p.PrintScreenTakeover && !_prefs.PrintScreenTakeover)
+        {
+            var (menu, remembered) = PrintScreenPlan.Enable(p.HotkeyMenu, _prefs.HotkeyMenuBeforeTakeover);
+            p.HotkeyMenu = menu; p.HotkeyMenuBeforeTakeover = remembered;
+        }
+        else if (!p.PrintScreenTakeover && _prefs.PrintScreenTakeover)
+        {
+            p.HotkeyMenu = PrintScreenPlan.Disable(p.HotkeyMenu, _prefs.HotkeyMenuBeforeTakeover);
+            p.HotkeyMenuBeforeTakeover = "";
+        }
+        else p.HotkeyMenuBeforeTakeover = _prefs.HotkeyMenuBeforeTakeover;
         // Reject bad or duplicate hotkeys with a message instead of silently falling back to defaults.
         if (!int.TryParse(_fixW.Text, out int fw) || !int.TryParse(_fixH.Text, out int fh)
             || fw is < FixedRegion.MinSize or > FixedRegion.MaxSize || fh is < FixedRegion.MinSize or > FixedRegion.MaxSize)
