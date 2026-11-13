@@ -50,8 +50,8 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 |---|---|
 | Local searchable library, tags, filters, sort, recent tray, history gallery | 🔜 (local SQLite would be a new package ❓; JSON index otherwise) |
 | Custom file-naming patterns, automatic folder organisation | 🔜 |
-| Export PNG / JPG / BMP / TIFF / GIF | 🔜 (all in-box WPF encoders) |
-| Export PDF | 🔜 (hand-written single-image PDF writer, no package) |
+| Export PNG / JPG / BMP / TIFF / GIF | ✅ unreleased (all in-box WPF encoders; format logic tested, encoders not yet run on Windows) |
+| Export PDF | ✅ unreleased (hand-written single-image PDF writer, no package; Poppler-verified) |
 | Export PSD / TGA | ❓ custom writers, low priority |
 | Send to external program / open in external editor | 🔜 |
 | Automated after-capture tasks (copy, save, run script) | 🔜 |
@@ -75,7 +75,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Webcam picture-in-picture, background blur, camera swap | ❓ |
 | Cursor highlight, click animation, on-screen drawing while recording | 🔜 after recorder exists |
 | Trim / combine clips, image-sequence → video, frame extraction | ❓ |
-| GIF from video / screen activity | 🟡 WPF `GifBitmapEncoder` (limited palette quality) |
+| GIF from video / screen activity | ✅ unreleased for interval capture (hand-written GIF89a writer, looping, per-frame delay; 256-colour palette). From a recorder: still ❓ with Phase 5 recording |
 | Audio noise removal | ❓ needs a DSP library |
 
 ## Needs a decision before any work (⛔ / ❓)

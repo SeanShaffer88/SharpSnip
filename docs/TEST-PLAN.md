@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-80 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine and file naming. Last result: **80 passed, 0 failed**.
+176 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding and PDF writing. Last result: **176 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware — not yet done)
 Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Partially verified / Unverified.
@@ -44,6 +44,16 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 5. `countdown.png` — delay chip in the corner.
 6. `editor.png` — editor with annotations and the metadata panel.
 7. `settings.png` — settings window.
+
+## Unreleased manual rows (export formats + animated GIF + reliability + PDF)
+- [ ] Save a capture as PDF from Settings format, the editor, and `--out shot.pdf`: each opens in Edge and Acrobat, shows the capture at full size, and extracted/printed output matches the screen.
+- [ ] Capture a region, restart SharpSnip, press the repeat-last hotkey: the same rectangle is captured. Then change the display layout so the rectangle is off-screen: a clear "off screen" message, no crash.
+- [ ] Save two captures in rapid succession from the editor: both files exist (second name carries a `-2` suffix when the timestamp collides).
+- [ ] Set format to GIF, run `--interval 2 --count 3` and a tray interval run: each produces one `animation.gif` that loops in a browser/image viewer with ~2 s between frames, and no `frame-*.gif` stills.
+- [ ] Stop a tray GIF run early from the tray menu: the `animation.gif` from the frames so far is complete and playable (no truncated file).
+- [ ] Set each format (png/jpg/bmp/gif/tif) in Settings, capture, and open the saved file: the image renders and its header matches its extension (no PNG bytes in a `.bmp`/`.gif`/`.tif` file).
+- [ ] `--fullscreen --out shot.tiff` and `--out shot.bmp`: files open in an image viewer and match the requested format.
+- [ ] A capture with transparent gap matte saved as jpg/bmp/gif has no transparent/black fringe artefacts; as png/tif the transparency survives.
 
 ## v0.3.0 manual rows (deferred by owner)
 - [ ] `S` in menu: frame follows cursor, arrows nudge, Shift = 10 px, click/Enter saves exact W×H.
