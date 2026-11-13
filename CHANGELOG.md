@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.8.1] - 2026-11-13
+
+### Fixed
+- **Mode bar no longer captures by itself** (owner field report on v0.8.0): every picker confirms on mouse-button release, so the release of the very click that chose a tool in the bar landed in the new picker as its capture click — choosing Window instantly "captured" the window under the bar. A picker that takes over while the button is still held now swallows that stranded release; tools arm on the bar click and capture on the next full click, as expected.
+
 ## [0.8.0] - 2026-11-13
 
 ### Added
