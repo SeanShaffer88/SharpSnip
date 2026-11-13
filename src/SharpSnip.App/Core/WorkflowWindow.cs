@@ -37,7 +37,7 @@ internal sealed class WorkflowWindow : Window
         {
             TextWrapping = TextWrapping.Wrap,
             Foreground = TesselTheme.Muted,
-            Text = "One step per line. Kinds: copy: D:\\Folder · run: C:\\tool.exe|\"%path%\" · format: jpg · effect: Grayscale · editor:\nPlaceholders in copy/run: %path% %dir% %name% %ext%. Steps run in order; format/effect make a sibling file and continue with it.",
+            Text = "One step per line. Kinds: copy: D:\\Folder · run: C:\\tool.exe|\"%path%\" · format: jpg · effect: Grayscale · editor:\nOn a recording, format names an FFmpeg preset instead: format: webm (also av1, h264, mkv, gifhq, mp3, m4a).\nPlaceholders in copy/run: %path% %dir% %name% %ext%. Steps run in order; format/effect make a sibling file and continue with it.",
         };
 
         var newBtn = new Button { Content = "New", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 8, 0) };

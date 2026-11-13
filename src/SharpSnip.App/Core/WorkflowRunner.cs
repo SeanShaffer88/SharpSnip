@@ -75,7 +75,22 @@ internal static class WorkflowRunner
             }
             case "format":
             {
-                RequireStill(working, "format");
+                if (WorkflowPlan.IsFfmpegFormat(step) || WorkflowPlan.IsRecordingFile(working))
+                {
+                    var preset = FfmpegPlan.Find(step.Arg)
+                        ?? throw new InvalidOperationException($"'{step.Arg}' is a still-image format; recordings convert with an FFmpeg preset (webm, av1, h264, mkv, gifhq, mp3, m4a)");
+                    if (!WorkflowPlan.IsRecordingFile(working))
+                        throw new InvalidOperationException("FFmpeg preset steps apply to recordings; this workflow is running on a still image");
+                    string ffmpeg = FfmpegLocator.Find(prefs)
+                        ?? throw new InvalidOperationException("FFmpeg not found (no bundled copy, no override in Settings)");
+                    string output = OutputNaming.UniquePath(FfmpegPlan.DefaultOutputPath(preset, working), File.Exists);
+                    if (!FfmpegPlan.TryBuildArgs(preset.Name, working, output, out var ffArgs))
+                        throw new InvalidOperationException("unknown FFmpeg preset " + preset.Name);
+                    var (exit, tail) = FfmpegExport.RunAsync(ffmpeg, ffArgs).GetAwaiter().GetResult();
+                    if (exit != 0 || !File.Exists(output))
+                        throw new InvalidOperationException($"FFmpeg failed (exit {exit}): {tail.Split('\n')[^1].Trim()}");
+                    return output;
+                }
                 string sibling = OutputNaming.UniquePath(Path.ChangeExtension(working, "." + step.Arg), File.Exists);
                 var img = LoadImage(working);
                 Exporter.Save(img, prefs, sibling);
@@ -123,8 +138,10 @@ internal static class WorkflowRunner
 
     private static void RequireStill(string file, string kind)
     {
-        if (file.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"{kind} steps apply to still images; recordings convert through the FFmpeg export");
+        if (file.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)
+            || file.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase)
+            || file.EndsWith(".webm", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"{kind} steps apply to still images — this file is a recording");
     }
 
     private static BitmapSource LoadImage(string path)
