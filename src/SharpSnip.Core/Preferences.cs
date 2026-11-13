@@ -10,11 +10,6 @@ public sealed class Preferences
     public int SchemaVersion { get; set; } = CurrentSchema;
     public string OutputFolder { get; set; } = "";
     public string ImageFormat { get; set; } = "png";
-    public string HotkeyMenu { get; set; } = "Win+Shift+X";
-    public string HotkeyFullScreen { get; set; } = "Win+Shift+F";
-    public string HotkeyActiveWindow { get; set; } = "Win+Shift+W";
-    public string HotkeyRepeatLast { get; set; } = "Win+Shift+R";
-    public string HotkeyMonitors { get; set; } = HotkeyList.Default;
     public int FixedWidth { get; set; } = 1280;
     public int FixedHeight { get; set; } = 720;
     public int IntervalSeconds { get; set; } = 5;
@@ -31,8 +26,6 @@ public sealed class Preferences
     /// <summary>Recording region x,y,width,height in physical pixels, set by the Recorder's "Pick region…"; null = fall back to the last capture rectangle.</summary>
     public int[]? RecordingRegion { get; set; }
     public bool EditorMaximized { get; set; }
-    /// <summary>True when SharpSnip has taken the Print Screen key over from Snipping Tool. On by default: replacing Snipping Tool is the point. A stored false (the user unticked it) is respected.</summary>
-    public bool PrintScreenTakeover { get; set; } = true;
     /// <summary>Screen-recording frame rate (RecordingPlan bounds).</summary>
     public int RecordingFps { get; set; } = RecordingPlan.DefaultFps;
     /// <summary>Record the machine's own sound (WASAPI loopback) with recordings.</summary>
@@ -53,8 +46,6 @@ public sealed class Preferences
     public int RecordMaxMb { get; set; }
     /// <summary>Effect applied automatically when a capture opens in the editor (AutoEffects names).</summary>
     public string AutoEffect { get; set; } = AutoEffects.Default;
-    /// <summary>One-shot capture of the preset region. Empty = no hotkey.</summary>
-    public string HotkeyPreset { get; set; } = "";
     /// <summary>Preset capture rectangle x,y,width,height in physical pixels; null = not set.</summary>
     public int[]? PresetRect { get; set; }
     /// <summary>External image editor executable for the editor's "External editor…" button. Empty = none.</summary>
@@ -67,10 +58,10 @@ public sealed class Preferences
     public string CaptureWorkflow { get; set; } = "";
     /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
     public string RecordingWorkflow { get; set; } = "";
-    /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded when takeover was switched on: -1 = the value did not exist, 0/1 = its DWORD. Written back when takeover is switched off.</summary>
+    /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded the first time SharpSnip applied its Print Screen override: -1 = the value did not exist, 0/1 = its DWORD. Written back by --clean. The override itself is unconditional (owner direction, 2026-11-13): Print Screen is SharpSnip's only global hotkey and there is no setting for it.</summary>
     public int PrintScreenSnippingPrior { get; set; } = -1;
-    /// <summary>Menu hotkey from before takeover, restored when takeover is switched off; empty = none recorded.</summary>
-    public string HotkeyMenuBeforeTakeover { get; set; } = "";
+    /// <summary>True once PrintScreenSnippingPrior holds a real recorded value (the override has been applied at least once).</summary>
+    public bool PrintScreenPriorRecorded { get; set; }
     /// <summary>False when the user hid the tray icon from its context menu. Running SharpSnip again brings it back.</summary>
     public bool ShowTrayIcon { get; set; } = true;
 
@@ -91,11 +82,6 @@ public sealed class Preferences
         SchemaVersion = CurrentSchema;
         OutputFolder ??= "";
         ImageFormat = ImageFormats.Normalize(ImageFormat) ?? ImageFormats.Default;
-        if (!HotkeySpec.TryParse(HotkeyMenu, out _)) HotkeyMenu = "Win+Shift+X";
-        if (!HotkeySpec.TryParse(HotkeyFullScreen, out _)) HotkeyFullScreen = "Win+Shift+F";
-        if (!HotkeySpec.TryParse(HotkeyActiveWindow, out _)) HotkeyActiveWindow = "Win+Shift+W";
-        if (!HotkeySpec.TryParse(HotkeyRepeatLast, out _)) HotkeyRepeatLast = "Win+Shift+R";
-        if (!HotkeyList.TryParse(HotkeyMonitors, out _)) HotkeyMonitors = HotkeyList.Default;
         FixedWidth = FixedRegion.ClampSize(FixedWidth);
         FixedHeight = FixedRegion.ClampSize(FixedHeight);
         IntervalSeconds = IntervalPlan.SanitizeSeconds(IntervalSeconds);
@@ -115,7 +101,6 @@ public sealed class Preferences
         RecordMaxMinutes = Math.Clamp(RecordMaxMinutes, 0, 1440);
         RecordMaxMb = Math.Clamp(RecordMaxMb, 0, 102400);
         AutoEffect = AutoEffects.Sanitize(AutoEffect);
-        HotkeyPreset ??= "";
         ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
         FfmpegPath = (FfmpegPath ?? "").Trim();
         Workflows ??= new();
@@ -129,8 +114,6 @@ public sealed class Preferences
         CaptureWorkflow = WorkflowPlan.Find(Workflows, CaptureWorkflow)?.Name ?? "";
         RecordingWorkflow = WorkflowPlan.Find(Workflows, RecordingWorkflow)?.Name ?? "";
         if (PresetRect is not { Length: 4 } pr || pr[2] is < 1 or > 32767 || pr[3] is < 1 or > 32767) PresetRect = null;
-        HotkeyMenuBeforeTakeover ??= "";
-        if (HotkeyMenuBeforeTakeover.Length > 0 && !HotkeySpec.TryParse(HotkeyMenuBeforeTakeover, out _)) HotkeyMenuBeforeTakeover = "";
         return this;
     }
 }
