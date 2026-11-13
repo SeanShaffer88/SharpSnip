@@ -28,10 +28,10 @@ internal sealed class EditorWindow : Window
         public void Redo() { if (!_c.Children.Contains(_e)) _c.Children.Add(_e); }
     }
 
-    private sealed class CropEdit : IEdit
+    private sealed class BaseEdit : IEdit
     {
         private readonly EditorWindow _w; private readonly BitmapSource _oldBase, _newBase; private readonly List<UIElement> _oldItems;
-        public CropEdit(EditorWindow w, BitmapSource oldBase, BitmapSource newBase, List<UIElement> oldItems)
+        public BaseEdit(EditorWindow w, BitmapSource oldBase, BitmapSource newBase, List<UIElement> oldItems)
         { _w = w; _oldBase = oldBase; _newBase = newBase; _oldItems = oldItems; }
         public void Undo() { _w.SetBase(_oldBase); _w._layer.Children.Clear(); foreach (var e in _oldItems) _w._layer.Children.Add(e); }
         public void Redo() { _w.SetBase(_newBase); _w._layer.Children.Clear(); }
@@ -145,6 +145,14 @@ internal sealed class EditorWindow : Window
         Act("Undo", "Undo last edit (Ctrl+Z).", DoUndo);
         Act("Redo", "Redo (Ctrl+Y).", DoRedo);
         Act("Copy", "Copy the edited image to the clipboard (Ctrl+C).", CopyImage);
+        Act("Copy text", "Recognise the text in this image (built-in Windows OCR, offline) and copy it to the clipboard.", () => _ = CopyTextAsync());
+        Act("Redact", "Find emails, cards, IPs, phone numbers and key-shaped tokens in the image's text and cover them with black boxes (undoable).", () => _ = RedactAsync());
+        bar.Children.Add(new Separator { Margin = new Thickness(6, 0, 6, 0) });
+        Act("Invert", "Invert the colours of the whole image. Annotations are baked in; Undo restores.", () => TransformBase("Invert", (px, w, h) => { PixelAdjust.Invert(px); return (px, w, h); }));
+        Act("Grayscale", "Convert the whole image to grey. Annotations are baked in; Undo restores.", () => TransformBase("Grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); }));
+        Act("Flip ↔", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
+        Act("Flip ↕", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
+        Act("Rotate", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));
         Act("Save", "Save to the output folder (Ctrl+S).", Save);
         Act("Reveal", "Save if needed, then show the file in Explorer. (The Windows share sheet is not implemented yet.)", () => { if (_savedPath is null) Save(); if (_savedPath is not null) Process.Start("explorer.exe", $"/select,\"{_savedPath}\""); });
         return bar;
@@ -318,9 +326,39 @@ internal sealed class EditorWindow : Window
         var oldItems = _layer.Children.Cast<UIElement>().ToList();
         var cropped = new CroppedBitmap(Flatten(), ir);
         cropped.Freeze();
-        var edit = new CropEdit(this, oldBase, cropped, oldItems);
+        var edit = new BaseEdit(this, oldBase, cropped, oldItems);
         edit.Redo();
         Push(edit);
+    }
+
+    /// <summary>
+    /// Applies a whole-image pixel operation (Core <see cref="PixelAdjust"/>) to the
+    /// flattened image and swaps it in as the new base, like Crop: annotations are
+    /// baked in, and Undo restores the previous base and its annotation layer.
+    /// </summary>
+    private void TransformBase(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op)
+    {
+        try
+        {
+            var flat = Flatten();
+            var src = flat.Format == PixelFormats.Bgra32 ? flat : new FormatConvertedBitmap(flat, PixelFormats.Bgra32, null, 0);
+            int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
+            var px = new byte[stride * h];
+            src.CopyPixels(px, stride, 0);
+            var (data, nw, nh) = op(px, w, h);
+            var bmp = BitmapSource.Create(nw, nh, 96, 96, PixelFormats.Bgra32, null, data, nw * 4);
+            bmp.Freeze();
+            var oldItems = _layer.Children.Cast<UIElement>().ToList();
+            var edit = new BaseEdit(this, _base, bmp, oldItems);
+            edit.Redo();
+            Push(edit);
+            _status.Text = label + " applied (annotations baked in). Undo restores the previous image.";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(label + " failed", ex);
+            _status.Text = label + " failed: " + ex.Message;
+        }
     }
 
     private Int32Rect ToIntRect(Rect r)
@@ -366,6 +404,61 @@ internal sealed class EditorWindow : Window
     private void DoRedo() { if (_redo.Count == 0) return; var e = _redo.Pop(); e.Redo(); _undo.Push(e); }
 
     /// <summary>Base image + annotations as one bitmap at the image's native pixel size.</summary>
+    private async Task CopyTextAsync()
+    {
+        _status.Text = "Recognising text…";
+        try
+        {
+            var (text, error) = await OcrService.RecognizeAsync(Flatten());
+            if (text is null) { _status.Text = error ?? "OCR is unavailable."; return; }
+            if (text.Length == 0) { _status.Text = "No text found in this image."; return; }
+            try
+            {
+                System.Windows.Clipboard.SetText(text);
+                _status.Text = $"Copied recognised text ({text.Split('\n').Length} line(s)) to the clipboard.";
+            }
+            catch (Exception) { _status.Text = "Clipboard busy, try again."; }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("OCR failed", ex);
+            _status.Text = "Text recognition failed: " + ex.Message;
+        }
+    }
+
+    private async Task RedactAsync()
+    {
+        _status.Text = "Scanning for sensitive text…";
+        try
+        {
+            // OCR runs on the base image, not the flattened one: annotations are not text.
+            var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
+            var hits = Redactor.Find(words);
+            if (hits.Count == 0) { _status.Text = "No sensitive text found (emails, cards, IPs, phone numbers, key-shaped tokens)."; return; }
+            foreach (var hit in hits)
+            {
+                var box = new System.Windows.Shapes.Rectangle
+                {
+                    Fill = System.Windows.Media.Brushes.Black,
+                    Width = hit.Rect.Width,
+                    Height = hit.Rect.Height,
+                };
+                Canvas.SetLeft(box, hit.Rect.X);
+                Canvas.SetTop(box, hit.Rect.Y);
+                _layer.Children.Add(box);
+                Push(new AddEdit(_layer, box));
+            }
+            string kinds = string.Join(", ", hits.GroupBy(h => h.Kind).Select(g => $"{g.Count()} {g.Key}"));
+            _status.Text = $"Redacted {hits.Count} item(s): {kinds}. Each box is an annotation — Undo removes them.";
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Redact failed", ex);
+            _status.Text = "Redact failed: " + ex.Message;
+        }
+    }
+
     private BitmapSource Flatten()
     {
         int w = _base.PixelWidth, h = _base.PixelHeight;
