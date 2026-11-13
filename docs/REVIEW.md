@@ -84,6 +84,10 @@ matches the content; static-content seams are pixel-exact; dynamic content
 (animations, sticky headers) is detected and reported, not silently doubled.
 **Trade-off**: stitching quality on moving content is the hard part; the
 UIA-first route avoids most of it where the app cooperates.
+*Status: implemented as an unreleased local commit after this review —
+Core stitching pixel-verified in tests; the app layer is Unverified, and
+the "dynamic content is detected and reported" part of the measure is NOT
+yet done (sticky headers can repeat in the wheel path; AUDIT.md says so).*
 
 ### P1 — PDF export (opportunity: cheap, already promised by the roadmap)
 Single-image PDF via a hand-written writer in Core (the GifWriter pattern:
@@ -119,13 +123,17 @@ already holds the exact description and topics to apply; releases wait on
 the standing "no releases until SEAN says so".
 **Measure**: description + topics set from DESCRIPTION.md at the next
 authorised publish; README screenshots after the field programme.
+*Status: done 2026-11-13 with the v0.4.0 release (description + all nine
+topics live on the repo); screenshots still owed after the field pass.*
 
 ### P2 — OCR: copy text from a capture (opportunity: fits the dev audience)
 `Windows.Media.Ocr` ships with Windows — no package, fully offline
 (roadmap Phase 4). "Grab the error text" is a daily developer task.
 **Measure**: editor gains Copy Text; a known-text fixture recognises
 correctly on Windows with the en-US language pack.
-**Trade-off**: accuracy is the OS engine's, not ours; language packs vary
+**Trade-off**: accuracy is the OS engine's, not ours; language packs vary.
+*Status: implemented as an unreleased local commit after this review
+(editor Copy text; assembly logic Verified, WinRT call site Unverified).*
 by machine and the UI must say so when a language is missing.
 
 ### P2 — Editor save-as and annotation depth (roadmap Phase 2/3 items)

@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-176 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding and PDF writing. Last result: **176 passed, 0 failed**.
+227 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, PDF writing, scroll stitching, OCR text assembly, redaction detection and pixel adjustments. Last result: **227 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware — not yet done)
 Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Partially verified / Unverified.
@@ -44,6 +44,18 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 5. `countdown.png` — delay chip in the corner.
 6. `editor.png` — editor with annotations and the metadata panel.
 7. `settings.png` — settings window.
+
+## Unreleased manual rows (editor adjustments)
+- [ ] Editor → Invert / Grayscale / Flip ↔ / Flip ↕ / Rotate on a capture with an annotation drawn first: each button transforms the whole picture (annotation baked in), Rotate swaps width/height, Undo restores the pre-transform image with its annotation editable again, and Save writes the transformed image.
+
+## Unreleased manual rows (OCR)
+- [ ] Editor → Redact on a capture containing an email, a test card number (4242 4242 4242 4242), an IP and an API-key-shaped token: each is covered by a black box, ordinary text is untouched, Undo removes the boxes one by one, and Save bakes the boxes into the file.
+- [ ] Editor → Copy text on a capture of known on-screen text: the clipboard receives the text in reading order; on a text-free image the status says no text was found; with no OCR language installed the status explains how to add one.
+
+## Unreleased manual rows (scrolling capture)
+- [ ] Scrolling capture of a long web page / document (ScrollPattern path): result is one tall image, no duplicated or missing bands, and the page is left scrolled where it started.
+- [ ] Scrolling capture of an app without ScrollPattern (wheel fallback): stitches correctly and stops at the end of content.
+- [ ] Scrolling capture of a non-scrollable element degrades to a normal single capture; Esc cancels cleanly mid-run.
 
 ## Unreleased manual rows (export formats + animated GIF + reliability + PDF)
 - [ ] Save a capture as PDF from Settings format, the editor, and `--out shot.pdf`: each opens in Edge and Acrobat, shows the capture at full size, and extracted/printed output matches the screen.
