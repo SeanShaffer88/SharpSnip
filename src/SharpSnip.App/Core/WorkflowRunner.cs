@@ -63,6 +63,8 @@ internal static class WorkflowRunner
 
     private static string Execute(WorkflowStep step, string working, Preferences prefs)
     {
+        if (prefs.WorkflowsLocked && WorkflowTrust.Launches(step.Kind))
+            throw new InvalidOperationException("blocked: the workflow or editor settings were changed outside SharpSnip. Open Settings and press Save to approve them");
         switch (step.Kind)
         {
             case "copy":
@@ -118,17 +120,19 @@ internal static class WorkflowRunner
             {
                 if (string.IsNullOrWhiteSpace(prefs.ExternalEditorPath))
                     throw new InvalidOperationException("no external editor is set in Settings");
-                Process.Start(new ProcessStartInfo(prefs.ExternalEditorPath.Trim()) { Arguments = "\"" + working + "\"", UseShellExecute = true });
+                using (Process.Start(new ProcessStartInfo(prefs.ExternalEditorPath.Trim()) { Arguments = WorkflowPlan.QuoteArg(working), UseShellExecute = true })) { }
                 return working;
             }
             case "run":
             {
                 var (program, args) = WorkflowPlan.SplitRun(step.Arg);
-                Process.Start(new ProcessStartInfo(WorkflowPlan.Expand(program, working))
+                // Arguments are quoted per value, so a capture path with spaces stays one argument. The
+                // program keeps running on its own; only our handle to it is released.
+                using (Process.Start(new ProcessStartInfo(WorkflowPlan.Expand(program, working))
                 {
-                    Arguments = WorkflowPlan.Expand(args, working),
+                    Arguments = WorkflowPlan.ExpandArgs(args, working),
                     UseShellExecute = false,
-                });
+                })) { }
                 return working;
             }
             default:

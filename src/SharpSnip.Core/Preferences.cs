@@ -55,6 +55,11 @@ public sealed class Preferences
     /// <summary>Named post-capture workflows (owner program v0.8.0); each runs locally on a finished file.</summary>
     public List<WorkflowDef> Workflows { get; set; } = new();
     /// <summary>Workflow auto-run after a still capture is saved; empty = none.</summary>
+    /// <summary>Hash of the program-launching settings as last saved by the app (see WorkflowTrust). Blank = not recorded yet.</summary>
+    public string WorkflowTrust { get; set; } = "";
+    /// <summary>Runtime only: the settings file changed outside the app, so program-launching steps are blocked.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool WorkflowsLocked { get; set; }
     public string CaptureWorkflow { get; set; } = "";
     /// <summary>Workflow auto-run after a recording is saved; empty = none.</summary>
     public string RecordingWorkflow { get; set; } = "";
@@ -103,6 +108,7 @@ public sealed class Preferences
         AutoEffect = AutoEffects.Sanitize(AutoEffect);
         ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
         FfmpegPath = (FfmpegPath ?? "").Trim();
+        WorkflowTrust ??= "";
         Workflows ??= new();
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Workflows = Workflows

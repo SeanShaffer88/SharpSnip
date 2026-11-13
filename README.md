@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.9.2.** Compiles cleanly and the pure-logic layer is tested (361 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.9.2: captures never open the editor (it is for deliberate opens from the capture history only), Settings saves apply per-field instead of all-or-nothing, the Recorder picks its own region, recording audio mixes by streaming, and the capture pipeline pre-warms at startup. 0.9.0/0.9.1 sent captures straight to clipboard + file by default, let workflow `format:` steps convert recordings through the bundled FFmpeg, and fixed mode-bar tool selection after owner field reports. 0.8.x brought local workflows, animated APNG, recording output sizes and the FFmpeg export. The 0.7.0 recording suite and later additions have not yet had their full field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.11.0.** Compiles cleanly and the pure-logic layer is tested (374 checks). 0.11.0 is a hardening release from a full code review: the Print Screen switch is restored after crashes, recordings are never lost silently, focus rings and screen-reader names are fixed, the project moves to .NET 10, and workflows are protected against settings edited outside the app. The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.9.2: captures never open the editor (it is for deliberate opens from the capture history only), Settings saves apply per-field instead of all-or-nothing, the Recorder picks its own region, recording audio mixes by streaming, and the capture pipeline pre-warms at startup. 0.9.0/0.9.1 sent captures straight to clipboard + file by default, let workflow `format:` steps convert recordings through the bundled FFmpeg, and fixed mode-bar tool selection after owner field reports. 0.8.x brought local workflows, animated APNG, recording output sizes and the FFmpeg export. The 0.7.0 recording suite and later additions have not yet had their full field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
@@ -46,6 +46,7 @@ Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray �
 ```
 SharpSnip.exe --fullscreen [--all] [--delay N] [--out FILE] [--no-clipboard]
 SharpSnip.exe --record N [--monitor K] [--fps F] [--quality Q] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
+SharpSnip.exe --restore-printscreen   # hand the Print Screen key back to Windows (after a crash, or before uninstalling)
 SharpSnip.exe --clean        # delete settings and logs
 SharpSnip.exe --verbose | --version | --help
 ```

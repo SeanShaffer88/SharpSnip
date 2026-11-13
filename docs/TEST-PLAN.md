@@ -127,3 +127,12 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Tray "Export with FFmpeg…": WebM and AV1 exports of a test recording play in a browser; MKV remux is near-instant; MP3 extract has audio only; a failed export shows FFmpeg's log tail.
 - [ ] `--export webm --file rec.mp4`: prints the new path, exit 0; `--export bogus` exits 2 with the preset list.
 - [ ] Settings FFmpeg override pointing at a different ffmpeg.exe: an export uses it (log shows the run); clearing it returns to the bundle.
+
+## v0.11.0 manual rows (deferred by owner)
+- [ ] Kill SharpSnip in Task Manager, then run `SharpSnip.exe --restore-printscreen`: Print Screen opens Snipping Tool again.
+- [ ] Tray "Give Print Screen back": Print Screen opens Snipping Tool; restart SharpSnip: SharpSnip owns the key again.
+- [ ] Recording with audio where the mux fails (make the output path read-only): a toast names the problem and the raw video survives.
+- [ ] Tab through Settings: every control shows a clearly visible focus ring, including text boxes. Narrator reads each field's label.
+- [ ] Turn on a Windows High Contrast theme: Settings/Recorder use system colours; overlays use the yellow highlight.
+- [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
+- [ ] Edit a workflow step in `settings.json` with Notepad, start SharpSnip: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.

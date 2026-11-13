@@ -38,6 +38,13 @@ internal sealed class AppHost : IDisposable
     public AppHost()
     {
         _prefs = PrefsStore.Load(AppPaths.PrefsPath, out string? warn);
+        if (WorkflowTrust.IsTampered(_prefs))
+        {
+            _prefs.WorkflowsLocked = true;
+            warn = (warn is null ? "" : warn + " ") + "Workflow and editor settings changed outside SharpSnip, so they are paused. Open Settings and press Save to approve them.";
+            Log.Warn("Workflow settings changed outside SharpSnip; program-launching steps are blocked until the user saves Settings.");
+        }
+        else WorkflowTrust.Approve(_prefs);
         _router = new ModeRouter(_prefs, _uia, Notify, SavePrefs);
 
         using var iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("icon.ico");
@@ -394,6 +401,8 @@ internal sealed class AppHost : IDisposable
     private string? Apply(Preferences p)
     {
         _prefs = p.Sanitize();
+        _prefs.WorkflowsLocked = false;
+        WorkflowTrust.Approve(_prefs);   // the user just reviewed and saved these settings
         _router.Prefs = _prefs;
         SavePrefs();
         return null;
@@ -471,7 +480,11 @@ internal sealed class AppHost : IDisposable
 
     private void SavePrefs()
     {
-        try { PrefsStore.Save(AppPaths.PrefsPath, _prefs); }
+        try
+        {
+            if (!_prefs.WorkflowsLocked) WorkflowTrust.Approve(_prefs);   // while locked the old hash stays, so the file keeps reading as changed
+            PrefsStore.Save(AppPaths.PrefsPath, _prefs);
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Log.Error("Could not save settings", ex); }
     }
 

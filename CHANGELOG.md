@@ -2,6 +2,27 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.11.0] - 2026-11-13
+
+A hardening release from a full review of v0.10.0. No new capture features.
+
+### Fixed
+- **Print Screen is handed back after a crash or kill.** The Windows "Print Screen opens Snipping Tool" switch used to be restored only by a clean exit. It is now also restored on process exit, on an unhandled exception, and by the new `--restore-printscreen` command and "Give Print Screen back" tray item (use it before uninstalling). The restore is idempotent and reads the settings file itself.
+- **A recording can no longer vanish silently.** If adding audio fails, the silent video is saved and a toast says so. If even that copy fails, the raw video is kept in the temp folder and its path is shown, instead of being deleted. Stopping a recording that throws now reports an error instead of doing nothing.
+- **Every swallowed error is logged.** The ten empty `catch { }` blocks now write a log line (debug level for plain cleanup, a warning for the recorder's temp-folder cleanup and the size check).
+- **Focus is visible.** The focus ring and check marks use a light tint (#E8939F, at least 3:1 on every surface; the deep Carmine was about 1.9:1). Text boxes, which showed no focus ring at all, now do. A self-test pins the palette's contrast ratios.
+- **Screen readers can name the fields.** Each input in Settings, Recorder, Export and Workflows is now labelled by the text beside it, and tooltips become help text.
+- **Windows High Contrast is honoured**: windows use system colours and stock controls, and capture overlays switch to the high-contrast highlight.
+- **Workflow "run" and "editor" steps handle paths with spaces**: `%path%`, `%dir%`, `%name%` and `%ext%` are quoted automatically unless you already put them in quotes. The process handle is released.
+- **Command-line values can't be mistaken for flags**: `--out --clean` now means a file named "--clean", not "wipe my settings".
+- **Log files are capped** at 5 MB per day (rolled to `.1`).
+
+### Changed
+- **.NET 10 (LTS)**: the project, tests, CI and release workflows move from .NET 8, whose support ended on 2026-11-10. One interop call (`Marshal.QueryInterface`) changed signature and was updated.
+
+### Security
+- **Settings edited outside the app can no longer launch programs.** SharpSnip records a hash of the external editor, the FFmpeg override and all workflow steps whenever you save in the app. If the settings file changes any other way (a planted portable-mode config, a text editor), `run`/`editor` steps and the FFmpeg override stay blocked, with a toast, until you press Save in Settings. Fresh installs and upgrades record their current settings the first time.
+
 ## [0.10.0] - 2026-11-13
 
 ### Added
