@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.6.1.** Compiles cleanly and the pure-logic layer is tested (247 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works; the deep manual checklist in [docs/TEST-PLAN.md](docs/TEST-PLAN.md) has not been re-run row by row. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.7.0.** Compiles cleanly and the pure-logic layer is tested (294 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.7.0: screen recording (MP4/GIF with system sound, microphone and webcam overlay), the Windows.Graphics.Capture backend, and the editor/capture completion pack — the recording and WGC paths are new and have not yet had their field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
@@ -12,13 +12,16 @@ Offline only. No telemetry, no accounts, no network code.
 |---|---|
 | Element | UI Automation hit-test under the cursor. `Tab` next sibling, `PgUp`/`PgDn` parent/child, `Ctrl+Wheel` expand to container. Falls back to region when an app exposes no UIA. |
 | Scrolling | Pick a scrollable element (tray → Scrolling capture…, or `C` in the mode menu) and capture its full content as one tall image — UIA ScrollPattern when available, wheel-and-stitch otherwise. |
-| Region | Rubber band with 8 handles, live size read-out, magnifier, edge snapping to windows, move/resize after drawing. |
+| Region | Rubber band with 8 handles, live size read-out, magnifier (with a #hex colour readout), edge snapping to windows, move/resize after drawing. |
+| Freehand | Draw an outline (`H` in the menu); the bounding box is captured and everything outside the outline is transparent. |
+| Recording | Record a monitor or region to MP4 — system sound and microphone mixed in, optional webcam picture-in-picture, quality presets, time/size limits, one-shot scheduling — or straight to animated GIF. Tray → Record screen…, or `--record`. |
+| Draw on screen | A live annotation overlay (tray item): draw over the screen; the strokes appear in captures and recordings. |
 | Window | Window under cursor, full frame or client area only (`C`). |
 | Full screen | One monitor, all monitors, or a chosen monitor (`1`..`9`). Mixed DPI and L-shaped layouts are stitched 1:1 in physical pixels. |
 | One-shot full screen | Dedicated hotkey, no UI: capture straight to clipboard and file. |
 | Active window / repeat last | Two more one-shot hotkeys: foreground window, or the previous rectangle again. |
 | Delay | 0 / 3 / 5 / 10 s countdown for menus and tooltips. `Esc` cancels. The countdown chip never appears in the image. |
-| Editor | Pen, highlighter, arrow, rectangle, ellipse, text, blur (pixelate), crop, undo/redo, copy, save, capture metadata panel — plus Copy text (built-in Windows OCR), one-click Redact of emails, cards, IPs and key-shaped tokens, and whole-image invert, grayscale, flip and rotate. |
+| Editor | Pen, highlighter, arrow, rectangle, ellipse, text, step markers, blur (pixelate), crop, undo/redo, copy, save, capture metadata panel — plus Copy text (built-in Windows OCR), one-click Redact of emails, cards, IPs and key-shaped tokens, OCR find & replace text, resize, watermark, brightness/contrast, an optional auto-applied effect, and whole-image invert, grayscale, flip and rotate. Recent captures reopen from the tray menu, and an external editor can be wired up in Settings. |
 
 Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
@@ -34,7 +37,7 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 | Fixed-size region | `S` in the menu |
 | Interval capture | tray menu, or `--interval N --count M` (in GIF format the run becomes one looping `animation.gif`) |
 
-The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`.
+The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `H` freehand, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`. A preset region (Settings) can have its own one-shot hotkey too.
 
 Hotkeys, output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. SharpSnip takes over the Print Screen key from Snipping Tool by default (untick it in Settings to hand the key and your old menu hotkey back), captures land in your Pictures folder unless you pick another, the Settings window follows the TesselGUI revision 2 design standard, and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
 
@@ -42,6 +45,7 @@ Hotkeys, output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are i
 
 ```
 SharpSnip.exe --fullscreen [--all] [--delay N] [--out FILE] [--no-clipboard]
+SharpSnip.exe --record N [--monitor K] [--fps F] [--quality Q] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
 SharpSnip.exe --clean        # delete settings and logs
 SharpSnip.exe --verbose | --version | --help
 ```

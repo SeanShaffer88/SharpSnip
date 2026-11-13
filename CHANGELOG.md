@@ -2,7 +2,19 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] - 2026-11-13
+
+### Added
+- Integration pack: **Recent captures** in the tray menu (the newest stills and recordings from the output folder — stills reopen in the editor, recordings play in your default player) and an **External editor…** button in the editor (path set in Settings; saves, then opens the file in that program). Live screen drawing arrived with the recording extras.
+- Capture completion pack: **Freehand capture** (mode bar or H — draw an outline; the bounding box is captured and everything outside the outline becomes transparent), a **preset-region hotkey** (set the region in Settings from your last capture, give it a hotkey, or use the tray's "Capture preset region"), and a **loupe colour readout** — the magnifier now shows the pixel under the cursor as #RRGGBB, its RGB values and its screen position.
+- Editor completion pack: **Step tool** (click to drop numbered markers 1, 2, 3…), **Resize…** (new pixel dimensions with aspect lock), **Watermark…** (corner or tiled diagonal text), **Brightness/Contrast sliders** with Apply B/C, **Replace text…** (OCR find & replace — the original is covered with the surrounding colour and the new text drawn in), and an **Auto effect** setting (None / Border / Grayscale) applied when a capture opens. All are undoable like every other edit. (Also fixed: saving Settings no longer resets the recording preferences to defaults.)
+- GIF recording: the Recorder window's Format picker (or `--gif`) records straight to an animated GIF with real frame timing — silent, capped at 20 fps, for short shareable clips.
+- Draw on screen: a live annotation overlay (tray item, or the Recorder window's button) — draw with the mouse over any monitor; the strokes appear in captures and recordings as they happen. Keys 1–5 change the pen, C clears, Esc finishes.
+- Recording limits and scheduling: optional max-minutes and max-size stops (Recorder window fields, CLI `--max-mb`), and a one-shot scheduled recording — set a start time and duration in the Recorder window, or `--record N --at HH:MM` on the command line.
+- Webcam picture-in-picture for recordings (Recorder window checkbox + corner picker, CLI `--webcam [--webcam-corner C]`), composited with a tested layout engine, plus recording quality presets (Low / Medium / High / Ultra) in the window and via `--quality`.
+- Recording audio: system sound (WASAPI loopback) is recorded by default and the microphone can join it (Recorder window checkboxes, CLI `--mic` / `--no-audio`); the two tracks are mixed and muxed into the MP4 when you stop. A missing audio device never blocks a recording — that source simply drops out.
+- Screen recording: `--record N [--monitor K] [--fps F] [--region X,Y,W,H] [--out FILE]` records a monitor — or one rectangle of it — to MP4 (H.264, hardware-accelerated MediaTranscoder over the WGC stream, cursor included). In the app, the tray's "Record screen…" opens a small recording window (monitor picker, "last capture region" option, frame rate, Start/Stop with elapsed time) and "Stop recording" finishes from the tray; recordings land in the output folder with a toast.
+- Windows.Graphics.Capture backend for stills (owner-approved program: completion pack + recording suite, 2026-11-13 — this is its foundation slice). Captures now try WGC first and fall back to GDI BitBlt automatically, with the serving backend named in the log. WGC keeps working where GDI returns black — hardware overlays, DRM video, some games. A WGC frame that arrives entirely black is treated as a failure, not a picture, and also falls back. The frame-assembly copy (`PixelBlit`) is unit-tested in the Core layer.
 
 ## [0.6.1] - 2026-11-13
 
