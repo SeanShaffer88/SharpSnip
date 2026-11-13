@@ -13,7 +13,7 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 |---|---|---|
 | §1 state machine | Verified (logic) | `AppStateMachine`, tested; router uses it |
 | §1.1 Per-monitor V2 DPI | Partial | `SetProcessDpiAwarenessContext` at start of `Main`. The SDK refuses DPI keys in the manifest when WinForms is referenced (WFAC010), so there is no manifest entry. |
-| §1.2 hotkeys | Changed by owner direction 2026-11-13 | All configurable hotkeys removed. Print Screen is the only global hotkey (`RegisterHotKey`, unconditional, failure logged only); the Windows Snipping switch is forced off while SharpSnip runs and restored on exit. Nothing to configure means no conflict errors can exist. Runtime Unverified. |
+| §1.2 hotkeys | Changed by owner direction 2026-11-13 | All configurable hotkeys removed. Print Screen is the only global hotkey (`RegisterHotKey`, unconditional, failure logged only); the Windows Snipping switch is forced off while Snipit runs and restored on exit. Nothing to configure means no conflict errors can exist. Runtime Unverified. |
 | §1.3 UIA pre-warm | Partial | STA worker touches `RootElement` at start |
 | §1.4 D3D11 / WGC pre-warm | Partial | At startup a background thread creates the process-shared D3D11 device and pulls one throwaway frame through the full WGC pipeline (`WgcCapture.Prewarm`), so the first user capture is served warm; the shared device replaces per-capture device creation, and any capture failure drops the cache (that capture falls back to GDI, the next builds a fresh device). Runtime effect Unverified — no Windows machine has measured the warm/cold difference yet. |
 | §1.5 monitor cache + WM_DISPLAYCHANGE | Partial | message-only window refreshes cache |
@@ -38,7 +38,7 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 ## Added after the blueprint (v0.2)
 | Item | State | Note |
 |---|---|---|
-| Active-window capture | Unverified | `GetForegroundWindow` + extended frame bounds; refuses SharpSnip's own windows; no check for fullscreen/exclusive apps. Reached from the menu's Window mode (its hotkey was removed 2026-11-13 with all configurable hotkeys) |
+| Active-window capture | Unverified | `GetForegroundWindow` + extended frame bounds; refuses Snipit's own windows; no check for fullscreen/exclusive apps. Reached from the menu's Window mode (its hotkey was removed 2026-11-13 with all configurable hotkeys) |
 | Repeat-last capture | Unverified | the rectangle persists in settings (sanitised on load, clipped to the current desktop on use) — still not run on Windows. Its hotkey was removed 2026-11-13 |
 | Default hotkeys Win+Shift+W / Win+Shift+R | Removed 2026-11-13 | Owner direction: no configurable hotkeys at all — on his machine both keys are owned by another program, which made every Settings save carry a conflict warning. Print Screen is the only hotkey now |
 
@@ -50,12 +50,12 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 5. **"Share" button is "Reveal"** (save, then show in Explorer). The Windows share sheet needs WinRT interop; deferred.
 6. **Esc behaviour.** Esc inside a picker returns to the mode menu (§3A/§3D.3); Esc in the menu ends the session (§1). §13 says "Esc from any picker returns to IDLE". Both are honoured in the sense that no hook, timer or overlay survives; pressing Esc twice reaches Idle. Right-click behaves like Esc.
 7. **Overlays are not re-shown after capture** (§4.6). A toast appears; the editor never opens after a capture (owner direction, 2026-11-13 — it remains for deliberate opens from the capture history only).
-8. **Default folder is `Pictures\SharpSnip`**, not `Pictures\Sniptool` (the blueprint name was a placeholder).
+8. Captures default to the user's Pictures folder. Earlier versions used `Pictures\SharpSnip`.
 9. **Hotkey hook scope.** Keys pressed with Ctrl/Alt/Win held are never swallowed so system shortcuts keep working; all other keys (except bare modifiers) are swallowed while a picker is active.
 10. **Loupe needs OS-level capture exclusion.** On Windows older than 10 2004 the region picker runs without the magnifier.
 
 ## Known limitations
-- Elevated (administrator) windows: UI Automation from a non-elevated SharpSnip is blocked by UIPI, so those apps fall back to region mode.
+- Elevated (administrator) windows: UI Automation from a non-elevated Snipit is blocked by UIPI, so those apps fall back to region mode.
 - Per-pixel correctness at the seam of mixed-DPI monitors is untested.
 - WPF windows moved across monitors with different DPI can be resized by the framework; the overlay re-applies exact physical bounds in `OnDpiChanged`. Unverified.
 - CI workflow exists locally (unreleased commits) but is not live until pushed; workflow files on this account have needed browser-side approval.

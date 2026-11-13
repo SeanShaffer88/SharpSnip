@@ -14,6 +14,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Build (Release, warnings as errors)
-        run: dotnet build SharpSnip.sln -c Release
+        run: dotnet build Snipit.sln -c Release
       - name: Self-test (pure logic)
-        run: dotnet run --project tests/SharpSnip.SelfTest -c Release
+        run: dotnet run --project tests/Snipit.SelfTest -c Release

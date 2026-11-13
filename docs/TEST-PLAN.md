@@ -2,17 +2,17 @@
 
 ## Automated (runs anywhere)
 ```
-dotnet run --project tests/SharpSnip.SelfTest
+dotnet run --project tests/Snipit.SelfTest
 ```
 345 checks over geometry, monitor stitching, target resolution, delay cycle, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), the Print Screen override record, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing, the FFmpeg export plans, the click gate, recording-region resolution, pause timing and WAV segment joining. Last result: **345 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
-Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Partially verified / Unverified.
+Use an isolated Windows profile with neither `%APPDATA%\Snipit` nor `%APPDATA%\SharpSnip`. Record the result as Verified, Partially verified, or Unverified.
 
 | # | Check | Pass when |
 |---|---|---|
-| 1 | Start `SharpSnip.exe`, press `Win+Shift+X` | Mode bar slides in at the top of the screen, tray icon present |
+| 1 | Start `Snipit.exe`, press `Win+Shift+X` | Mode bar slides in at the top of the screen, tray icon present |
 | 2 | Element mode on Chrome, Explorer, Notepad, VS Code, Win11 Settings | Highlight follows cursor, click captures exactly the rect (±1 px) |
 | 3 | `Tab`, `PgUp`, `PgDn`, `Ctrl+Wheel` in element mode | Deterministic and reversible |
 | 4 | Element mode over an app with no UIA (a game) | Switches to region picker, no error |
@@ -21,7 +21,7 @@ Use a fresh profile (no `%APPDATA%\SharpSnip`). Record result as Verified / Part
 | 7 | Full screen: `Tab`, `A`, `1`..`9`, `Enter` on 2 monitors | Correct monitor highlighted and captured only |
 | 8 | All-monitors capture at 100% + 150% | One image, no gaps/overlap; pixel test at monitor seam |
 | 9 | L-shaped arrangement | Union rect correct, gap filled with matte |
-| 10 | One-shot CLI `SharpSnip --fullscreen` | Clipboard image in < 250 ms, no UI flash |
+| 10 | One-shot CLI `Snipit --fullscreen` | Clipboard image in < 250 ms, no UI flash |
 | 11 | Delay 3/5/10 s, open a menu during countdown, `Esc` | Menu captured; `Esc` cancels; chip not in image |
 | 12 | Unplug a monitor during countdown | No crash; capture continues |
 | 13 | `Esc` from every picker, right-click | No leaked hook/timer/overlay (check Task Manager, input stays normal) |
@@ -47,7 +47,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 7. `settings.png` — settings window.
 
 ## Unreleased manual rows (recording)
-- [ ] `SharpSnip.exe --record 5` on the primary monitor: a timestamped MP4 lands in the output folder and plays back in a standard player, showing the desktop and cursor moving; `--record 5 --monitor 2 --fps 60 --out C:\Temp\rec.mp4` honours its arguments; `--region 100,100,800,600` records only that rectangle.
+- [ ] `Snipit.exe --record 5` on the primary monitor: a timestamped MP4 lands in the output folder and plays back in a standard player, showing the desktop and cursor moving; `--record 5 --monitor 2 --fps 60 --out C:\Temp\rec.mp4` honours its arguments; `--region 100,100,800,600` records only that rectangle.
 - [ ] Tray → Record screen…: the window opens themed, Start begins (elapsed ticks, tray's Stop recording enables), Stop from either the window or the tray saves the MP4 and toasts its name; ticking the region option after a region capture records just that rectangle; "Pick region…" hides the window, lets you drag a fresh rectangle (Esc cancels and changes nothing), and the window returns showing the new region's size and position; a recording started with the region ticked covers only that rectangle, and the picked region is still offered after a restart.
 - [ ] Record 10 s with music playing and Microphone ticked while speaking: the MP4 plays back with both the music and the voice audible and roughly in sync; `--record 5 --no-audio` produces a silent MP4.
 - [ ] Record with Webcam overlay ticked: the camera appears in the chosen corner, moving live; the same scene at Quality Low vs Ultra shows the expected file-size difference; `--record 5 --webcam --webcam-corner TopLeft` agrees.
@@ -63,7 +63,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Ordinary desktop capture on each monitor (incl. mixed DPI): pixel-correct, no offset or tearing; a capture spanning two monitors stitches at the seam.
 
 ## Unreleased manual rows (owner's v0.6.0 field fixes)
-- [ ] Fresh profile (delete `%APPDATA%\SharpSnip\settings.json` first): with the Windows Print-screen switch ON beforehand, starting SharpSnip turns it off and Print Screen opens SharpSnip's menu; quitting SharpSnip from the tray restores the switch to on. With the switch absent beforehand, quitting removes the value SharpSnip wrote. Settings contains no Print Screen option and no hotkey fields at all.
+- [ ] On an isolated fresh profile, turn the Windows Print Screen switch on. Start Snipit and verify that Print Screen opens its menu. Quit from the tray and verify the switch returns to on. Repeat with the switch absent and verify quitting removes the value Snipit wrote. Settings has no Print Screen or hotkey fields.
 - [ ] With no output folder set, a capture lands in the Pictures folder itself.
 - [ ] Settings: Cancel closes the window; Esc closes it; Save applies and closes. The window renders in the dark TesselGUI theme (inputs, dropdowns, checkboxes, green Save) with readable text throughout.
 
@@ -72,10 +72,10 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Clicking a tool in the bar NEVER captures by itself (Snipping Tool contract): click Window — nothing is captured; move over another window and click once — that window is captured. Same for Element and Full screen (this monitor). Repeat with a very fast click on the tool and with a slow press-and-hold release: neither captures. Keyboard switching (W with the bar open) followed by one click also captures normally.
 
 ## Unreleased manual rows (Snipping Tool replacement)
-- [ ] While SharpSnip runs, Windows Settings → Accessibility → Keyboard shows the Print-screen switch off and pressing Print Screen opens SharpSnip's menu (not Snipping Tool); kill SharpSnip from Task Manager, start it again and quit normally — the switch still ends at its original state (the crash could not corrupt the record).
+- [ ] While Snipit runs, Windows Settings → Accessibility → Keyboard shows the Print-screen switch off and pressing Print Screen opens Snipit's menu (not Snipping Tool); kill Snipit from Task Manager, start it again and quit normally — the switch still ends at its original state (the crash could not corrupt the record).
 - [ ] Untick it and Save: the Windows switch is back to its previous state and the menu hotkey is the key from before the takeover.
-- [ ] With takeover on, run `SharpSnip.exe --clean` from a portable copy: the Windows Print-screen switch is restored before the settings are deleted.
-- [ ] Tray menu → Hide tray icon: the icon disappears and captures still work from the hotkeys; running SharpSnip again from the Start menu brings the icon back and opens Settings.
+- [ ] With takeover on, run `Snipit.exe --clean` from a portable copy: the Windows Print-screen switch is restored before the settings are deleted.
+- [ ] Tray menu → Hide tray icon: the icon disappears and captures still work from the hotkeys; running Snipit again from the Start menu brings the icon back and opens Settings.
 
 ## Unreleased manual rows (editor adjustments)
 - [ ] Editor → Invert / Grayscale / Flip ↔ / Flip ↕ / Rotate on a capture with an annotation drawn first: each button transforms the whole picture (annotation baked in), Rotate swaps width/height, Undo restores the pre-transform image with its annotation editable again, and Save writes the transformed image.
@@ -91,7 +91,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## Unreleased manual rows (export formats + animated GIF + reliability + PDF)
 - [ ] Save a capture as PDF from Settings format, the editor, and `--out shot.pdf`: each opens in Edge and Acrobat, shows the capture at full size, and extracted/printed output matches the screen.
-- [ ] Capture a region, restart SharpSnip, press the repeat-last hotkey: the same rectangle is captured. Then change the display layout so the rectangle is off-screen: a clear "off screen" message, no crash.
+- [ ] Capture a region, restart Snipit, press the repeat-last hotkey: the same rectangle is captured. Then change the display layout so the rectangle is off-screen: a clear "off screen" message, no crash.
 - [ ] Save two captures in rapid succession from the editor: both files exist (second name carries a `-2` suffix when the timestamp collides).
 - [ ] Set format to GIF, run `--interval 2 --count 3` and a tray interval run: each produces one `animation.gif` that loops in a browser/image viewer with ~2 s between frames, and no `frame-*.gif` stills.
 - [ ] Stop a tray GIF run early from the tray menu: the `animation.gif` from the frames so far is complete and playable (no truncated file).
@@ -129,13 +129,13 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Settings FFmpeg override pointing at a different ffmpeg.exe: an export uses it (log shows the run); clearing it returns to the bundle.
 
 ## v0.11.0 manual rows (deferred by owner)
-- [ ] Kill SharpSnip in Task Manager, then run `SharpSnip.exe --restore-printscreen`: Print Screen opens Snipping Tool again.
-- [ ] Tray "Give Print Screen back": Print Screen opens Snipping Tool; restart SharpSnip: SharpSnip owns the key again.
+- [ ] Kill Snipit in Task Manager, then run `Snipit.exe --restore-printscreen`: Print Screen opens Snipping Tool again.
+- [ ] Tray "Give Print Screen back": Print Screen opens Snipping Tool; restart Snipit: Snipit owns the key again.
 - [ ] Recording with audio where the mux fails (make the output path read-only): a toast names the problem and the raw video survives.
 - [ ] Tab through Settings: every control shows a clearly visible focus ring, including text boxes. Narrator reads each field's label.
 - [ ] Turn on a Windows High Contrast theme: Settings/Recorder use system colours; overlays use the yellow highlight.
 - [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
-- [ ] Edit a workflow step in `settings.json` with Notepad, start SharpSnip: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
+- [ ] Edit a workflow step in `settings.json` with Notepad, start Snipit: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
 
 ## v0.15.0 manual rows (deferred by owner)
 - Open a capture in the editor, click Torn: all four edges turn ragged and transparent; Undo restores. Click it again on a fresh image: the edge differs.
@@ -143,7 +143,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.14.0 manual rows (deferred by owner)
 - Open the bar, drag the dotted handle left and right: the bar follows the cursor, stops at both screen edges, and the buttons do not fire.
-- Release, Esc, open the bar again, then restart SharpSnip and open it again: the bar is where it was left.
+- Release, Esc, open the bar again, then restart Snipit and open it again: the bar is where it was left.
 - Repeat on a second monitor and at 150% scale.
 
 ## v0.13.0 manual rows (deferred by owner)

@@ -1,8 +1,8 @@
 {
-  "appName": "SharpSnip",
-  "version": "0.15.0",
+  "appName": "Snipit",
+  "version": "0.16.0",
   "publisher": "Sean Shaffer",
-  "primaryExe": "SharpSnip.exe",
+  "primaryExe": "Snipit.exe",
   "desktopShortcut": true,
   "startMenuShortcut": true,
   "fileAssociations": [],

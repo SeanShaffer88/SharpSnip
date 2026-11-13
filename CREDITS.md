@@ -5,7 +5,7 @@
 
 ## Platform and references
 
-No third-party packages are bundled. SharpSnip uses only components that ship with .NET 10 and Windows:
+No third-party packages are bundled. Snipit uses only components that ship with .NET 10 and Windows:
 
 - .NET 10, WPF and Windows Forms (tray icon only), MIT, Microsoft.
 - UI Automation (`System.Windows.Automation`), Win32 (`user32`, `gdi32`, `dwmapi`, `shcore`).

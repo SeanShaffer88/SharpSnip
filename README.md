@@ -1,12 +1,15 @@
-# SharpSnip
+# Snipit
+
+Screenshot apps,\
+elements, anything!
 
 Windows screenshot tool with an **element picker**: hover any button, toolbar, pane or window, click, and capture exactly that rectangle. Region, window and full-screen (single monitor or all monitors, mixed DPI) are built in, plus a capture delay and a small annotation editor.
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.15.0.** Compiles cleanly and the pure-logic layer is tested (419 checks). 0.15.0 adds Torn and Wave edge effects to the editor. 0.14.0 added a drag handle so the capture mode bar can slide along the top edge, with its position remembered. 0.13.0 redesigned the capture mode bar to the TesselGUI standard with new line-and-dot icons, visible key hints and a black-and-white High Contrast mode. 0.12.0 added a colour picker (tray → Pick colour…) and Frame and Shadow effects in the editor. 0.11.0 was a hardening release from a full code review: the Print Screen switch is restored after crashes, recordings are never lost silently, focus rings and screen-reader names are fixed, the project moves to .NET 10, and workflows are protected against settings edited outside the app. 0.11.0 is a hardening release from a full code review: the Print Screen switch is restored after crashes, recordings are never lost silently, focus rings and screen-reader names are fixed, the project moves to .NET 10, and workflows are protected against settings edited outside the app. The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.9.2: captures never open the editor (it is for deliberate opens from the capture history only), Settings saves apply per-field instead of all-or-nothing, the Recorder picks its own region, recording audio mixes by streaming, and the capture pipeline pre-warms at startup. 0.9.0/0.9.1 sent captures straight to clipboard + file by default, let workflow `format:` steps convert recordings through the bundled FFmpeg, and fixed mode-bar tool selection after owner field reports. 0.8.x brought local workflows, animated APNG, recording output sizes and the FFmpeg export. The 0.7.0 recording suite and later additions have not yet had their full field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status v0.16.0.** SharpSnip is now Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
 
-## Features (v0.1)
+## Features
 
 | Mode | What it does |
 |---|---|
@@ -29,26 +32,31 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
 | Action | Default |
 |---|---|
-| Open mode menu | `Win+Shift+X` (or left-click the tray icon) |
-| Full screen now | `Win+Shift+F` |
-| Active window now | `Win+Shift+W` |
-| Repeat last capture | `Win+Shift+R` |
-| Capture monitor 1..4 | `Ctrl+Alt+Shift+1..4` (configurable, up to 9) |
+| Open mode menu | Print Screen or left-click the tray icon |
+| Full screen | `D` for the current monitor, `F` for all monitors, or `1`–`9` for a numbered monitor in the mode bar |
+| Active window | Window mode in the mode bar |
+| Repeat last capture | Tray menu |
 | Fixed-size region | `S` in the menu |
 | Interval capture | tray menu, or `--interval N --count M` (in GIF format the run becomes one looping `animation.gif`) |
 
 The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `H` freehand, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`. A preset region (Settings) can be captured from the tray menu.
 
-Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Print Screen is SharpSnip's only hotkey, and it is not a setting: while SharpSnip runs, Print Screen opens its menu instead of Snipping Tool's (the Windows switch for it is turned off at start), and quitting SharpSnip restores the switch to whatever it was before. Captures land in your Pictures folder unless you pick another, its windows follow the TesselGUI revision 3 (Carmine) design standard, and the tray icon can be hidden from its own menu — running SharpSnip again brings it back. Settings are plain JSON (`%APPDATA%\SharpSnip\settings.json`). Create a `data` folder next to `SharpSnip.exe` for portable mode: everything is then stored there.
+Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Print Screen is Snipit's only hotkey, and it is not a setting: while Snipit runs, Print Screen opens its menu instead of Snipping Tool's (the Windows switch for it is turned off at start), and quitting Snipit restores the switch to whatever it was before. Captures land in your Pictures folder unless you pick another, its windows follow the TesselGUI revision 3 (Carmine) design standard, and the tray icon can be hidden from its own menu — running Snipit again brings it back. Settings and logs use an existing `%APPDATA%\SharpSnip` directory, including any saved Print Screen recovery record. Fresh profiles use `%APPDATA%\Snipit`. A `data` folder beside `Snipit.exe` takes precedence for portable copies. Keep that folder alongside the new executable when switching a portable copy.
+
+### Switching from SharpSnip
+
+Close SharpSnip before opening Snipit. SeanPak installs Snipit as a separate app, so remove the old entry separately when you are ready. Before uninstalling an old copy with an outstanding Print Screen override, use its `--restore-printscreen` option. Update scripts and shortcuts to use `Snipit.exe`. Historical tags and downloads through v0.15.0 keep the SharpSnip name.
+
+`Snipit.exe --clean` deletes settings and logs in the selected data directory. That includes the old `%APPDATA%\SharpSnip` directory when Snipit uses it.
 
 ### Command line
 
 ```
-SharpSnip.exe --fullscreen [--all] [--delay N] [--out FILE] [--no-clipboard]
-SharpSnip.exe --record N [--monitor K] [--fps F] [--quality Q] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
-SharpSnip.exe --restore-printscreen   # hand the Print Screen key back to Windows (after a crash, or before uninstalling)
-SharpSnip.exe --clean        # delete settings and logs
-SharpSnip.exe --verbose | --version | --help
+Snipit.exe --fullscreen [--all] [--delay N] [--out FILE] [--no-clipboard]
+Snipit.exe --record N [--monitor K] [--fps F] [--quality Q] [--region X,Y,W,H] [--mic] [--no-audio] [--webcam] [--gif] [--max-mb M] [--at HH:MM] [--out FILE]
+Snipit.exe --restore-printscreen   # hand the Print Screen key back to Windows (after a crash, or before uninstalling)
+Snipit.exe --clean        # delete settings and logs
+Snipit.exe --verbose | --version | --help
 ```
 
 ## Build
@@ -56,11 +64,11 @@ SharpSnip.exe --verbose | --version | --help
 Needs the .NET 10 SDK on Windows 10 1809 or later (x64).
 
 ```
-dotnet build src/SharpSnip.App -c Release
-dotnet run --project tests/SharpSnip.SelfTest     # logic tests, runs anywhere
+dotnet build src/Snipit.App -c Release
+dotnet run --project tests/Snipit.SelfTest     # logic tests, runs anywhere
 ```
 
-No third-party packages are used in SharpSnip's code (WPF, Windows Forms for the tray icon, UI Automation and Win32/WinRT only). Release builds bundle an LGPL build of FFmpeg for the export feature — a separate program you may replace or remove; see [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md).
+No third-party packages are used in Snipit's code (WPF, Windows Forms for the tray icon, UI Automation and Win32/WinRT only). Release builds bundle an LGPL build of FFmpeg for the export feature — a separate program you may replace or remove; see [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md).
 
 ## Documents
 
