@@ -6,7 +6,7 @@ using Path = System.Windows.Shapes.Path;
 
 namespace SharpSnip;
 
-internal enum ModeBarIcon { Element, Region, Window, FullScreen, Scrolling, Delay, Close }
+internal enum ModeBarIcon { Element, Region, Window, FullScreen, Freehand, Scrolling, Delay, Close }
 
 /// <summary>One mode-bar button: icon kind, label under the icon, and the screen-reader name (with its key).</summary>
 internal sealed record ModeBarButton(ModeBarIcon Icon, string Label, string AutomationName);
@@ -52,6 +52,9 @@ internal static class ModeBarIcons
                 break;
             case ModeBarIcon.FullScreen:
                 Stroke(new Path { Data = Geometry.Parse("M10,4 H4 V10 M18,4 H24 V10 M24,18 V24 H18 M10,24 H4 V18"), Fill = null }, 0, 0);
+                break;
+            case ModeBarIcon.Freehand:
+                Stroke(new Path { Data = Geometry.Parse("M5,21 C4,12 10,4.5 15,7.5 C20,10.5 12.5,13.5 14.5,18.5 C16,22.5 22,21.5 23,15.5"), Fill = null }, 0, 0);
                 break;
             case ModeBarIcon.Scrolling:
                 Stroke(new Rectangle { Width = 11, Height = 22, RadiusX = 2.5, RadiusY = 2.5 }, 8.5, 3);

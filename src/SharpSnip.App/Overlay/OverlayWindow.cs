@@ -41,6 +41,9 @@ internal sealed class OverlayWindow : Window
     private string? _hintMsg, _hudMsg, _chipMsg, _sizeMsg;
     private int _hudX, _hudY, _loupeX, _loupeY;
     private BitmapSource? _loupeSrc;
+    private string? _loupeReadout;
+    private readonly TextBlock _loupeText = new() { Foreground = Brushes.White, FontSize = 11, FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(4, 2, 4, 3), TextAlignment = TextAlignment.Center };
+    private readonly System.Windows.Shapes.Polyline _trace = new() { StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round, Visibility = Visibility.Collapsed, IsHitTestVisible = false };
 
     public MonitorInfo Monitor { get; }
     public bool ExcludedFromCapture { get; private set; }
@@ -85,10 +88,14 @@ internal sealed class OverlayWindow : Window
             Width = LoupeZoom, Height = LoupeZoom, Stroke = Brushes.White, StrokeThickness = 1,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
         });
+        _trace.Stroke = accent;
+        var loupeStack = new StackPanel();
+        loupeStack.Children.Add(loupeGrid);
+        loupeStack.Children.Add(_loupeText);
         _loupe = new Border
         {
             BorderBrush = accent, BorderThickness = new Thickness(2), Background = Brushes.Black,
-            Child = loupeGrid, Visibility = Visibility.Collapsed,
+            Child = loupeStack, Visibility = Visibility.Collapsed,
         };
 
         for (int i = 0; i < 8; i++)
@@ -105,6 +112,7 @@ internal sealed class OverlayWindow : Window
         _canvas.Children.Add(_dim);
         _canvas.Children.Add(_highlight);
         _canvas.Children.Add(_outline);
+        _canvas.Children.Add(_trace);
         foreach (var h in _handles) _canvas.Children.Add(h);
         foreach (var b in new[] { _hint, _hud, _chip, _sizeTag, _loupe }) _canvas.Children.Add(b);
         _canvas.Children.Add(_bar);
@@ -169,7 +177,14 @@ internal sealed class OverlayWindow : Window
     public void SetHud(string? text, int cx, int cy) { _hudMsg = text; _hudX = cx; _hudY = cy; Render(); }
     public void SetChip(string? text) { _chipMsg = text; Render(); }
     public void SetAdorn(RectPx? r, bool handles, string? sizeText) { _adornRect = r; _handlesOn = handles; _sizeMsg = sizeText; Render(); }
-    public void SetLoupe(BitmapSource? src, int cx, int cy) { _loupeSrc = src; _loupeX = cx; _loupeY = cy; Render(); }
+    public void SetLoupe(BitmapSource? src, int cx, int cy, string? readout = null) { _loupeSrc = src; _loupeX = cx; _loupeY = cy; _loupeReadout = readout; Render(); }
+
+    public void SetTrace(IReadOnlyList<(int X, int Y)>? points)
+    {
+        if (points is null || points.Count < 2) { _trace.Visibility = Visibility.Collapsed; return; }
+        _trace.Points = new PointCollection(points.Select(p => Local(p.X, p.Y)));
+        _trace.Visibility = Visibility.Visible;
+    }
 
     /// <summary>
     /// The mode bar (top-centre tab). Null hides it. Showing it after it was hidden
@@ -329,6 +344,8 @@ internal sealed class OverlayWindow : Window
         if (_loupeSrc is not null && Monitor.Bounds.Contains(_loupeX, _loupeY))
         {
             _loupeImage.Source = _loupeSrc;
+            _loupeText.Text = _loupeReadout ?? "";
+            _loupeText.Visibility = _loupeReadout is null ? Visibility.Collapsed : Visibility.Visible;
             var p = Local(_loupeX, _loupeY);
             _loupe.Visibility = Visibility.Visible;
             _loupe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
