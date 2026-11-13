@@ -27,6 +27,8 @@ public sealed class Preferences
     public string MatteColor { get; set; } = "Transparent";
     /// <summary>Editor window x,y,width,height in physical pixels; null = never saved.</summary>
     public int[]? EditorBounds { get; set; }
+    /// <summary>Last capture rectangle x,y,width,height in physical pixels, so "repeat last" survives a restart; null = none yet.</summary>
+    public int[]? LastCaptureRect { get; set; }
     public bool EditorMaximized { get; set; }
 
     /// <summary>Matte for monitor-layout gaps as 0xAARRGGBB.</summary>
@@ -37,14 +39,15 @@ public sealed class Preferences
         _ => 0x00000000u,
     };
 
-    public string Extension => ImageFormat == "jpg" ? "jpg" : "png";
+    /// <summary>Canonical file extension for <see cref="ImageFormat"/> (aliases already folded).</summary>
+    public string Extension => ImageFormats.Normalize(ImageFormat) ?? ImageFormats.Default;
 
     /// <summary>Clamp every field to a legal value. Never throws.</summary>
     public Preferences Sanitize()
     {
         SchemaVersion = CurrentSchema;
         OutputFolder ??= "";
-        ImageFormat = ImageFormat is "png" or "jpg" ? ImageFormat : "png";
+        ImageFormat = ImageFormats.Normalize(ImageFormat) ?? ImageFormats.Default;
         if (!HotkeySpec.TryParse(HotkeyMenu, out _)) HotkeyMenu = "Win+Shift+X";
         if (!HotkeySpec.TryParse(HotkeyFullScreen, out _)) HotkeyFullScreen = "Win+Shift+F";
         if (!HotkeySpec.TryParse(HotkeyActiveWindow, out _)) HotkeyActiveWindow = "Win+Shift+W";
@@ -59,6 +62,7 @@ public sealed class Preferences
         DimmerOpacity = double.IsFinite(DimmerOpacity) ? Math.Clamp(DimmerOpacity, 0.2, 0.9) : 0.47;
         MatteColor = MatteColor is "Transparent" or "Black" or "White" ? MatteColor : "Transparent";
         if (EditorBounds is { Length: not 4 }) EditorBounds = null;
+        if (LastCaptureRect is not { Length: 4 } r || r[2] is < 1 or > 32767 || r[3] is < 1 or > 32767) LastCaptureRect = null;
         return this;
     }
 }
