@@ -109,6 +109,9 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.19.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- `AreaMask` bounds and masking are self-tested. The Region picker's A and Backspace keys, the extra overlay outlines and the dim holes are Windows-layer code that has never run on hardware. Multi-area works within one capture; there is no scrolling or freehand variant, and a delay countdown re-resolves only the single-area case.
+
 ## v0.18.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - `ImageCut` strip removal and the drag-to-band decision are self-tested. The tool's drag feedback and the swap-in through `TransformBase` are unverified on hardware. One strip per drag; no zigzag or torn join along the seam.
 

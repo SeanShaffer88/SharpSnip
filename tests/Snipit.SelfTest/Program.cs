@@ -1099,5 +1099,34 @@ Console.WriteLine("ImageCut");
     Check(ImageCut.Plan(0, 150, 200, 20, 200, 100) is null, "cut plan: a drag fully outside the image cuts nothing");
 }
 
+Console.WriteLine("AreaMask");
+{
+    var a1 = new RectPx(10, 10, 4, 4); var a2 = new RectPx(30, 20, 5, 5);
+    Check(AreaMask.Bounds(new[] { a1, a2 }) == new RectPx(10, 10, 25, 15), "areas: bounds hold every area");
+    Check(AreaMask.Bounds(Array.Empty<RectPx>()).IsEmpty && AreaMask.Bounds(new[] { RectPx.Empty, a1 }) == a1, "areas: empty list and empty areas are ignored");
+    var frame = AreaMask.Bounds(new[] { a1, a2 });
+    int fw = frame.Width, fh = frame.Height;
+    var fp = new byte[fw * fh * 4];
+    for (int i = 0; i < fp.Length; i += 4) { fp[i] = 9; fp[i + 1] = 9; fp[i + 2] = 9; fp[i + 3] = 255; }
+    AreaMask.ApplyAlpha(fp, fw, fh, new[] { a1, a2 }, frame);
+    int FA(int vx, int vy) => fp[((vy - frame.Y) * fw + (vx - frame.X)) * 4 + 3];
+    Check(FA(10, 10) == 255 && FA(13, 13) == 255 && FA(30, 20) == 255 && FA(34, 24) == 255, "areas: pixels inside an area are kept");
+    Check(FA(14, 10) == 0 && FA(20, 15) == 0 && FA(29, 20) == 0 && FA(35 - 1, 25 - 1 + 0) == 255, "areas: pixels between areas and just outside edges go transparent");
+    int kept = 0; for (int i = 3; i < fp.Length; i += 4) if (fp[i] == 255) kept++;
+    Check(kept == 16 + 25, "areas: exactly the area pixels are kept");
+    bool clear = true; for (int i = 0; i < fp.Length; i += 4) if (fp[i + 3] == 0 && (fp[i] | fp[i + 1] | fp[i + 2]) != 0) clear = false;
+    Check(clear, "areas: cut pixels are fully transparent black");
+    var ov = new byte[8 * 8 * 4]; for (int i = 3; i < ov.Length; i += 4) ov[i] = 255;
+    AreaMask.ApplyAlpha(ov, 8, 8, new[] { new RectPx(0, 0, 5, 5), new RectPx(3, 3, 5, 5) }, new RectPx(0, 0, 8, 8));
+    int okp = 0; for (int i = 3; i < ov.Length; i += 4) if (ov[i] == 255) okp++;
+    Check(okp == 25 + 25 - 4, "areas: overlapping areas merge without double counting");
+    var off = new byte[4 * 4 * 4]; for (int i = 3; i < off.Length; i += 4) off[i] = 255;
+    AreaMask.ApplyAlpha(off, 4, 4, new[] { new RectPx(100, 100, 5, 5), new RectPx(-2, -2, 4, 4) }, new RectPx(0, 0, 4, 4));
+    int okq = 0; for (int i = 3; i < off.Length; i += 4) if (off[i] == 255) okq++;
+    Check(okq == 4, "areas: areas off the frame are ignored and partly-off areas are clipped");
+    bool shortBufThrew = false; try { AreaMask.ApplyAlpha(new byte[4], 2, 2, new[] { a1 }, new RectPx(0, 0, 2, 2)); } catch (ArgumentException) { shortBufThrew = true; }
+    Check(shortBufThrew, "areas: a short buffer is refused");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

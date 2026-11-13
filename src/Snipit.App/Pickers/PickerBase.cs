@@ -7,7 +7,8 @@ internal sealed record CaptureMeta(string Mode, string? App = null, string? Elem
 
 /// <summary>A confirmed selection. <see cref="Resolve"/> re-computes the rect after a countdown (display may change).</summary>
 internal sealed record PickResult(RectPx Rect, CaptureMeta Meta, Func<IReadOnlyList<MonitorInfo>, RectPx?>? Resolve = null,
-                                  IReadOnlyList<(int X, int Y)>? Polygon = null);
+                                  IReadOnlyList<(int X, int Y)>? Polygon = null,
+                                  IReadOnlyList<RectPx>? Areas = null);
 
 internal enum PickKind { Cancel, Switch, Picked }
 

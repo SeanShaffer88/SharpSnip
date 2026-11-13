@@ -137,6 +137,10 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
 - [ ] Edit a workflow step in `settings.json` with Notepad, start Snipit: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
 
+## v0.19.0 manual rows (deferred by owner)
+- Region tool: drag an area, press A, drag a second area elsewhere, press Enter. The result is one PNG covering both, transparent between them. The first area stays undimmed and outlined while you draw the second.
+- Backspace removes the last area; with nothing being drawn it removes the previous added area. A lone area with Enter captures normally.
+
 ## v0.18.0 manual rows (deferred by owner)
 - Editor → Cut out, drag a wide strip across the middle of a capture: the strip goes, the halves join, the image is shorter. Undo restores.
 - Drag a tall strip: columns go instead. Drag over the whole image: nothing happens.

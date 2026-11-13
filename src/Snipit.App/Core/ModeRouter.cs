@@ -188,6 +188,7 @@ internal sealed class ModeRouter
         {
             cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
             if (result.Polygon is { } polygon) cap = MaskOutside(cap, polygon);
+            else if (result.Areas is { Count: > 1 } areas) cap = MaskAreas(cap, areas);
         }
         RememberRect(rect);
         // Captures never open the editor (owner direction, 2026-11-13): clipboard
@@ -326,6 +327,21 @@ internal sealed class ModeRouter
         var px = new byte[stride * h];
         src.CopyPixels(px, stride, 0);
         PolygonMask.ApplyAlpha(px, w, h, polygon, cap.Rect);
+        var bmp = System.Windows.Media.Imaging.BitmapSource.Create(w, h, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, px, stride);
+        bmp.Freeze();
+        return cap with { Image = bmp };
+    }
+
+    /// <summary>Multi-area capture: pixels outside every added area become transparent.</summary>
+    private static CaptureResult MaskAreas(CaptureResult cap, IReadOnlyList<RectPx> areas)
+    {
+        var src = cap.Image.Format == System.Windows.Media.PixelFormats.Bgra32
+            ? cap.Image
+            : new System.Windows.Media.Imaging.FormatConvertedBitmap(cap.Image, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+        int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
+        var px = new byte[stride * h];
+        src.CopyPixels(px, stride, 0);
+        AreaMask.ApplyAlpha(px, w, h, areas, cap.Rect);
         var bmp = System.Windows.Media.Imaging.BitmapSource.Create(w, h, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, px, stride);
         bmp.Freeze();
         return cap with { Image = bmp };

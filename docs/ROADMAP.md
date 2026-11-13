@@ -25,7 +25,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Print Screen key replaces Snipping Tool | ✅ v0.6.0 — Settings option; prior Windows switch value + old menu hotkey recorded and restored on untick / `--clean`; **on by default + self-applying at startup** — v0.6.1 |
 | Settings window in TesselGUI revision 2 | ✅ v0.6.1 — GitHub-scheme tokens, themed inputs/buttons/combos/checkboxes; OS title bar unthemed |
 | Snipping-Tool-style mode bar (top-of-screen tab, icon buttons) | ✅ v0.6.0 — design A picked by SEAN 2026-11-13 from rendered mockups; replaces the text HUD menu, all keys unchanged |
-| Multiple-area capture (several regions, one action) | 🔜 |
+| Multiple-area capture (several regions, one action) | ✅ v0.19 — Region tool: A adds an area, Enter combines them into one transparent-gapped image |
 | Freehand and polygon capture | 🔜 (mask drawn into transparent PNG) |
 | Scrolling capture (web pages, documents, wide tables) | ✅ v0.5.0 — UIA ScrollPattern first, wheel-and-stitch fallback |
 | Windows.Graphics.Capture backend (DRM-aware, HDR) | ✅ unreleased — WGC is now the primary stills backend with automatic GDI fallback; runtime field check still owed |

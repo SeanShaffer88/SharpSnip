@@ -24,6 +24,8 @@ internal sealed class OverlayWindow : Window
     private readonly Canvas _canvas = new() { IsHitTestVisible = false };
     private readonly System.Windows.Shapes.Path _dim = new();
     private readonly Rectangle _highlight = new() { Visibility = Visibility.Collapsed };
+    private IReadOnlyList<RectPx> _areas = Array.Empty<RectPx>();
+    private readonly List<Rectangle> _areaRects = new();
     private readonly Rectangle _outline = new() { Visibility = Visibility.Collapsed };
     private readonly List<Rectangle> _handles = new();
     private readonly Border _hint, _hud, _chip, _sizeTag, _loupe;
@@ -173,6 +175,7 @@ internal sealed class OverlayWindow : Window
     // ---- state setters -------------------------------------------------------------------------
 
     public void SetDim(bool dimmed, RectPx? hole) { _dimmed = dimmed; _hole = hole; Render(); }
+    public void SetAreas(IReadOnlyList<RectPx> areas) { _areas = areas; Render(); }
     public void SetHighlight(RectPx? r) { _highlightRect = r; Render(); }
     public void SetOutline(bool on) { _outlineOn = on; Render(); }
     public void SetHint(string? text) { _hintMsg = text; Render(); AnnounceHint(); }
@@ -343,6 +346,11 @@ internal sealed class OverlayWindow : Window
                 var inter = hole.Intersect(b);
                 if (!inter.IsEmpty) g = new CombinedGeometry(GeometryCombineMode.Exclude, g, new RectangleGeometry(Local(inter)));
             }
+            foreach (var a in _areas)
+            {
+                var ai = a.Intersect(b);
+                if (!ai.IsEmpty) g = new CombinedGeometry(GeometryCombineMode.Exclude, g, new RectangleGeometry(Local(ai)));
+            }
             _dim.Data = g;
             _dim.Visibility = Visibility.Visible;
         }
@@ -358,6 +366,27 @@ internal sealed class OverlayWindow : Window
             _highlight.Visibility = Visibility.Visible;
         }
         else _highlight.Visibility = Visibility.Collapsed;
+
+        // areas already added (multi-area capture)
+        while (_areaRects.Count < _areas.Count)
+        {
+            var ar = new Rectangle { Stroke = _highlight.Stroke, Fill = Brushes.Transparent, Visibility = Visibility.Collapsed };
+            _areaRects.Add(ar);
+            _canvas.Children.Insert(_canvas.Children.IndexOf(_highlight), ar);
+        }
+        for (int i = 0; i < _areaRects.Count; i++)
+        {
+            var ar = _areaRects[i];
+            if (i < _areas.Count && _areas[i].IntersectsWith(b))
+            {
+                var la = Local(_areas[i]);
+                ar.StrokeThickness = thick;
+                ar.Width = Math.Max(la.Width, 1); ar.Height = Math.Max(la.Height, 1);
+                Canvas.SetLeft(ar, la.X); Canvas.SetTop(ar, la.Y);
+                ar.Visibility = Visibility.Visible;
+            }
+            else ar.Visibility = Visibility.Collapsed;
+        }
 
         // full-monitor outline (full-screen picker)
         if (_outlineOn)
