@@ -54,13 +54,26 @@ public static class WorkflowPlan
                 if (arg is not ("Border" or "Grayscale")) return false; // a real, non-empty effect, named exactly
                 break;
             case "format":
-                if (ImageFormats.Normalize(arg) is null) return false;
-                arg = ImageFormats.Normalize(arg)!;
+                if (ImageFormats.Normalize(arg) is { } img) arg = img;
+                else if (FfmpegPlan.Find(arg) is { } preset) arg = preset.Name; // a recording conversion, e.g. format: webm
+                else return false;
                 break;
         }
         step = new WorkflowStep(kind, arg);
         return true;
     }
+
+    /// <summary>True when a format step names an FFmpeg preset (a recording conversion) rather than a still-image format.</summary>
+    public static bool IsFfmpegFormat(WorkflowStep step) =>
+        step.Kind == "format" && ImageFormats.Normalize(step.Arg) is null && FfmpegPlan.Find(step.Arg) is not null;
+
+    /// <summary>Extensions treated as recordings for workflow routing: the MP4/GIF recordings and FFmpeg export products.</summary>
+    public static bool IsRecordingFile(string? path) =>
+        path is not null &&
+        (path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+         path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+         path.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase) ||
+         path.EndsWith(".webm", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The canonical stored line for a parsed step.</summary>
     public static string FormatStep(WorkflowStep step) => step.Arg.Length == 0 ? step.Kind + ":" : $"{step.Kind}: {step.Arg}";

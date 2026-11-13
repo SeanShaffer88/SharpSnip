@@ -20,7 +20,8 @@ public sealed class Preferences
     public int IntervalSeconds { get; set; } = 5;
     public string FullScreenTarget { get; set; } = "CurrentMonitor";
     public int DefaultDelaySeconds { get; set; }
-    public bool OpenEditorAfterCapture { get; set; } = true;
+    /// <summary>Off by default (owner direction, 2026-11-13): a capture goes to the clipboard and a file; the editor opens only when the user ticks this in Settings.</summary>
+    public bool OpenEditorAfterCapture { get; set; }
     public bool ShowToasts { get; set; } = true;
     public double DimmerOpacity { get; set; } = 0.47;
     public bool HighContrastHighlight { get; set; }
