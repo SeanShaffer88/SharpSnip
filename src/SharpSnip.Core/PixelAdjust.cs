@@ -21,6 +21,22 @@ public static class PixelAdjust
         }
     }
 
+    /// <summary>Paints a solid frame of the given thickness (clamped to half the smaller side) inside the image edges.</summary>
+    public static void Border(byte[] bgra, int width, int height, int thickness, byte r, byte g, byte b)
+    {
+        ValidateFrame(bgra, width, height);
+        int t = Math.Clamp(thickness, 0, Math.Min(width, height) / 2);
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (x >= t && x < width - t && y >= t && y < height - t) continue;
+                int i = (y * width + x) * 4;
+                bgra[i] = b; bgra[i + 1] = g; bgra[i + 2] = r; bgra[i + 3] = 255;
+            }
+        }
+    }
+
     /// <summary>Rec.601 luma: grey = (299 R + 587 G + 114 B) / 1000, rounded.</summary>
     public static void Grayscale(byte[] bgra)
     {

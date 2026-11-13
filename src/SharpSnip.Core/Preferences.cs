@@ -32,6 +32,30 @@ public sealed class Preferences
     public bool EditorMaximized { get; set; }
     /// <summary>True when SharpSnip has taken the Print Screen key over from Snipping Tool. On by default: replacing Snipping Tool is the point. A stored false (the user unticked it) is respected.</summary>
     public bool PrintScreenTakeover { get; set; } = true;
+    /// <summary>Screen-recording frame rate (RecordingPlan bounds).</summary>
+    public int RecordingFps { get; set; } = RecordingPlan.DefaultFps;
+    /// <summary>Record the machine's own sound (WASAPI loopback) with recordings.</summary>
+    public bool RecordSystemAudio { get; set; } = true;
+    /// <summary>Record the default microphone with recordings (off by default — a mic is private by nature).</summary>
+    public bool RecordMic { get; set; }
+    /// <summary>Recording quality preset name (RecordingQuality).</summary>
+    public string RecordingQualityName { get; set; } = RecordingQuality.Default;
+    /// <summary>Overlay the webcam on recordings, picture-in-picture.</summary>
+    public bool RecordWebcam { get; set; }
+    /// <summary>Webcam overlay corner (PipCorner name).</summary>
+    public string WebcamCorner { get; set; } = "BottomRight";
+    /// <summary>Stop a recording after this many minutes (0 = no limit).</summary>
+    public int RecordMaxMinutes { get; set; }
+    /// <summary>Stop a recording when the file reaches this many MB (0 = no limit).</summary>
+    public int RecordMaxMb { get; set; }
+    /// <summary>Effect applied automatically when a capture opens in the editor (AutoEffects names).</summary>
+    public string AutoEffect { get; set; } = AutoEffects.Default;
+    /// <summary>One-shot capture of the preset region. Empty = no hotkey.</summary>
+    public string HotkeyPreset { get; set; } = "";
+    /// <summary>Preset capture rectangle x,y,width,height in physical pixels; null = not set.</summary>
+    public int[]? PresetRect { get; set; }
+    /// <summary>External image editor executable for the editor's "External editor…" button. Empty = none.</summary>
+    public string ExternalEditorPath { get; set; } = "";
     /// <summary>The Windows "Print Screen opens Snipping Tool" value recorded when takeover was switched on: -1 = the value did not exist, 0/1 = its DWORD. Written back when takeover is switched off.</summary>
     public int PrintScreenSnippingPrior { get; set; } = -1;
     /// <summary>Menu hotkey from before takeover, restored when takeover is switched off; empty = none recorded.</summary>
@@ -72,6 +96,15 @@ public sealed class Preferences
         if (EditorBounds is { Length: not 4 }) EditorBounds = null;
         if (LastCaptureRect is not { Length: 4 } r || r[2] is < 1 or > 32767 || r[3] is < 1 or > 32767) LastCaptureRect = null;
         PrintScreenSnippingPrior = Math.Clamp(PrintScreenSnippingPrior, -1, 1);
+        RecordingFps = RecordingPlan.ClampFps(RecordingFps);
+        RecordingQualityName = RecordingQuality.Sanitize(RecordingQualityName);
+        WebcamCorner = PipLayout.ParseCorner(WebcamCorner).ToString();
+        RecordMaxMinutes = Math.Clamp(RecordMaxMinutes, 0, 1440);
+        RecordMaxMb = Math.Clamp(RecordMaxMb, 0, 102400);
+        AutoEffect = AutoEffects.Sanitize(AutoEffect);
+        HotkeyPreset ??= "";
+        ExternalEditorPath = (ExternalEditorPath ?? "").Trim();
+        if (PresetRect is not { Length: 4 } pr || pr[2] is < 1 or > 32767 || pr[3] is < 1 or > 32767) PresetRect = null;
         HotkeyMenuBeforeTakeover ??= "";
         if (HotkeyMenuBeforeTakeover.Length > 0 && !HotkeySpec.TryParse(HotkeyMenuBeforeTakeover, out _)) HotkeyMenuBeforeTakeover = "";
         return this;
