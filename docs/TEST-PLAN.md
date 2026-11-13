@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-294 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking and the loupe colour readout format. Last result: **294 passed, 0 failed**.
+333 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion and the FFmpeg export plans. Last result: **333 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
@@ -104,3 +104,15 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] `--interval 2 --count 3`: three files written, exit 0.
 - [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
+
+## Unreleased manual rows (v0.8.0)
+- [ ] Settings: create a workflow (copy + format + run steps), assign it under "After capture", take a capture — every step runs in order; a failing step toasts its reason and stops the chain.
+- [ ] Manage workflows window: rename/reassign a workflow, delete one that is assigned — the assignment clears instead of dangling.
+- [ ] `--run-workflow NAME --file PATH`: applies the chain headlessly, exit 0; a failing step exits 3 with the reason.
+- [ ] Interval capture with the APNG format: `animation.apng` animates in a browser; frame timing matches the interval.
+- [ ] A still saved as .apng opens as an image in a browser.
+- [ ] Recorder "Output size 720p" on a 1440p+ monitor: the MP4's stored dimensions are ≤1280×720 (even numbers); Original keeps full size.
+- [ ] Portable build contains `ffmpeg\ffmpeg.exe` + DLLs + LICENSE.txt and THIRD-PARTY-NOTICES.md at the root.
+- [ ] Tray "Export with FFmpeg…": WebM and AV1 exports of a test recording play in a browser; MKV remux is near-instant; MP3 extract has audio only; a failed export shows FFmpeg's log tail.
+- [ ] `--export webm --file rec.mp4`: prints the new path, exit 0; `--export bogus` exits 2 with the preset list.
+- [ ] Settings FFmpeg override pointing at a different ffmpeg.exe: an export uses it (log shows the run); clearing it returns to the bundle.
