@@ -183,3 +183,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.22.0 manual rows (deferred by owner)
 - [ ] Editor Spotlight (S): drag an area; outside dims, inside stays bright; Undo removes; saved/copied image includes the dimming.
+
+## v0.23.0 manual rows (deferred by owner)
+- [ ] Editor Magnify (M): drag a circle over small text; it shows larger, centred on the same spot; near an image edge it still shows image (no blank); Undo removes; saved image includes it.

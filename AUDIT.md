@@ -109,8 +109,11 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.23.0 additions (compile-verified on Linux; not run on Windows)
+- Core `LoupeView.Zoom`: **Verified** by 5 self-test checks. Editor Magnify tool (`ImageBrush` with a relative viewbox): **Unverified**. Zoom fixed at 2x. Assumes the capture bitmap maps 1:1 to layer units (96 dpi), as the rest of the editor does.
+
 ## v0.22.0 additions (compile-verified on Linux; not run on Windows)
-- Editor Spotlight tool (`CombinedGeometry` Exclude over the layer, 55% black). UI only, no Core change: **Unverified**. Dim strength is fixed. Window MinWidth raised to 960 so the 11 tool cells fit.
+- Editor Spotlight tool (`CombinedGeometry` Exclude over the layer, 55% black). UI only, no Core change: **Unverified**. Dim strength is fixed. Window MinWidth raised to 960 (1020 from v0.23) so the tool cells fit.
 
 ## v0.21.0 additions (compile-verified on Linux; not run on Windows)
 - Core `Saturation` and `Sharpen`: **Verified** by 9 self-test checks (identity, grey, clamp, flat/edge, alpha, bad input). Editor menu items: Unverified (not run). Sharpen strength (0.8) and colour step (±30%) are fixed guesses, not tuned by eye.

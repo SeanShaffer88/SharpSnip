@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.23.0] - 2026-11-13
+
+### Added
+- **Magnify tool** in the editor (key M): drag a circle over a detail and it is shown 2x larger inside the circle, ringed in the chosen colour. An annotation: Undo removes it. It magnifies the image underneath, not other annotations.
+- Core: `LoupeView.Zoom` (source window, kept inside the image). 5 new self-test checks (477 total).
+
 ## [0.22.0] - 2026-11-13
 
 ### Added
