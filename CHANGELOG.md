@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.9.1] - 2026-11-13
+
+### Fixed
+- **Choosing a tool in the mode bar could still take the screenshot** (owner field report on v0.9.0; the v0.8.1 fix probed the physical button state at picker takeover, which races the queued release event — the probe could run after the hardware release but before that release was delivered). Tool switches from the bar now carry their mouse origin through the router, and a Core `ClickGate` decides purely from the event stream: the release that ends the arming click is always swallowed, and capture requires a fresh, complete click of the user's own — the Snipping Tool contract. Keyboard tool switches are unaffected.
+
 ## [0.9.0] - 2026-11-13
 
 ### Changed

@@ -4,7 +4,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.9.0.** Compiles cleanly and the pure-logic layer is tested (339 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.9.0: captures go straight to the clipboard and file by default (the editor opens after a capture only when that Settings option is ticked), and workflow `format:` steps convert recordings through the bundled FFmpeg. 0.8.x brought local workflows, animated APNG, recording output sizes and the FFmpeg export, plus the mode-bar fix (0.8.1, owner field report). The 0.7.0 recording suite and later additions have not yet had their full field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.9.1.** Compiles cleanly and the pure-logic layer is tested (343 checks). The owner field-ran the v0.5.0 release build on 2026-11-13 — everything works. New in 0.9.0: captures go straight to the clipboard and file by default (the editor opens after a capture only when that Settings option is ticked), and workflow `format:` steps convert recordings through the bundled FFmpeg. 0.8.x brought local workflows, animated APNG, recording output sizes and the FFmpeg export, plus the mode-bar tool-selection fix (0.8.1, replaced by a race-free mechanism in 0.9.1 after a further owner field report). The 0.7.0 recording suite and later additions have not yet had their full field pass; [docs/TEST-PLAN.md](docs/TEST-PLAN.md) lists one manual check per feature. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
