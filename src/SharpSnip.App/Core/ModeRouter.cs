@@ -15,13 +15,21 @@ internal sealed class ModeRouter
     public ModeRouter(Preferences prefs, UiaWorker uia, Action<string, string, string?> notify, Action persistPrefs)
     {
         Prefs = prefs; _uia = uia; _notify = notify; _persistPrefs = persistPrefs;
+        if (prefs.LastCaptureRect is { Length: 4 } r) LastRect = new RectPx(r[0], r[1], r[2], r[3]);
     }
 
     public Preferences Prefs { get; set; }
     public bool IsBusy => _sm.State != AppState.Idle;
 
-    /// <summary>Rectangle of the most recent capture (physical px), for "repeat last". Session only.</summary>
+    /// <summary>Rectangle of the most recent capture (physical px), for "repeat last". Persisted, so it survives a restart; use re-validates it against the current desktop.</summary>
     public RectPx? LastRect { get; private set; }
+
+    private void RememberRect(RectPx rect)
+    {
+        LastRect = rect;
+        Prefs.LastCaptureRect = new[] { rect.X, rect.Y, rect.Width, rect.Height };
+        _persistPrefs();
+    }
 
     // ---- full session (hotkey 1 / tray) --------------------------------------------------------
 
@@ -118,7 +126,7 @@ internal sealed class ModeRouter
 
         await overlays.HideForCaptureAsync();
         var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
-        LastRect = rect;
+        RememberRect(rect);
         ClipboardWriter.SetImage(cap.Image);
         if (cap.Megapixels > 100) _notify("SharpSnip", $"Large capture ({cap.Megapixels:F0} MP). Saving may be slow.", null);
 
@@ -227,7 +235,7 @@ internal sealed class ModeRouter
             if (rect.IsEmpty) { _notify("SharpSnip", "The capture target is off screen.", null); return; }
 
             var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
-            LastRect = rect;
+            RememberRect(rect);
             ClipboardWriter.SetImage(cap.Image);       // clipboard first: the latency target is hotkey → clipboard
 
             _sm.TryTransition(AppState.Exporting);

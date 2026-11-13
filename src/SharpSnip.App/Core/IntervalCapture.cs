@@ -7,11 +7,17 @@ internal static class IntervalCapture
 {
     public static string CaptureOnce(Preferences prefs, FullScreenTarget target, string folder, int index)
     {
+        var cap = CaptureBitmap(prefs, target);
+        return Exporter.Save(cap.Image, prefs, Path.Combine(folder, IntervalPlan.FrameName(index, prefs.Extension)));
+    }
+
+    /// <summary>Capture one frame without saving it (the animated-GIF sink writes frames itself).</summary>
+    public static CaptureResult CaptureBitmap(Preferences prefs, FullScreenTarget target)
+    {
         var monitors = MonitorEnumerator.Refresh();
         RectPx rect = VirtualDesktop.ResolveTarget(target, monitors, 0, 0)
                       ?? (monitors.FirstOrDefault(m => m.IsPrimary) ?? monitors[0]).Bounds; // monitor vanished → primary
-        var cap = CaptureEngine.Capture(rect, monitors, prefs.MatteArgb);
-        return Exporter.Save(cap.Image, prefs, Path.Combine(folder, IntervalPlan.FrameName(index, prefs.Extension)));
+        return CaptureEngine.Capture(rect, monitors, prefs.MatteArgb);
     }
 
     /// <summary>"Current monitor" is fixed once, when the run starts.</summary>

@@ -151,6 +151,9 @@ internal sealed class AppHost : IDisposable
         Notify("Interval capture started", $"Every {seconds} s into {folder}. Stop it from the tray menu.", folder);
 
         int shots = 0, failures = 0;
+        // GIF runs become ONE animated file (looping, frame delay = the interval), not stills.
+        // Disposed explicitly in finally, before the completion notice, so the file is final by then.
+        var gif = GifPlan.IsAnimatedFormat(prefs.ImageFormat) ? new AnimatedGifSink(folder) : null;
         try
         {
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(seconds));
@@ -158,7 +161,17 @@ internal sealed class AppHost : IDisposable
             {
                 if (!_router.IsBusy)   // never fight an interactive capture; that tick is skipped
                 {
-                    try { IntervalCapture.CaptureOnce(prefs, target, folder, shots + 1); shots++; failures = 0; }
+                    try
+                    {
+                        if (gif is not null)
+                        {
+                            var cap = IntervalCapture.CaptureBitmap(prefs, target);
+                            if (!gif.Add(cap, GifPlan.DelayHundredths(seconds)))
+                                throw new InvalidOperationException("Frame size changed during the run (display layout changed).");
+                        }
+                        else IntervalCapture.CaptureOnce(prefs, target, folder, shots + 1);
+                        shots++; failures = 0;
+                    }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
                         Log.Error("Interval frame failed", ex);
@@ -172,10 +185,13 @@ internal sealed class AppHost : IDisposable
         catch (OperationCanceledException) { /* user stopped it */ }
         finally
         {
+            gif?.Dispose();
             _interval.Dispose();
             _interval = null;
             if (_intervalItem is not null) _intervalItem.Text = "Start interval capture";
-            Notify("Interval capture finished", $"{shots} frame(s) in {folder}", folder);
+            Notify("Interval capture finished",
+                   gif is not null && gif.Frames > 0 ? $"{shots} frame(s) animated in {gif.FinalPath}" : $"{shots} frame(s) in {folder}",
+                   gif is not null && gif.Frames > 0 ? gif.FinalPath : folder);
         }
     }
 

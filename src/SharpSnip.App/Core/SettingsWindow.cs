@@ -24,13 +24,13 @@ internal sealed class SettingsWindow : Window
         SizeToContent = SizeToContent.WidthAndHeight; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-        _format.ItemsSource = new[] { "png", "jpg" };
+        _format.ItemsSource = ImageFormats.All;
         _target.ItemsSource = new[] { "Current monitor", "All monitors" };
         _delay.ItemsSource = DelayCycle.Steps;
         _matte.ItemsSource = new[] { "Transparent", "Black", "White" };
 
         _folder.Text = prefs.OutputFolder; _folder.ToolTip = "Where captures are saved. Empty = Pictures\\SharpSnip.";
-        _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. JPEG drops transparency.";
+        _format.SelectedItem = prefs.ImageFormat; _format.ToolTip = "File format for saved captures. PNG and TIFF keep transparency; JPEG, BMP, GIF and PDF drop it. A still GIF is a single frame; interval captures in GIF become one animated file. PDF holds one image, losslessly.";
         _hkMenu.Text = prefs.HotkeyMenu; _hkMenu.ToolTip = "Opens the mode menu. Example: Win+Shift+X. Needs at least one modifier.";
         _hkFull.Text = prefs.HotkeyFullScreen; _hkFull.ToolTip = "One-shot full-screen capture straight to clipboard. Print Screen alone is allowed.";
         _hkWin.Text = prefs.HotkeyActiveWindow; _hkWin.ToolTip = "Captures the foreground window straight to clipboard and file.";
@@ -91,6 +91,7 @@ internal sealed class SettingsWindow : Window
             OpenEditorAfterCapture = _editor.IsChecked == true, ShowToasts = _toasts.IsChecked == true,
             HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
             EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
+            LastCaptureRect = _prefs.LastCaptureRect,
         };
         // Reject bad or duplicate hotkeys with a message instead of silently falling back to defaults.
         if (!int.TryParse(_fixW.Text, out int fw) || !int.TryParse(_fixH.Text, out int fh)

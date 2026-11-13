@@ -1,4 +1,5 @@
 using System.Globalization;
+using SharpSnip.Core;
 
 namespace SharpSnip;
 
@@ -13,6 +14,19 @@ internal static class Log
     public static void Warn(string msg) => Write("WARN", msg);
     public static void Error(string msg, Exception? ex = null) => Write("ERROR", ex is null ? msg : $"{msg}: {ex}");
 
+    private static bool _pruned;
+
+    /// <summary>Delete daily logs past the retention window. Runs once per process, on first write.</summary>
+    private static void PruneOnce()
+    {
+        if (_pruned) return;
+        _pruned = true;
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        foreach (string file in Directory.EnumerateFiles(AppPaths.LogDir))
+            if (LogRetention.IsExpired(Path.GetFileName(file), today))
+                try { File.Delete(file); } catch (IOException) { /* in use or gone: next run retries */ }
+    }
+
     private static void Write(string level, string msg)
     {
         try
@@ -20,6 +34,7 @@ internal static class Log
             lock (Gate)
             {
                 Directory.CreateDirectory(AppPaths.LogDir);
+                PruneOnce();
                 string file = Path.Combine(AppPaths.LogDir, $"sharpsnip-{DateTime.Now:yyyyMMdd}.log");
                 File.AppendAllText(file, $"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)} [{level}] {msg}{Environment.NewLine}");
             }

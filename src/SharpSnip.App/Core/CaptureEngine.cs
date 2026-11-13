@@ -53,13 +53,11 @@ internal static class CaptureEngine
                     throw new InvalidOperationException($"BitBlt failed for monitor {p.Monitor.Index}.");
             }
 
-            var raw = new int[rect.Width * rect.Height];
-            Marshal.Copy(bits, raw, 0, raw.Length);
-            uint[] px = MemoryMarshal.Cast<int, uint>(raw).ToArray();
-            px = ApplyAlpha(px, rect, places, gaps, matteArgb);
+            // One buffer end to end: DIB bytes -> alpha/matte fix-up (Core, byte-tested) -> bitmap.
+            var pixels = new byte[rect.Width * rect.Height * 4];
+            Marshal.Copy(bits, pixels, 0, pixels.Length);
+            CapturePixels.ApplyAlpha(pixels, rect.Width, places, gaps, matteArgb);
 
-            var pixels = new byte[px.Length * 4];
-            Buffer.BlockCopy(px, 0, pixels, 0, pixels.Length);
             var bmp = BitmapSource.Create(rect.Width, rect.Height, 96, 96, PixelFormats.Bgra32, null, pixels, rect.Width * 4);
             bmp.Freeze();
             return new CaptureResult(bmp, rect, gaps, rect.Area / 1_000_000.0, places.Count);
@@ -73,25 +71,4 @@ internal static class CaptureEngine
         }
     }
 
-    /// <summary>GDI leaves alpha at 0. Captured pixels become opaque; uncovered gap pixels become the matte.</summary>
-    private static uint[] ApplyAlpha(uint[] src, RectPx rect, IReadOnlyList<Placement> places, bool gaps, uint matte)
-    {
-        int w = rect.Width;
-        if (!gaps)
-        {
-            for (int i = 0; i < src.Length; i++) src[i] |= 0xFF000000u;
-            return src;
-        }
-        var dst = new uint[src.Length];
-        Array.Fill(dst, matte);
-        foreach (var p in places)
-        {
-            for (int row = 0; row < p.Source.Height; row++)
-            {
-                int start = (p.DestY + row) * w + p.DestX;
-                for (int col = 0; col < p.Source.Width; col++) dst[start + col] = src[start + col] | 0xFF000000u;
-            }
-        }
-        return dst;
-    }
 }
