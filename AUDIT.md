@@ -74,6 +74,14 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 | Tooltips on interactive controls | Met in editor and settings |
 | Remember window geometry on display change | Partial |
 
+## v0.5.0 additions (compile-verified on Linux only; not run on Windows)
+
+- Editor whole-image adjustments: `PixelAdjust` (invert, grayscale, brightness/contrast, flips, 90° rotation on raw BGRA buffers) is **Verified (logic)** — exact byte expectations including luma values, clamping, rotation provenance and argument validation. The editor wiring (`TransformBase`: flatten → BGRA convert → op → base swap through the shared `BaseEdit`, so Undo restores base + annotations) is compile-verified only. Brightness/contrast has no editor control yet.
+- Editor Redact: `Redactor` detectors (URL/email priority claiming, Luhn-validated cards, octet-validated IPv4, phone shapes, token shape = long + letters + digits) and span→word-box mapping are **Verified (logic)**, including the split-email case (OCR engines often break an address at the '@'; the detector tolerates one space either side). Boxes land in the editor as ordinary undoable annotations. The editor wiring is compile-verified only.
+- Editor Copy text (OCR): `OcrText` reading-order assembly is **Verified (logic)** (line grouping by median-height tolerance, ordering, blank filtering). The WinRT call site (`OcrService`: PNG hand-off to BitmapDecoder, OcrEngine from user profile languages) is compile-verified only; recognition quality is the OS engine's and varies with installed language packs.
+
+- Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
+
 ## v0.4.0 additions (compile-verified on Linux only; not run on Windows)
 - PDF export: `PdfWriter` is **Verified (logic)** — structure, xref offsets, stream length and Flate round-trip are self-tested, and a sample file was verified with Poppler (`pdfinfo`: title/page size; `pdfimages`: embedded image extracted pixel-exact; a `pdftoppm` page render resamples and is not pixel-exact on noise, which is a renderer artifact, not a file defect). The WPF BGR→RGB call site is compile-verified only.
 - CI workflow added (windows-latest, build + self-test) — **not yet live**: it takes effect on push, and workflow files on this account have previously needed a browser-side approval.

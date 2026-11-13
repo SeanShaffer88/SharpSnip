@@ -4,20 +4,21 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status: v0.4.0.** Compiles cleanly and the pure-logic layer is tested (176 checks), but it has **not yet been field-run on a real Windows machine**. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
+> **Status: v0.5.0.** Compiles cleanly and the pure-logic layer is tested (227 checks), but it has **not yet been field-run on a real Windows machine**. See [AUDIT.md](AUDIT.md) for exactly what is verified and what is not.
 
 ## Features (v0.1)
 
 | Mode | What it does |
 |---|---|
 | Element | UI Automation hit-test under the cursor. `Tab` next sibling, `PgUp`/`PgDn` parent/child, `Ctrl+Wheel` expand to container. Falls back to region when an app exposes no UIA. |
+| Scrolling | Pick a scrollable element (tray → Scrolling capture…, or `C` in the mode menu) and capture its full content as one tall image — UIA ScrollPattern when available, wheel-and-stitch otherwise. |
 | Region | Rubber band with 8 handles, live size read-out, magnifier, edge snapping to windows, move/resize after drawing. |
 | Window | Window under cursor, full frame or client area only (`C`). |
 | Full screen | One monitor, all monitors, or a chosen monitor (`1`..`9`). Mixed DPI and L-shaped layouts are stitched 1:1 in physical pixels. |
 | One-shot full screen | Dedicated hotkey, no UI: capture straight to clipboard and file. |
 | Active window / repeat last | Two more one-shot hotkeys: foreground window, or the previous rectangle again. |
 | Delay | 0 / 3 / 5 / 10 s countdown for menus and tooltips. `Esc` cancels. The countdown chip never appears in the image. |
-| Editor | Pen, highlighter, arrow, rectangle, ellipse, text, blur (pixelate), crop, undo/redo, copy, save, capture metadata panel. |
+| Editor | Pen, highlighter, arrow, rectangle, ellipse, text, blur (pixelate), crop, undo/redo, copy, save, capture metadata panel — plus Copy text (built-in Windows OCR), one-click Redact of emails, cards, IPs and key-shaped tokens, and whole-image invert, grayscale, flip and rotate. |
 
 Every capture is placed on the clipboard (PNG + bitmap) immediately.
 

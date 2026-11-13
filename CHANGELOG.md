@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
+### Added
+- Editor whole-image adjustments: Invert, Grayscale, Flip horizontal, Flip vertical and Rotate 90° buttons. Each applies to the flattened image and swaps it in as the new base (annotations baked in, exactly like Crop), and Undo restores the previous image. The pixel math lives in the tested pure-logic layer (`PixelAdjust`), which also carries a brightness/contrast operation whose editor control is still to come.
+- Editor "Redact": one click finds sensitive text in the capture — emails, URLs, payment cards (Luhn-validated, so random numbers are left alone), IPv4 addresses, phone numbers, and long letter+digit tokens shaped like API keys — and covers each with a black box annotation (undoable like any other edit). Detection and span-to-box mapping live in the tested pure-logic layer (`Redactor`), reusing the OCR line grouping; it runs fully offline.
+- Editor "Copy text": recognises the text in the capture with the OCR engine built into Windows (Windows.Media.Ocr, offline, no package) and copies it to the clipboard in reading order. Reading-order assembly (line grouping, ordering) lives in the tested pure-logic layer (`OcrText`); when no OCR language is installed the status line says so and how to add one.
+- Scrolling capture: pick a scrollable element (tray → Scrolling capture…, or [C] in the mode menu) and SharpSnip captures its full content as one tall image. Uses the element's UIA ScrollPattern when available (planned strip offsets, exact composition, original scroll position restored afterwards); otherwise falls back to synthetic wheel scrolling stitched by measured strip overlap, stopping at the end of content. Bounded at 40 strips / 32,767 px. Strip planning, composition and overlap detection live in the tested pure-logic layer (`ScrollStitch`).
+
 ## [0.4.0] - 2026-11-13
 
 ### Added
@@ -15,7 +23,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Changed
 - One existing self-test fixture used `gif` as an example of an unsupported format; it now uses `webp` (still unsupported — WPF has no WebP encoder).
-- Self-test: 176 checks.
+- Self-test: 210 checks.
 
 ### Fixed
 - "Repeat last" now survives a restart: the last capture rectangle is stored in settings (validated on load; re-checked against the current desktop before use, as before).
