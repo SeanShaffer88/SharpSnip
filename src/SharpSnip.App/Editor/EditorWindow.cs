@@ -193,6 +193,10 @@ internal sealed class EditorWindow : Window
                 int blur = Math.Clamp(Math.Min(w, h) / 40, 4, 24);
                 return ImageFrames.AddShadow(px, w, h, blur, blur / 2 + 2, blur / 2 + 2, 0.45);
             }));
+        Act("Torn", "Rip the edges of the whole image like torn paper (cut area becomes transparent; keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+            TransformBase("Torn edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Torn, EdgeSides.All, Math.Max(4, Math.Min(w, h) / 40), Environment.TickCount), w, h)));
+        Act("Wave", "Give the edges of the whole image a smooth wave (cut area becomes transparent; keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+            TransformBase("Wave edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Wave, EdgeSides.All, Math.Max(4, Math.Min(w, h) / 40), 0), w, h)));
         Act("Flip ↔", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
         Act("Flip ↕", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
         Act("Rotate", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));
