@@ -553,5 +553,41 @@ Console.WriteLine("PixelAdjust");
     Check(Throws(() => PixelAdjust.Invert(new byte[3])), "pixel ops: partial pixel rejected");
 }
 
+Console.WriteLine("PrintScreenPlan");
+{
+    Check(PrintScreenPlan.IsPrintScreen("PrintScreen") && PrintScreenPlan.IsPrintScreen("printscreen"), "prtsc plan: recognises Print Screen, any case");
+    Check(!PrintScreenPlan.IsPrintScreen("Ctrl+PrintScreen") && !PrintScreenPlan.IsPrintScreen("Win+Shift+X") && !PrintScreenPlan.IsPrintScreen(null), "prtsc plan: modified/other keys are not Print Screen");
+    var (menu, rem) = PrintScreenPlan.Enable("Win+Shift+X", "");
+    Check(menu == "PrintScreen" && rem == "Win+Shift+X", "prtsc plan: enable points menu at Print Screen and remembers the old key");
+    (menu, rem) = PrintScreenPlan.Enable("PrintScreen", "Win+Shift+X");
+    Check(menu == "PrintScreen" && rem == "Win+Shift+X", "prtsc plan: enable while already on Print Screen keeps the remembered key");
+    (menu, rem) = PrintScreenPlan.Enable("Win+Shift+Z", "Win+Shift+Q");
+    Check(rem == "Win+Shift+Q", "prtsc plan: re-enable never overwrites the original remembered key");
+    Check(PrintScreenPlan.Disable("PrintScreen", "Win+Shift+X") == "Win+Shift+X", "prtsc plan: disable restores the remembered key");
+    Check(PrintScreenPlan.Disable("PrintScreen", "") == "PrintScreen", "prtsc plan: disable with nothing remembered keeps the current key");
+    Check(PrintScreenPlan.Disable("Win+Shift+Z", "junk!!") == "Win+Shift+Z", "prtsc plan: disable ignores an invalid remembered key");
+    var sp = new Preferences { PrintScreenSnippingPrior = 7, HotkeyMenuBeforeTakeover = "junk!!" }.Sanitize();
+    Check(sp.PrintScreenSnippingPrior == 1 && sp.HotkeyMenuBeforeTakeover == "", "prefs sanitize: prior clamps to [-1,1], invalid remembered key dropped");
+    sp = new Preferences { PrintScreenSnippingPrior = -5, HotkeyMenuBeforeTakeover = "Win+Shift+X" }.Sanitize();
+    Check(sp.PrintScreenSnippingPrior == -1 && sp.HotkeyMenuBeforeTakeover == "Win+Shift+X", "prefs sanitize: -1 (value absent) and a valid remembered key survive");
+    Check(new Preferences().ShowTrayIcon && !new Preferences().PrintScreenTakeover, "prefs defaults: tray icon shown, takeover off");
+}
+
+Console.WriteLine("ModeBarLayout");
+{
+    Check(ModeBarLayout.BarWidth(6) == 6 + 6 * 76 + 13 + 46 + 6, "mode bar: width = padding + buttons + separator + close");
+    Check(ModeBarLayout.BarWidth(0) == 0, "mode bar: no buttons -> no bar");
+    var hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(0) + 38, 46, 6);
+    Check(hit is { Index: 0, IsClose: false }, "mode bar: first button centre hits button 0");
+    hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(5) + 75.9, 46, 6);
+    Check(hit is { Index: 5, IsClose: false }, "mode bar: last button's right edge still hits it");
+    Check(ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(6) + 6, 46, 6) is null, "mode bar: separator hits nothing");
+    hit = ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 23, 46, 6);
+    Check(hit is { IsClose: true }, "mode bar: close zone hits close");
+    Check(ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 46, 46, 6) is null, "mode bar: past close hits nothing");
+    Check(ModeBarLayout.HitTest(40, ModeBarLayout.BarHeight, 6) is null && ModeBarLayout.HitTest(40, -1, 6) is null, "mode bar: above/below hits nothing");
+    Check(ModeBarLayout.HitTest(3, 46, 6) is null, "mode bar: left padding hits nothing");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
