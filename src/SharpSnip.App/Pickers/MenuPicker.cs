@@ -1,3 +1,5 @@
+using System.Windows;
+using System.Windows.Threading;
 using SharpSnip.Core;
 
 namespace SharpSnip;
@@ -13,8 +15,9 @@ internal sealed class MenuPicker : PickerBase
     private int _x, _y;
     private int _hover = -2; // -2 = nothing, -1 = close, >= 0 = button index
     private MonitorInfo? _barMonitor;
-    private bool _dragging, _moved;
+    private bool _dragging, _saveQueued;
     private double _grab; // cursor offset from the bar's left edge when the drag began, in bar units
+    private double _savedCenter;
 
     public MenuPicker(PickerContext ctx) : base(ctx) { }
     public override PickMode Mode => PickMode.Menu;
@@ -34,6 +37,7 @@ internal sealed class MenuPicker : PickerBase
     {
         (_x, _y) = MonitorEnumerator.CursorPos();
         _barMonitor = VirtualDesktop.MonitorAt(Ctx.Monitors, _x, _y);
+        _savedCenter = Ctx.Prefs.ModeBarCenter;
         Ctx.Overlays.Dim(_ => true, null);
         Ctx.Overlays.Highlight(null);
         Ctx.Overlays.Adorn(null, false, null);
@@ -64,7 +68,7 @@ internal sealed class MenuPicker : PickerBase
             double s = dm.Scale, w = dm.Bounds.Width / s;
             double left = (x - dm.Bounds.X) / s - _grab;
             double c = ModeBarLayout.CenterFor(left, w, ModeBarLayout.BarWidth(Buttons.Count));
-            if (c != Ctx.Prefs.ModeBarCenter) { Ctx.Prefs.ModeBarCenter = c; _moved = true; ShowBar(); }
+            if (c != Ctx.Prefs.ModeBarCenter) { Ctx.Prefs.ModeBarCenter = c; ShowBar(); }
             return;
         }
         var hit = HitAt(x, y);
@@ -79,7 +83,7 @@ internal sealed class MenuPicker : PickerBase
         if (HitAt(x, y) is not { } hit) return true;
         if (hit.IsGrip && _barMonitor is { } gm)
         {
-            _dragging = true; _moved = false; _hover = -3;
+            _dragging = true; _hover = -3;
             _grab = (x - gm.Bounds.X) / gm.Scale - BarLeft(gm);
             ShowBar();
             return true;
@@ -100,15 +104,31 @@ internal sealed class MenuPicker : PickerBase
 
     protected override bool OnLeftUp(int x, int y)
     {
-        if (_dragging) { _dragging = false; SaveBarPlace(); }
+        if (!_dragging) return true;
+        _dragging = false;
+        if (!_saveQueued && Ctx.Prefs.ModeBarCenter != _savedCenter)
+        {
+            // Leave the native mouse callback before saving preferences to disk.
+            _saveQueued = true;
+            _ = Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                _saveQueued = false;
+                if (!_dragging) SaveBarPlace();
+            }, DispatcherPriority.Normal);
+        }
         return true;
     }
 
     private void SaveBarPlace()
     {
-        if (!_moved) return;
-        _moved = false;
-        try { Ctx.SavePrefs?.Invoke(); } catch (Exception ex) { Log.Warn("Could not save mode bar position: " + ex.Message); }
+        double center = Ctx.Prefs.ModeBarCenter;
+        if (center == _savedCenter) return;
+        try
+        {
+            Ctx.SavePrefs?.Invoke();
+            _savedCenter = center;
+        }
+        catch (Exception ex) { Log.Warn("Could not save mode bar position: " + ex.Message); }
     }
 
     protected override bool HandleKey(int vk)
