@@ -194,3 +194,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Callout (K): click, type a long sentence, Enter: white bubble, coloured ring, tail below left; wraps; Esc discards; Undo removes; saved image includes it.
 - [ ] Stamp menu: each of the 5 stamps drops a coloured disc with a white glyph; G then click repeats the last stamp; colour swatches change the disc.
 - [ ] Window at 1200 wide shows every tool cell and the right-hand buttons without clipping.
+
+## v0.26.0 manual rows (deferred by owner)
+- [ ] Editor Line (L): drag horizontal and diagonal in both directions; line uses selected colour and width; a drag shorter than 4 px adds nothing.
+- [ ] Undo removes the line; Redo restores it; copied and saved images include it.
+- [ ] At 1200 px width the Line tool, all other tools and right-hand buttons remain visible without clipping.

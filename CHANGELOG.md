@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.26.0] - 2026-11-13
+
+### Added
+- Editor **Line tool** (key L): drag between two points to draw a straight line in the selected colour and stroke width. Lines can be undone/redone and are included in saved or copied images.
+
 ## [0.25.0] - 2026-11-13
 
 ### Added

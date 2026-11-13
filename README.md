@@ -7,7 +7,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status v0.25.0.** Region capture can combine several areas into one image (press A after each). v0.18.0 added a Cut out tool; the editor has a Cut out tool that removes a strip and joins the sides. v0.17.0 added an Effects… dialog for Frame, Shadow, Torn and Wave sizes. v0.16.0 renamed SharpSnip to Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
+> **Status v0.26.0.** The editor adds a straight-line tool (L); v0.25.0 added callouts and stamps. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
 
 ## Features
 

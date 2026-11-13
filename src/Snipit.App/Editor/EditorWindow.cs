@@ -16,7 +16,7 @@ namespace Snipit;
 /// <summary>Mini editor (§9). Annotations live in a canvas above the image; undo/redo is an action stack.</summary>
 internal sealed class EditorWindow : Window
 {
-    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Callout, Stamp, Blur, Spotlight, Loupe, Crop, Cut }
+    private enum Tool { Pen, Highlighter, Arrow, Line, Rect, Ellipse, Text, Step, Callout, Stamp, Blur, Spotlight, Loupe, Crop, Cut }
 
     private interface IEdit { void Undo(); void Redo(); }
 
@@ -63,7 +63,7 @@ internal sealed class EditorWindow : Window
 
     private static readonly Dictionary<Key, Tool> ToolKeys = new()
     {
-        [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
+        [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.L] = Tool.Line, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
         [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.S] = Tool.Spotlight, [Key.M] = Tool.Loupe, [Key.K] = Tool.Callout, [Key.G] = Tool.Stamp, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
     };
     private readonly Dictionary<Tool, ToggleButton> _toolCells = new();
@@ -181,6 +181,7 @@ internal sealed class EditorWindow : Window
         AddTool("Pen", "pen", "P", Tool.Pen, "Freehand pen. Drag on the image.");
         AddTool("Highlight", "highlighter", "H", Tool.Highlighter, "Translucent wide marker.");
         AddTool("Arrow", "arrow", "A", Tool.Arrow, "Drag from tail to head.");
+        AddTool("Line", "line", "L", Tool.Line, "Drag between two points. Uses the selected colour and stroke width.");
         AddTool("Rect", "rect", "R", Tool.Rect, "Drag a rectangle outline.");
         AddTool("Ellipse", "ellipse", "O", Tool.Ellipse, "Drag an ellipse outline.");
         AddTool("Text", "text", "T", Tool.Text, "Click to type. Enter commits, Esc discards.");
@@ -409,10 +410,10 @@ internal sealed class EditorWindow : Window
                 else if (_tool == Tool.Spotlight) { _draft.Stroke = Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)); }
                 else if (_tool is Tool.Crop or Tool.Cut) { _draft.Stroke = _tool == Tool.Cut ? Brushes.IndianRed : Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = _tool == Tool.Cut ? new SolidColorBrush(Color.FromArgb(70, 220, 60, 60)) : new SolidColorBrush(Color.FromArgb(40, 45, 156, 255)); }
                 else if (_tool == Tool.Blur) { _draft.Stroke = Brushes.Gray; _draft.StrokeDashArray = new DoubleCollection { 2, 2 }; }
-                else if (_tool == Tool.Arrow) { _draft = null; }
+                else if (_tool is Tool.Arrow or Tool.Line) { _draft = null; }
                 else { _draft.Stroke = Stroke(); }
                 if (_draft is not null) { _draft.StrokeThickness = _tool is Tool.Crop or Tool.Cut or Tool.Blur or Tool.Spotlight ? 1 : _thickness.Value; _layer.Children.Add(_draft); }
-                else { _arrowShaft = new Line { Stroke = Stroke(), StrokeThickness = _thickness.Value, StrokeStartLineCap = PenLineCap.Round, X1 = _start.X, Y1 = _start.Y, X2 = _start.X, Y2 = _start.Y }; _layer.Children.Add(_arrowShaft); }
+                else { _arrowShaft = new Line { Stroke = Stroke(), StrokeThickness = _thickness.Value, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, X1 = _start.X, Y1 = _start.Y, X2 = _start.X, Y2 = _start.Y }; _layer.Children.Add(_arrowShaft); }
                 break;
         }
     }
@@ -447,8 +448,16 @@ internal sealed class EditorWindow : Window
             var shaft = _arrowShaft; _arrowShaft = null;
             _layer.Children.Remove(shaft);
             if ((end - _start).Length < 4) return;
-            var arrow = MakeArrow(_start, end);
-            _layer.Children.Add(arrow); Push(new AddEdit(_layer, arrow));
+            if (_tool == Tool.Line)
+            {
+                shaft.X2 = end.X; shaft.Y2 = end.Y;
+                _layer.Children.Add(shaft); Push(new AddEdit(_layer, shaft));
+            }
+            else
+            {
+                var arrow = MakeArrow(_start, end);
+                _layer.Children.Add(arrow); Push(new AddEdit(_layer, arrow));
+            }
             return;
         }
 
