@@ -4,7 +4,7 @@
 ```
 dotnet run --project tests/SharpSnip.SelfTest
 ```
-333 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion and the FFmpeg export plans. Last result: **333 passed, 0 failed**.
+339 checks over geometry, monitor stitching, target resolution, delay cycle, hotkey parsing, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), Print Screen takeover planning, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing and the FFmpeg export plans. Last result: **339 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
@@ -104,6 +104,11 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] `--interval 2 --count 3`: three files written, exit 0.
 - [ ] `Ctrl+Alt+Shift+2` captures monitor 2; with one monitor shows "not connected".
 - [ ] Settings: bad size/interval/duplicate hotkey rejected; old hotkeys restored on conflict.
+
+## Unreleased manual rows (workflow recording conversion)
+- [ ] Recording workflow with `format: webm` then `copy: <folder>`: after a recording stops, the WebM appears in the folder and the toast reports both steps.
+- [ ] Recording workflow with `format: jpg`: stops with the plain "recordings convert with an FFmpeg preset" reason.
+- [ ] Capture workflow with `format: webm`: stops with the "applies to recordings" reason.
 
 ## Unreleased manual rows (post-v0.8.0 fix)
 - [ ] Mode bar: click **Window** — nothing captures; the window under the NEXT click is captured. Same for Element, Full screen and (via S) Fixed size: the bar click only arms the tool.
