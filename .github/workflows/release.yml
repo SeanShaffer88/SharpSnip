@@ -1,0 +1,72 @@
+name: Release
+
+# Tag-triggered release: build + self-test, publish the app self-contained,
+# package with SeanPak (the standing packager for all of SEAN's Windows
+# programs), and attach the three assets to the GitHub Release.
+# Release notes are this version's own CHANGELOG.md section, nothing else.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build + self-test
+        run: |
+          dotnet build SharpSnip.sln -c Release
+          dotnet run --project tests/SharpSnip.SelfTest -c Release
+
+      - name: Publish app (self-contained win-x64)
+        run: dotnet publish src/SharpSnip.App -c Release -r win-x64 --self-contained true -o dist/files
+
+      - name: Check out SeanPak
+        uses: actions/checkout@v4
+        with:
+          repository: SeanShaffer88/SeanPak
+          path: .seanpak
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build SeanPak
+        shell: bash
+        working-directory: .seanpak
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Pack with SeanPak
+        shell: bash
+        run: |
+          SP=.seanpak/target/x86_64-pc-windows-msvc/release/seanpak.exe
+          "$SP" validate seanpak.json
+          "$SP" pack seanpak.json dist/files --out-dir dist-seanpak --json
+          "$SP" verify dist-seanpak/*-Setup.exe --json
+
+      - name: Extract release notes (this version's CHANGELOG section only)
+        shell: bash
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v v="$ver" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+
+      - name: Create GitHub Release with the SeanPak assets
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          files: |
+            dist-seanpak/*-Setup.exe
+            dist-seanpak/*-Portable.zip
+            dist-seanpak/SHA256SUMS.txt
