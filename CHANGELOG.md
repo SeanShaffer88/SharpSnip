@@ -2,6 +2,20 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.9.2] - 2026-11-13
+
+### Changed
+- **Captures never open the editor** (owner direction): the post-capture editor and its Settings option are gone, along with the stored preference — no setting can bring it back. A capture is clipboard + file + workflow, always. The editor remains for deliberate opens only: a past capture from the tray's Recent captures. The Settings auto-effect (Border / Grayscale), which the editor used to apply when it opened, is now applied to the capture itself, so the clipboard image and the saved file carry it.
+- **Recording audio mixes by streaming now**: the system + microphone tracks are combined in chunks with an on-the-fly resample instead of loading both tracks into memory at Stop, so long recordings no longer need RAM proportional to their length. The streamed result is sample-identical to the old whole-track mix (pinned by tests).
+
+### Fixed
+- **Settings saves are no longer all-or-nothing** (owner field report: the editor option appeared unticked yet the editor kept opening — the stored setting never changed, because every save was being discarded whole when the hotkey registration failed against another program's keys). Validation and applying are per-field now: an invalid or conflicting entry keeps its previous value and is named in a "saved, with notes" warning, and everything else in the same save applies and persists.
+- A Settings save no longer silently clears the Recorder's picked region (the save now carries it over, like the other recording preferences).
+
+### Added
+- **WGC pre-warm (§1.4)**: at startup SharpSnip warms the capture pipeline on a background thread — the D3D11 device is created once, shared by every capture, and primed with a throwaway frame — so the first screenshot of a session no longer pays the full device + pipeline setup cost. If a capture ever fails on the shared device, the cache is dropped (that shot falls back to GDI) and the next capture builds a fresh one.
+- **The Recorder can pick its own region**: a "Pick region…" button drags a fresh rectangle on screen (remembered as the recording region for next time), instead of only reusing the last capture's rectangle — which remains the fallback, and the window now shows which rectangle will be recorded. The monitor/crop resolution moved into tested Core logic (`RegionCrop`).
+
 ## [0.9.1] - 2026-11-13
 
 ### Fixed
