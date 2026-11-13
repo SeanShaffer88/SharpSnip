@@ -47,7 +47,7 @@ internal static class WgcCapture
         {
             if (_shared is not { } s) return;
             _shared = null;
-            try { s.Device.Dispose(); } catch { }
+            try { s.Device.Dispose(); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
             if (s.Context != IntPtr.Zero) Marshal.Release(s.Context);
             if (s.D3d != IntPtr.Zero) Marshal.Release(s.D3d);
         }

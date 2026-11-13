@@ -42,7 +42,7 @@ internal static class FfmpegExport
         }
         catch (OperationCanceledException)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { }
+            try { proc.Kill(entireProcessTree: true); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
             throw;
         }
         string tail;

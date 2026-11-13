@@ -34,6 +34,7 @@ public static class Program
   SharpSnip.exe --export PRESET --file PATH [--out PATH]
                                         convert a recording/GIF with the bundled FFmpeg
                                         (presets: webm, av1, h264, mkv, gifhq, mp3, m4a)
+  SharpSnip.exe --restore-printscreen   hand the Print Screen key back to Windows (after a crash or before uninstall)
   SharpSnip.exe --clean                 delete settings and logs, then exit
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
@@ -50,6 +51,10 @@ public static class Program
         if (Has("--help") || Has("-h") || Has("/?")) return Print(Usage, 0);
         if (Has("--version")) return Print("SharpSnip " + Version, 0);
         if (Has("--clean")) return Clean();
+        if (Has("--restore-printscreen"))
+            return Print(PrintScreenKey.RestoreFromFile()
+                ? "Print Screen handed back to Windows."
+                : "Nothing to restore (SharpSnip has no override recorded).", 0);
         if (Has("--record")) return RecordCli(args);
         if (Has("--run-workflow")) return RunWorkflowCli(args);
         if (Has("--export")) return ExportCli(args);
@@ -63,6 +68,16 @@ public static class Program
             if (EventWaitHandle.TryOpenExisting(ShowEventName, out var ev)) { ev.Set(); ev.Dispose(); }
             return 0;
         }
+
+        // Safety nets: the Print Screen override must never outlive the process. A clean exit restores it in
+        // AppHost.Dispose; these cover crashes, logoff and termination paths that skip it. All are idempotent.
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => PrintScreenKey.RestoreFromFile();
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Log.Error("Unhandled exception (process is ending)", e.ExceptionObject as Exception);
+            PrintScreenKey.RestoreFromFile();
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) => { Log.Error("Unobserved task exception", e.Exception); e.SetObserved(); };
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.DispatcherUnhandledException += (_, e) =>

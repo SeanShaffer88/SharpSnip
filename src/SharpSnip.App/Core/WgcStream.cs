@@ -69,9 +69,9 @@ internal sealed class WgcStream : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        try { _session.Dispose(); } catch { }
-        try { _pool.Dispose(); } catch { }
-        try { _device.Dispose(); } catch { }
+        try { _session.Dispose(); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
+        try { _pool.Dispose(); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
+        try { _device.Dispose(); } catch (Exception ex) { Log.Debug("Ignored during cleanup: " + ex.Message); }
         if (_context != IntPtr.Zero) Marshal.Release(_context);
         if (_d3d != IntPtr.Zero) Marshal.Release(_d3d);
     }

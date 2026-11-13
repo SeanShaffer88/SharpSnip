@@ -116,6 +116,7 @@ internal sealed class AppHost : IDisposable
         Item("Settings…", "Hotkeys, output folder, delay and more.", ShowSettings);
         Item("Hide tray icon", "Hide the tray icon. Run SharpSnip again (for example from the Start menu) to bring it back.", HideTrayIcon);
         m.Items.Add(new WinForms.ToolStripSeparator());
+        Item("Give Print Screen back", "Hand the Print Screen key back to Windows now (Snipping Tool). SharpSnip takes it again the next time it starts.", GivePrintScreenBack);
         Item("Exit", "Quit SharpSnip. Print Screen goes back to what it did before.", () => Application.Current.Shutdown());
         m.Opening += (_, _) => RebuildHistory();
         return m;
@@ -339,11 +340,35 @@ internal sealed class AppHost : IDisposable
         _recorder = null;
         if (_stopRecordItem is not null) _stopRecordItem.Enabled = false;
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) return; // unreachable: a recorder can only exist on 19041+
-        await rec.StopAsync();
         string path = rec.OutputPath;
+        try { await rec.StopAsync(); }
+        catch (Exception ex)
+        {
+            Log.Error("Stopping the recording failed", ex);
+            rec.Dispose();
+            Notify("Recording problem", "Stopping the recording failed. Check " + path + " and the log.", File.Exists(path) ? path : null);
+            return;
+        }
+        string? warning = rec.Warning;
         rec.Dispose();
-        Notify("Recording saved", Path.GetFileName(path), path);
+        if (warning is not null) Notify("Recording saved with a problem", warning, File.Exists(path) ? path : null);
+        else Notify("Recording saved", Path.GetFileName(path), path);
         WorkflowRunner.MaybeRun(_prefs, "Recording", path, Notify);
+    }
+
+    private void GivePrintScreenBack()
+    {
+        _hotkeys.UnregisterPrintScreen();
+        try
+        {
+            if (PrintScreenKey.Restore(_prefs)) SavePrefs();
+            Notify("SharpSnip", "Print Screen is back with Windows. SharpSnip takes it again next time it starts.", null);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not give Print Screen back", ex);
+            Notify("SharpSnip", "Could not change the Print Screen switch. See the log.", null);
+        }
     }
 
     private void HideTrayIcon()
@@ -476,7 +501,7 @@ internal sealed class AppHost : IDisposable
         _schedTimer?.Stop();
         if (_recorder is not null && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
         {
-            try { _recorder.StopAsync().GetAwaiter().GetResult(); } catch { }
+            try { _recorder.StopAsync().GetAwaiter().GetResult(); } catch (Exception ex) { Log.Error("Stopping the recording on exit failed", ex); }
             _recorder.Dispose(); _recorder = null;
         }
         _interval?.Cancel();
@@ -489,17 +514,8 @@ internal sealed class AppHost : IDisposable
         // switch to the state recorded before the override, and clear the record so
         // the next start records fresh. A crash skips this — the record survives, so
         // the next clean exit still restores the true original state.
-        if (_prefs.PrintScreenPriorRecorded)
-        {
-            try
-            {
-                PrintScreenKey.Write(PrintScreenKey.Prior(_prefs.PrintScreenSnippingPrior));
-                _prefs.PrintScreenPriorRecorded = false;
-                _prefs.PrintScreenSnippingPrior = -1;
-                SavePrefs();
-            }
-            catch (Exception ex) { Log.Error("Could not restore the Print Screen switch on exit", ex); }
-        }
+        try { if (PrintScreenKey.Restore(_prefs)) SavePrefs(); }
+        catch (Exception ex) { Log.Error("Could not restore the Print Screen switch on exit", ex); }
         _uia.Dispose();
         Log.Info("SharpSnip stopped");
     }
