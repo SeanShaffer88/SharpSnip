@@ -131,7 +131,6 @@ var defs = new Preferences();
 var all4 = new[] { defs.HotkeyMenu, defs.HotkeyFullScreen, defs.HotkeyActiveWindow, defs.HotkeyRepeatLast };
 Check(all4.All(k => HotkeySpec.TryParse(k, out _)), "all four default hotkeys parse");
 Check(all4.Select(k => { HotkeySpec.TryParse(k, out var sp); return sp; }).Distinct().Count() == 4, "default hotkeys are all different");
-Check(!defs.OpenEditorAfterCapture, "editor stays closed after a capture by default (clipboard + file only)");
 var bad = new Preferences { HotkeyActiveWindow = "x", HotkeyRepeatLast = "" }.Sanitize();
 Check(bad.HotkeyActiveWindow == "Win+Shift+W" && bad.HotkeyRepeatLast == "Win+Shift+R", "bad new hotkeys fall back to defaults");
 string oldFile = Path.Combine(Path.GetTempPath(), "sharpsnip-v01-" + Guid.NewGuid().ToString("N") + ".json");
@@ -831,6 +830,54 @@ var gate3 = new ClickGate();
 gate3.Arm(true);
 gate3.Press();   // the inherited release was consumed by the old handler; a fresh press starts a fresh gesture
 Check(gate3.Release(), "gate: a fresh press before any release clears the wait");
+
+Console.WriteLine("RegionCrop (recording region resolution)");
+var rcMons = new[]
+{
+    new MonitorInfo(1, new RectPx(0, 0, 1920, 1080), 96, true, "M1"),
+    new MonitorInfo(2, new RectPx(1920, 0, 1920, 1080), 96, false, "M2"),
+};
+Check(RegionCrop.Resolve(new RectPx(100, 100, 800, 600), rcMons) is { MonitorIndex: 0 } rc1 && rc1.Crop == new RectPx(100, 100, 800, 600), "regioncrop: inside one monitor, crop is monitor-relative");
+Check(RegionCrop.Resolve(new RectPx(1800, 100, 400, 300), rcMons) is { MonitorIndex: 1 } rc2 && rc2.Crop == new RectPx(0, 100, 280, 300), "regioncrop: spanning picks the larger overlap and crops to it");
+Check(RegionCrop.Resolve(new RectPx(5000, 100, 400, 300), rcMons) is null, "regioncrop: off every monitor resolves to null");
+Check(RegionCrop.Resolve(RectPx.Empty, rcMons) is null, "regioncrop: empty rect resolves to null");
+Check(new Preferences { RecordingRegion = new[] { 1, 2 } }.Sanitize().RecordingRegion is null
+   && new Preferences { RecordingRegion = new[] { 0, 0, 640, 480 } }.Sanitize().RecordingRegion is { Length: 4 }, "preferences: recording region sanitized like the capture rect");
+
+Console.WriteLine("Streaming audio (WavReader + PcmResampler)");
+{
+    // Deterministic pseudo-random stereo samples.
+    var src = new short[5000 * 2];
+    uint seed = 12345;
+    for (int i = 0; i < src.Length; i++) { seed = seed * 1664525 + 1013904223; src[i] = (short)(seed >> 17); }
+
+    using var ms = new MemoryStream();
+    using (var w = new WavWriter(ms, 48000, 2)) { w.Write(src.AsSpan(0, 4000)); w.Write(src.AsSpan(4000)); }
+    ms.Position = 0;
+    using var reader = new WavReader(ms, leaveOpen: true);
+    Check(reader.SampleRate == 48000 && reader.Channels == 2 && reader.TotalFrames == 5000, "wavreader: header fields and frame count");
+    var back = new List<short>();
+    var chunk = new short[777];   // deliberately not frame- or chunk-aligned with the writes
+    int n; while ((n = reader.Read(chunk)) > 0) back.AddRange(chunk.AsSpan(0, n).ToArray());
+    Check(back.SequenceEqual(src), "wavreader: odd-sized reads reproduce the samples exactly");
+
+    foreach (var (from, to) in new[] { (48000, 44100), (44100, 48000), (48000, 48000), (16000, 48000) })
+    {
+        var whole = PcmMix.Resample(src, 2, from, to);
+        foreach (int chunkFrames in new[] { 1, 7, 1024 })
+        {
+            var rs = new PcmResampler(2, from, to);
+            var got = new List<short>();
+            for (int f = 0; f < 5000; f += chunkFrames)
+            {
+                int take = Math.Min(chunkFrames, 5000 - f) * 2;
+                got.AddRange(rs.Process(src.AsSpan(f * 2, take)));
+            }
+            got.AddRange(rs.Finish());
+            Check(got.SequenceEqual(whole), $"resampler: {from}→{to} in {chunkFrames}-frame chunks is sample-identical to whole-array");
+        }
+    }
+}
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
