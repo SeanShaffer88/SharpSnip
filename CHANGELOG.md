@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.14.0] - 2026-11-13
+
+### Added
+- **Movable capture mode bar**: a dotted drag handle on the bar's left end. Press it, slide the bar along the top edge of the screen and release. The position is saved after each move and used the next time the bar opens. It is stored as a fraction of the monitor width, so it stays put across resolution and DPI changes, and the bar always stays fully on screen. Esc mid-drag keeps the position reached.
+- Core: `ModeBarLayout` placement math (`Left`, `CenterFor`, `SanitizeCenter`) and a grip hit zone; `Preferences.ModeBarCenter` (0..1, default 0.5, clamped on load). 9 new self-test checks (403 total).
+
+### Changed
+- The mode bar is 16 units wider for the handle.
+
 ## [0.13.0] - 2026-11-13
 
 ### Changed

@@ -545,7 +545,7 @@ Console.WriteLine("Print Screen override");
 
 Console.WriteLine("ModeBarLayout");
 {
-    Check(ModeBarLayout.BarWidth(6) == 6 + 6 * 64 + 9 + 36 + 6, "mode bar: width = padding + buttons + separator + close");
+    Check(ModeBarLayout.BarWidth(6) == 6 + 16 + 6 * 64 + 9 + 36 + 6, "mode bar: width = padding + buttons + separator + close");
     Check(ModeBarLayout.BarWidth(0) == 0, "mode bar: no buttons -> no bar");
     var hit = ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(0) + 32, 36, 6);
     Check(hit is { Index: 0, IsClose: false }, "mode bar: first button centre hits button 0");
@@ -557,6 +557,19 @@ Console.WriteLine("ModeBarLayout");
     Check(ModeBarLayout.HitTest(ModeBarLayout.CloseLeft(6) + 36, 36, 6) is null, "mode bar: past close hits nothing");
     Check(ModeBarLayout.HitTest(40, ModeBarLayout.BarHeight, 6) is null && ModeBarLayout.HitTest(40, -1, 6) is null, "mode bar: above/below hits nothing");
     Check(ModeBarLayout.HitTest(3, 36, 6) is null, "mode bar: left padding hits nothing");
+    hit = ModeBarLayout.HitTest(ModeBarLayout.PadX + 8, 36, 6);
+    Check(hit is { IsGrip: true, IsClose: false }, "mode bar: left end is the drag grip");
+    Check(ModeBarLayout.HitTest(ModeBarLayout.ButtonLeft(0), 36, 6) is { Index: 0, IsGrip: false }, "mode bar: grip ends where button 0 starts");
+    double mw = 1920, bw = ModeBarLayout.BarWidth(7);
+    Check(ModeBarLayout.Left(0.5, mw, bw) == (mw - bw) / 2, "mode bar place: default centre is centred");
+    Check(ModeBarLayout.Left(0, mw, bw) == 0 && ModeBarLayout.Left(1, mw, bw) == mw - bw, "mode bar place: edges clamp onto the monitor");
+    Check(ModeBarLayout.Left(double.NaN, mw, bw) == (mw - bw) / 2, "mode bar place: NaN falls back to centred");
+    Check(ModeBarLayout.Left(0.5, 300, bw) == 0, "mode bar place: bar wider than monitor pins left");
+    double c0 = 0.3;
+    Check(Math.Abs(ModeBarLayout.CenterFor(ModeBarLayout.Left(c0, mw, bw), mw, bw) - c0) < 1e-9, "mode bar place: CenterFor inverts Left");
+    Check(ModeBarLayout.CenterFor(-500, mw, bw) == 0 && ModeBarLayout.CenterFor(5000, mw, bw) == 1, "mode bar place: dragged past an edge stores 0 or 1");
+    var pp = new Preferences { ModeBarCenter = 7 }; pp.Sanitize();
+    Check(pp.ModeBarCenter == 1, "mode bar place: stored value is clamped on load");
 }
 
 Console.WriteLine("PixelBlit");

@@ -24,6 +24,8 @@ internal sealed class PickerContext
     public required InputHook Hook { get; init; }
     public required Preferences Prefs { get; init; }
     public required UiaWorker Uia { get; init; }
+    /// <summary>Persists Prefs (null in sessions that cannot save).</summary>
+    public Action? SavePrefs { get; init; }
     public int DelaySeconds { get; set; }
     public FullScreenTarget FullTarget { get; set; } = FullScreenTarget.Current;
     /// <summary>When true, an element pick means "scrolling capture of this element".</summary>

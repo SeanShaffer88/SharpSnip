@@ -137,6 +137,11 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Workflow `run: C:\tools\x.exe|%path%` on a capture in a folder with spaces: the program receives one argument.
 - [ ] Edit a workflow step in `settings.json` with Notepad, start SharpSnip: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
 
+## v0.14.0 manual rows (deferred by owner)
+- Open the bar, drag the dotted handle left and right: the bar follows the cursor, stops at both screen edges, and the buttons do not fire.
+- Release, Esc, open the bar again, then restart SharpSnip and open it again: the bar is where it was left.
+- Repeat on a second monitor and at 150% scale.
+
 ## v0.13.0 manual rows (deferred by owner)
 - Open the mode bar (Print Screen): 7 icons with key hints and an Esc close; hover fills the cell; labels and icons stay crisp at 100%, 150% and 200% scale.
 - Turn on a High Contrast theme: bar is black with white edge and ink; hover inverts to black on white.

@@ -139,6 +139,7 @@ internal sealed class SettingsWindow : Window
             HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
             EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
             LastCaptureRect = _prefs.LastCaptureRect,
+            ModeBarCenter = _prefs.ModeBarCenter,
             PrintScreenSnippingPrior = _prefs.PrintScreenSnippingPrior,
             PrintScreenPriorRecorded = _prefs.PrintScreenPriorRecorded,
             ShowTrayIcon = _prefs.ShowTrayIcon,

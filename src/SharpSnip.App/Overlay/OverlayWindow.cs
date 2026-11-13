@@ -32,6 +32,7 @@ internal sealed class OverlayWindow : Window
     private readonly Border _bar = new() { Visibility = Visibility.Collapsed };
     private readonly StackPanel _barRow = new() { Orientation = Orientation.Horizontal };
     private IReadOnlyList<ModeBarButton>? _barButtons;
+    private double _barCenter = ModeBarLayout.DefaultCenter;
     private int _barHover = -2;
 
     // Stored state (physical pixels).
@@ -191,8 +192,9 @@ internal sealed class OverlayWindow : Window
     /// The mode bar (top-centre tab). Null hides it. Showing it after it was hidden
     /// slides it down from the top edge; hover-only updates do not re-animate.
     /// </summary>
-    public void SetModeBar(IReadOnlyList<ModeBarButton>? buttons, int hover)
+    public void SetModeBar(IReadOnlyList<ModeBarButton>? buttons, int hover, double center = ModeBarLayout.DefaultCenter)
     {
+        _barCenter = center;
         bool animateIn = buttons is not null && _barButtons is null;
         _barButtons = buttons;
         _barHover = hover;
@@ -206,6 +208,21 @@ internal sealed class OverlayWindow : Window
         const double h = ModeBarLayout.CellHeight;
 
         _barRow.Children.Clear();
+        bool gripHot = hover == -3;
+        var dots = new Canvas { Width = 8, Height = 14, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        for (int d = 0; d < 6; d++)
+        {
+            var dot = new Ellipse { Width = 2.4, Height = 2.4, Fill = gripHot ? hoverInk : muted };
+            Canvas.SetLeft(dot, d % 2 * 5.6); Canvas.SetTop(dot, d / 2 * 5.8);
+            dots.Children.Add(dot);
+        }
+        var grip = new Border
+        {
+            Width = ModeBarLayout.GripWidth, Height = h, CornerRadius = new CornerRadius(8),
+            Background = gripHot ? hoverBg : Brushes.Transparent, Child = dots,
+        };
+        AutomationProperties.SetName(grip, "Move capture bar: drag along the top edge");
+        _barRow.Children.Add(grip);
         for (int i = 0; i < buttons.Count; i++)
         {
             bool hot = hover == i;
@@ -286,7 +303,7 @@ internal sealed class OverlayWindow : Window
     {
         if (_barButtons is null) return;
         double w = Monitor.Bounds.Width / Scale;
-        Canvas.SetLeft(_bar, Math.Max(0, (w - ModeBarLayout.BarWidth(_barButtons.Count)) / 2));
+        Canvas.SetLeft(_bar, ModeBarLayout.Left(_barCenter, w, ModeBarLayout.BarWidth(_barButtons.Count)));
         Canvas.SetTop(_bar, 0);
     }
 

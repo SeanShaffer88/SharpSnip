@@ -109,6 +109,10 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.14.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- Movable mode bar: placement math and grip hit-testing are self-tested; the live drag (hook move events, per-monitor DPI, save on release) is unverified on hardware.
+- Known limits: the bar slides along the top edge only (no side or bottom docking), and stays on the monitor under the cursor when it opens; the stored fraction applies to every monitor.
+
 ## v0.13.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - Mode bar restyle (`ModeBar.cs`, `OverlayWindow.SetModeBar`, `ModeBarLayout`): visual only. Hit-testing math is covered by the self-tests; rendering, the drop shadow, the High Contrast look and icon legibility at 100-200% scale are unverified on hardware.
 - Known gaps: the bar has no keyboard focus ring because it is not tabbable (keys are direct hotkeys); there is no persistent selected state because choosing a tool leaves the bar.
