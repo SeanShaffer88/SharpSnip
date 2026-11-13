@@ -38,7 +38,7 @@ public static class Program
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
-    private const string Version = "0.9.2";
+    private const string Version = "0.10.0";
 
     [STAThread]
     public static int Main(string[] args)
@@ -312,11 +312,13 @@ public static class Program
 
     private static int Clean()
     {
-        // Leave no trace: if the Print Screen takeover is on, give the key back to Windows first.
+        // Leave no trace: if a run recorded the pre-override Print Screen state
+        // (a graceful exit restores it itself; this covers a leftover record),
+        // give the key back to Windows first.
         try
         {
             var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
-            if (prefs.PrintScreenTakeover) PrintScreenKey.Write(PrintScreenKey.Prior(prefs.PrintScreenSnippingPrior));
+            if (prefs.PrintScreenPriorRecorded) PrintScreenKey.Write(PrintScreenKey.Prior(prefs.PrintScreenSnippingPrior));
         }
         catch (Exception ex) { Log.Error("Print Screen restore during --clean failed", ex); }
         try
