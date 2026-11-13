@@ -173,7 +173,7 @@ Check(ImageFormats.Normalize("jpeg") == "jpg" && ImageFormats.Normalize(".JPEG")
 Check(ImageFormats.Normalize("TIFF") == "tif" && ImageFormats.Normalize(".tiff") == "tif", "tiff alias canonicalises to tif");
 Check(ImageFormats.Normalize(" bmp ") == "bmp" && ImageFormats.Normalize("gif") == "gif" && ImageFormats.Normalize("tif") == "tif", "bmp/gif/tif supported");
 Check(ImageFormats.Normalize("webp") is null && ImageFormats.Normalize("") is null && ImageFormats.Normalize(null) is null, "unsupported/empty format -> null");
-Check(ImageFormats.All.SequenceEqual(new[] { "png", "jpg", "bmp", "gif", "tif", "pdf" }), "format list is png/jpg/bmp/gif/tif/pdf");
+Check(ImageFormats.All.SequenceEqual(new[] { "png", "jpg", "bmp", "gif", "tif", "pdf", "apng" }), "format list is png/jpg/bmp/gif/tif/pdf/apng");
 Check(ImageFormats.FromPath(@"C:\shots\a.BMP", "png") == "bmp" && ImageFormats.FromPath("a.jpeg", "png") == "jpg", "format from path extension");
 Check(ImageFormats.FromPath("a.tiff", "png") == "tif" && ImageFormats.FromPath("a.gif", "jpg") == "gif", "tiff/gif path extensions");
 Check(ImageFormats.FromPath("a.webp", "bmp") == "bmp" && ImageFormats.FromPath("noext", "gif") == "gif", "unknown/missing extension falls back to preference");
@@ -708,6 +708,108 @@ Console.WriteLine("PolygonMask + ColorReadout");
     PolygonMask.ApplyAlpha(frame, 4, 4, mask, new RectPx(0, 0, 4, 4));
     Check(frame[(0 * 4 + 0) * 4 + 3] == 0 && frame[(1 * 4 + 1) * 4 + 3] == 255, "polygon: alpha cleared outside, kept inside");
     Check(ColorReadout.Format(255, 0, 16, 120, 40) == "#FF0010 · (255, 0, 16) · 120, 40", "readout: hex, rgb and position");
+}
+
+Console.WriteLine("WorkflowPlan");
+{
+    Check(WorkflowPlan.TryParseStep("copy: D:\\Backup", out var cp) && cp.Kind == "copy" && cp.Arg == "D:\\Backup", "workflow: copy step keeps a path with a colon");
+    Check(WorkflowPlan.TryParseStep("RUN: C:\\tools\\x.exe|\"%path%\"", out var rn) && rn.Kind == "run", "workflow: kind is case-insensitive");
+    Check(WorkflowPlan.SplitRun(rn.Arg).Program == "C:\\tools\\x.exe" && WorkflowPlan.SplitRun(rn.Arg).Args == "\"%path%\"", "workflow: run splits on the pipe");
+    Check(WorkflowPlan.TryParseStep("editor:", out var ed) && ed.Arg == "", "workflow: editor step takes no argument");
+    Check(!WorkflowPlan.TryParseStep("editor: x", out _), "workflow: editor rejects an argument");
+    Check(WorkflowPlan.TryParseStep("effect: Grayscale", out _), "workflow: effect accepts a real effect");
+    Check(!WorkflowPlan.TryParseStep("effect: None", out _) && !WorkflowPlan.TryParseStep("effect: Sparkle", out _), "workflow: effect rejects None and unknown names");
+    Check(WorkflowPlan.TryParseStep("format: JPG", out var fm) && fm.Arg == "jpg", "workflow: format normalizes through ImageFormats");
+    Check(!WorkflowPlan.TryParseStep("format: exe", out _) && !WorkflowPlan.TryParseStep("upload: http://x", out _), "workflow: unknown kinds and formats rejected");
+    var clean = WorkflowPlan.SanitizeSteps(new[] { "copy: D:\\A", "bogus", "format: png", "" });
+    Check(clean.Count == 2 && clean[0] == "copy: D:\\A" && clean[1] == "format: png", "workflow: sanitize drops invalid lines and canonicalizes");
+    Check(WorkflowPlan.SanitizeSteps(Enumerable.Repeat("editor:", 20)).Count == WorkflowPlan.MaxSteps, "workflow: steps capped");
+    var wfPath = Path.Combine("pics-root", "shot.PNG");
+    Check(WorkflowPlan.Expand("in=%path% d=%dir% n=%name% e=%ext%", wfPath) == $"in={wfPath} d=pics-root n=shot e=PNG", "workflow: placeholders expand");
+    Check(WorkflowPlan.SanitizeApplyTo("recording") == "Recording" && WorkflowPlan.SanitizeApplyTo("junk") == "Both", "workflow: apply-to sanitize");
+    Check(WorkflowPlan.AppliesTo("Both", "Capture") && WorkflowPlan.AppliesTo("Recording", "Recording") && !WorkflowPlan.AppliesTo("Recording", "Capture"), "workflow: applies-to matching");
+    var wfDefs = new List<WorkflowDef> { new() { Name = "Archive" }, new() { Name = "Send" } };
+    Check(WorkflowPlan.Find(wfDefs, "archive")?.Name == "Archive" && WorkflowPlan.Find(wfDefs, "nope") is null, "workflow: find by name, case-insensitive");
+}
+
+Console.WriteLine("Crc32 + ApngWriter");
+{
+    Check(Crc32.Compute("123456789"u8) == 0xCBF43926u, "crc32: standard check vector");
+    byte[] TinyPng(int w, int h, byte fill)
+    {
+        var m = new MemoryStream();
+        m.Write(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
+        void Chunk(string t, byte[] d)
+        {
+            Span<byte> word = stackalloc byte[4];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(word, (uint)d.Length);
+            m.Write(word); m.Write(System.Text.Encoding.ASCII.GetBytes(t)); m.Write(d);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(word, Crc32.ComputeChunk(t, d));
+            m.Write(word);
+        }
+        var ih = new byte[13];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(ih.AsSpan(0), (uint)w);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(ih.AsSpan(4), (uint)h);
+        ih[8] = 8; ih[9] = 6;
+        Chunk("IHDR", ih); Chunk("IDAT", new[] { fill, fill, fill }); Chunk("IEND", Array.Empty<byte>());
+        return m.ToArray();
+    }
+    var apngMs = new MemoryStream();
+    using (var wtr = new ApngWriter(apngMs, TinyPng(2, 2, 0x11), 100)) wtr.AddFrame(TinyPng(2, 2, 0x22), 50);
+    var apngBytes = apngMs.ToArray();
+    var chunkTypes = new List<string>();
+    var chunkData = new List<byte[]>();
+    bool crcsOk = true;
+    for (int pos = 8; pos + 12 <= apngBytes.Length;)
+    {
+        int len = (int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(apngBytes.AsSpan(pos));
+        string t = System.Text.Encoding.ASCII.GetString(apngBytes, pos + 4, 4);
+        var d = apngBytes.AsSpan(pos + 8, len).ToArray();
+        uint stored = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(apngBytes.AsSpan(pos + 8 + len));
+        if (stored != Crc32.ComputeChunk(t, d)) crcsOk = false;
+        chunkTypes.Add(t); chunkData.Add(d);
+        pos += 12 + len;
+        if (t == "IEND") break;
+    }
+    Check(string.Join(",", chunkTypes) == "IHDR,acTL,fcTL,IDAT,fcTL,fdAT,IEND", "apng: chunk order for two frames");
+    Check(crcsOk, "apng: every written chunk CRC verifies");
+    Check(System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(chunkData[1].AsSpan(0)) == 2, "apng: acTL frame count patched to 2");
+    Check(System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(chunkData[2].AsSpan(0)) == 0
+        && System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(chunkData[4].AsSpan(0)) == 1
+        && System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(chunkData[5].AsSpan(0)) == 2, "apng: sequence numbers run 0,1,2");
+    bool mismatchThrew = false;
+    try { using var w2 = new ApngWriter(new MemoryStream(), TinyPng(2, 2, 0x33), 10); w2.AddFrame(TinyPng(3, 3, 0x44), 10); }
+    catch (InvalidDataException) { mismatchThrew = true; }
+    Check(mismatchThrew, "apng: a frame with different dimensions is rejected");
+    Check(AnimationPlan.Kind("apng") == "apng" && AnimationPlan.Kind("GIF") == "gif" && AnimationPlan.Kind("png") is null, "apng: animation kind routing");
+    Check(ImageFormats.Normalize("apng") == "apng" && ImageFormats.Normalize(".APNG") == "apng", "apng: registered as a save format");
+}
+
+Console.WriteLine("RecordingSize");
+{
+    Check(RecordingSize.Target(3840, 2160, "1080p") == (1920, 1080), "recsize: 4K caps to 1080p");
+    Check(RecordingSize.Target(1920, 1080, "720p") == (1280, 720), "recsize: 1080p caps to 720p");
+    Check(RecordingSize.Target(1280, 720, "1080p") == (1280, 720), "recsize: never upscales");
+    Check(RecordingSize.Target(1920, 1080, "Original") == (1920, 1080), "recsize: Original passes through");
+    Check(RecordingSize.Target(1080, 1920, "720p") == (404, 720), "recsize: portrait scales by height, stays even");
+    Check(RecordingSize.Target(1919, 1079, "Original") == (1918, 1078), "recsize: odd dimensions go even");
+    Check(RecordingSize.Sanitize("720p") == "720p" && RecordingSize.Sanitize("4K") == "Original" && RecordingSize.Sanitize(null) == "Original", "recsize: sanitize falls back to Original");
+}
+
+Console.WriteLine("FfmpegPlan");
+{
+    Check(FfmpegPlan.Presets.Select(p => p.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == FfmpegPlan.Presets.Count, "ffmpeg: preset names are unique");
+    Check(FfmpegPlan.Presets.All(p => p.Args.Contains("{in}") && p.Args.Contains("{out}")), "ffmpeg: every preset takes {in} and {out}");
+    Check(FfmpegPlan.Presets.All(p => !p.Args.Any(a => a.Contains("libx264") || a.Contains("libx265"))), "ffmpeg: no GPL-only encoders in the LGPL matrix");
+    Check(FfmpegPlan.TryBuildArgs("webm", "in file.mp4", "out.webm", out var webmArgs)
+        && webmArgs[1] == "in file.mp4" && webmArgs[^1] == "out.webm" && webmArgs.Contains("libvpx-vp9"), "ffmpeg: args substitute in/out as whole tokens");
+    Check(!FfmpegPlan.TryBuildArgs("nope", "a", "b", out _), "ffmpeg: unknown preset rejected");
+    Check(FfmpegPlan.Find("GIFHQ")?.OutputExtension == "gif", "ffmpeg: find is case-insensitive");
+    var inPath = Path.Combine("rec dir", "clip.mp4");
+    Check(FfmpegPlan.DefaultOutputPath(FfmpegPlan.Find("mp3")!, inPath) == Path.Combine("rec dir", "clip.mp3"), "ffmpeg: default output path swaps the extension");
+    var custom = FfmpegPlan.ParseCustomArgs("-i %in% -vf \"scale=320:-1\" -y %out%", "a b.mp4", "c.gif");
+    Check(custom.SequenceEqual(new[] { "-i", "a b.mp4", "-vf", "scale=320:-1", "-y", "c.gif" }), "ffmpeg: custom template tokenizes quotes and expands placeholders");
+    Check(FfmpegPlan.ParseCustomArgs("", "a", "b").Length == 0 && FfmpegPlan.ParseCustomArgs(null, "a", "b").Length == 0, "ffmpeg: empty custom template yields no args");
 }
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");
