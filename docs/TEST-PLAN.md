@@ -189,3 +189,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.24.0 manual rows (deferred by owner)
 - [ ] Adjust > Hue / colour balance…: hue +120 turns reds toward green; red +50 warms the image; OK with all zero does nothing; Undo restores.
+
+## v0.25.0 manual rows (deferred by owner)
+- [ ] Callout (K): click, type a long sentence, Enter: white bubble, coloured ring, tail below left; wraps; Esc discards; Undo removes; saved image includes it.
+- [ ] Stamp menu: each of the 5 stamps drops a coloured disc with a white glyph; G then click repeats the last stamp; colour swatches change the disc.
+- [ ] Window at 1200 wide shows every tool cell and the right-hand buttons without clipping.
