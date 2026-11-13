@@ -126,4 +126,4 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 ## v0.3.0 additions (compile-verified on Linux only; not run on Windows)
 - Fixed-size region picker: unverified on hardware (cursor follow, arrow nudge, clamp across mixed DPI).
 - Interval capture: unverified on hardware (PeriodicTimer loop, 3-failure stop, tick skipped while a capture is open). "Current monitor" is fixed at start.
-- Per-monitor hotkeys: removed 2026-11-13 with all configurable hotkeys (per-monitor capture remains on the mode bar's `1`..`9` keys and the CLI's `--monitor`).
+

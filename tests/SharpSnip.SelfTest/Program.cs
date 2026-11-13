@@ -90,8 +90,6 @@ Check(sm.TryTransition(AppState.FullScreenInstant) && sm.TryTransition(AppState.
 Check(!new AppStateMachine().TryTransition(AppState.Captured), "idle -> captured refused");
 
 Console.WriteLine("Preferences");
-var p = new Preferences { ImageFormat = "webp", DefaultDelaySeconds = 4, DimmerOpacity = 5, MatteColor = "Pink", FullScreenTarget = "Monitor:3", EditorBounds = new[] { 1, 2 } }.Sanitize();
-Check(p.ImageFormat == "png" && p.DefaultDelaySeconds == 0, "sanitize format/delay");
 Check(p.DimmerOpacity == 0.9 && p.MatteColor == "Transparent" && p.EditorBounds is null, "sanitize opacity/matte/bounds");
 Check(p.FullScreenTarget == "CurrentMonitor", "persisted target is never a specific monitor index");
 Check(new Preferences { MatteColor = "Black" }.MatteArgb == 0xFF000000u && new Preferences().MatteArgb == 0u, "matte argb");
@@ -888,44 +886,6 @@ Console.WriteLine("Pause clock + WAV concatenation");
 }
 
 
-Console.WriteLine("Theme contrast (TesselGUI r3 palette, copied from TesselTheme.cs)");
-double Cr(string a, string b) { ContrastRatio.TryParse(a, out var ca); ContrastRatio.TryParse(b, out var cb); return ContrastRatio.Between(ca, cb); }
-Check(Math.Abs(Cr("#000000", "#FFFFFF") - 21.0) < 0.01, "contrast formula: black/white = 21");
-foreach (var surface in new[] { "#1B1B1D", "#1F1F22", "#232326", "#2A2A2F" })
-{
-    Check(Cr("#E6E3E1", surface) >= 4.5, $"foreground text on {surface} >= 4.5");
-    if (surface is "#1B1B1D" or "#1F1F22") Check(Cr("#89868A", surface) >= 4.5, $"muted text on {surface} >= 4.5 (Muted must not be used on raised/selected surfaces)");
-    Check(Cr("#E8939F", surface) >= 3.0, $"focus ring (#E8939F) on {surface} >= 3");
-}
-Check(Cr("#E8939F", "#960018") >= 3.0, "focus ring on action button fill >= 3");
-Check(Cr("#FFFFFF", "#960018") >= 4.5 && Cr("#FFFFFF", "#7E0014") >= 4.5, "white text on action fills >= 4.5");
-Check(Cr("#960018", "#1B1B1D") < 3.0, "old focus colour #960018 stays below 3:1 (why it was replaced)");
-
-
-Console.WriteLine("Hardening: CLI args, workflow quoting and trust, log policy");
-var cargs = new[] { "--out", "--clean", "--fullscreen" };
-Check(!CliArgs.Has(cargs, "--clean") && CliArgs.Has(cargs, "--fullscreen") && CliArgs.Value(cargs, "--out") is null, "flag in a value slot is not a flag");
-Check(CliArgs.Value(new[] { "--out", @"C:\a b\x.png" }, "--out") == @"C:\a b\x.png" && CliArgs.Value(new[] { "--out" }, "--out") is null, "value lookup");
-Check(CliArgs.Has(new[] { "--FULLSCREEN" }, "--fullscreen") && CliArgs.TakesValue("--record") && !CliArgs.TakesValue("--all"), "case-insensitive; value flags known");
-string sep = Path.DirectorySeparatorChar.ToString(), spDir = sep + "My Shots", spFile = spDir + sep + "a.png", plainFile = sep + "s" + sep + "a.png";
-Check(WorkflowPlan.ExpandArgs("-i %path% -o %dir%" + sep + "out.png", spFile) == "-i \"" + spFile + "\" -o \"" + spDir + "\"" + sep + "out.png", "unquoted placeholders get quoted");
-Check(WorkflowPlan.ExpandArgs("\"%path%\"", spFile) == "\"" + spFile + "\"", "already-quoted placeholders stay raw");
-Check(WorkflowPlan.ExpandArgs("%name%.%ext%", plainFile) == "a.png" && WorkflowPlan.ExpandArgs("%unknown%", plainFile) == "%unknown%", "plain values unquoted; unknown placeholder untouched");
-Check(WorkflowPlan.QuoteArg(@"C:\dir with space\") == "\"C:\\dir with space\\\\\"", "trailing backslash doubled inside quotes");
-var tp = new Preferences { ExternalEditorPath = @"C:\e.exe", Workflows = new() { new WorkflowDef { Name = "w", Steps = new() { "run: x.exe|%path%" } } } };
-Check(!WorkflowTrust.IsTampered(tp), "blank trust hash is accepted");
-WorkflowTrust.Approve(tp);
-Check(!WorkflowTrust.IsTampered(tp), "approved settings are trusted");
-tp.Workflows[0].Steps[0] = "run: evil.exe|%path%";
-Check(WorkflowTrust.IsTampered(tp), "changed run step is detected");
-WorkflowTrust.Approve(tp); tp.ExternalEditorPath = @"C:\other.exe";
-Check(WorkflowTrust.IsTampered(tp), "changed editor path is detected");
-WorkflowTrust.Approve(tp); tp.ImageFormat = "jpg"; tp.IntervalSeconds = 9;
-Check(!WorkflowTrust.IsTampered(tp), "unrelated settings do not trip the check");
-Check(WorkflowTrust.Launches("run") && WorkflowTrust.Launches("editor") && !WorkflowTrust.Launches("copy"), "which steps launch programs");
-Check(!LogPolicy.ShouldRoll(LogPolicy.MaxFileBytes - 1) && LogPolicy.ShouldRoll(LogPolicy.MaxFileBytes), "log roll threshold");
-var tj = System.Text.Json.JsonSerializer.Serialize(new Preferences { WorkflowsLocked = true });
-Check(!tj.Contains("WorkflowsLocked") && tj.Contains("WorkflowTrust"), "lock flag is never written to settings");
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

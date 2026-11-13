@@ -53,9 +53,6 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Feature | Status |
 |---|---|
 | Local searchable library, tags, filters, sort, recent tray, history gallery | 🔜 (local SQLite would be a new package ❓; JSON index otherwise) |
-| Custom file-naming patterns, automatic folder organisation | 🔜 |
-| Export PNG / JPG / BMP / TIFF / GIF | ✅ v0.5.0 (all in-box WPF encoders; format logic tested, encoders not yet run on Windows) |
-| Export PDF | ✅ v0.5.0 (hand-written single-image PDF writer, no package; Poppler-verified) |
 | Export PSD / TGA | ❓ custom writers, low priority |
 | Send to external program / open in external editor | 🔜 |
 | Automated after-capture tasks (copy, save, run script) | 🔜 |
