@@ -61,16 +61,6 @@ Check(DelayCycle.Next(0) == 3 && DelayCycle.Next(3) == 5 && DelayCycle.Next(5) =
 Check(DelayCycle.Next(7) == 0, "unknown value restarts at 0");
 Check(DelayCycle.Sanitize(4) == 0 && DelayCycle.Sanitize(5) == 5, "sanitize");
 
-Console.WriteLine("HotkeySpec");
-Check(HotkeySpec.TryParse("Win+Shift+X", out var h) && h.Mods == (HotkeyMods.Win | HotkeyMods.Shift) && h.VirtualKey == 'X', "parse Win+Shift+X");
-Check(HotkeySpec.TryParse("ctrl + alt + 5", out h) && h.VirtualKey == '5', "parse with spaces/case");
-Check(HotkeySpec.TryParse("PrintScreen", out h) && h.VirtualKey == 0x2C && h.Mods == HotkeyMods.None, "bare PrintScreen allowed");
-Check(HotkeySpec.TryParse("F13", out h) && h.VirtualKey == 0x7C, "bare F-key allowed");
-Check(!HotkeySpec.TryParse("X", out _), "bare letter rejected");
-Check(!HotkeySpec.TryParse("Win+Shift", out _), "modifiers only rejected");
-Check(!HotkeySpec.TryParse("Win+A+B", out _), "two keys rejected");
-Check(!HotkeySpec.TryParse("", out _) && !HotkeySpec.TryParse(null, out _), "empty rejected");
-Check(HotkeySpec.TryParse("Win+Shift+F", out h) && h.ToString() == "Shift+Win+F", "canonical ToString");
 
 Console.WriteLine("RegionGeometry");
 var r = new RectPx(100, 100, 200, 100);
@@ -100,8 +90,8 @@ Check(sm.TryTransition(AppState.FullScreenInstant) && sm.TryTransition(AppState.
 Check(!new AppStateMachine().TryTransition(AppState.Captured), "idle -> captured refused");
 
 Console.WriteLine("Preferences");
-var p = new Preferences { ImageFormat = "webp", HotkeyMenu = "nonsense", DefaultDelaySeconds = 4, DimmerOpacity = 5, MatteColor = "Pink", FullScreenTarget = "Monitor:3", EditorBounds = new[] { 1, 2 } }.Sanitize();
-Check(p.ImageFormat == "png" && p.HotkeyMenu == "Win+Shift+X" && p.DefaultDelaySeconds == 0, "sanitize format/hotkey/delay");
+var p = new Preferences { ImageFormat = "webp", DefaultDelaySeconds = 4, DimmerOpacity = 5, MatteColor = "Pink", FullScreenTarget = "Monitor:3", EditorBounds = new[] { 1, 2 } }.Sanitize();
+Check(p.ImageFormat == "png" && p.DefaultDelaySeconds == 0, "sanitize format/delay");
 Check(p.DimmerOpacity == 0.9 && p.MatteColor == "Transparent" && p.EditorBounds is null, "sanitize opacity/matte/bounds");
 Check(p.FullScreenTarget == "CurrentMonitor", "persisted target is never a specific monitor index");
 Check(new Preferences { MatteColor = "Black" }.MatteArgb == 0xFF000000u && new Preferences().MatteArgb == 0u, "matte argb");
@@ -111,7 +101,7 @@ string file = Path.Combine(dir, "prefs.json");
 try
 {
     var fresh = PrefsStore.Load(file, out var w0);
-    Check(w0 is null && fresh.HotkeyMenu == "Win+Shift+X", "missing file -> defaults, no warning");
+    Check(w0 is null && fresh.ImageFormat == "png", "missing file -> defaults, no warning");
     PrefsStore.Save(file, new Preferences { ImageFormat = "jpg", DefaultDelaySeconds = 5, FullScreenTarget = "AllMonitors" });
     var back = PrefsStore.Load(file, out var w1);
     Check(w1 is null && back.ImageFormat == "jpg" && back.DefaultDelaySeconds == 5 && back.FullScreenTarget == "AllMonitors", "save/load round trip");
@@ -119,25 +109,26 @@ try
     Check(PrefsStore.Load(file, out _).ImageFormat == "png" && !File.Exists(file + ".tmp"), "overwrite is atomic, no temp left");
     File.WriteAllText(file, "{ not json");
     var quarantined = PrefsStore.Load(file, out var w2);
-    Check(w2 is not null && quarantined.HotkeyMenu == "Win+Shift+X" && !File.Exists(file)
+    Check(w2 is not null && quarantined.ImageFormat == "png" && !File.Exists(file)
           && Directory.GetFiles(dir, "prefs.json.bad-*").Length == 1, "corrupt file quarantined, defaults loaded");
     File.WriteAllText(file, "{ \"ImageFormat\": \"jpg\", // comment\n \"Unknown\": 1, }");
     Check(PrefsStore.Load(file, out var w3).ImageFormat == "jpg" && w3 is null, "comments, trailing commas, unknown keys tolerated");
 }
 finally { try { Directory.Delete(dir, true); } catch (IOException) { } }
 
-Console.WriteLine("Hotkey defaults");
+Console.WriteLine("Print Screen override record");
 var defs = new Preferences();
-var all4 = new[] { defs.HotkeyMenu, defs.HotkeyFullScreen, defs.HotkeyActiveWindow, defs.HotkeyRepeatLast };
-Check(all4.All(k => HotkeySpec.TryParse(k, out _)), "all four default hotkeys parse");
-Check(all4.Select(k => { HotkeySpec.TryParse(k, out var sp); return sp; }).Distinct().Count() == 4, "default hotkeys are all different");
-var bad = new Preferences { HotkeyActiveWindow = "x", HotkeyRepeatLast = "" }.Sanitize();
-Check(bad.HotkeyActiveWindow == "Win+Shift+W" && bad.HotkeyRepeatLast == "Win+Shift+R", "bad new hotkeys fall back to defaults");
+Check(!defs.PrintScreenPriorRecorded && defs.PrintScreenSnippingPrior == -1, "override record starts unrecorded, prior -1");
 string oldFile = Path.Combine(Path.GetTempPath(), "sharpsnip-v01-" + Guid.NewGuid().ToString("N") + ".json");
-File.WriteAllText(oldFile, "{ \"SchemaVersion\": 1, \"HotkeyMenu\": \"Win+Shift+X\", \"ImageFormat\": \"jpg\" }");
+File.WriteAllText(oldFile, "{ \"SchemaVersion\": 1, \"HotkeyMenu\": \"Win+Shift+X\", \"PrintScreenTakeover\": true, \"ImageFormat\": \"jpg\" }");
 var migrated = PrefsStore.Load(oldFile, out var wOld);
-Check(wOld is null && migrated.ImageFormat == "jpg" && migrated.HotkeyActiveWindow == "Win+Shift+W", "v0.1 settings file loads and gains new defaults");
+Check(wOld is null && migrated.ImageFormat == "jpg", "v0.1 settings file loads (removed hotkey keys are ignored)");
 File.Delete(oldFile);
+string recFile = Path.Combine(Path.GetTempPath(), "sharpsnip-rec-" + Guid.NewGuid().ToString("N") + ".json");
+PrefsStore.Save(recFile, new Preferences { PrintScreenPriorRecorded = true, PrintScreenSnippingPrior = 1 });
+var recBack = PrefsStore.Load(recFile, out _);
+Check(recBack.PrintScreenPriorRecorded && recBack.PrintScreenSnippingPrior == 1, "override record round-trips through save/load");
+File.Delete(recFile);
 
 Console.WriteLine("FixedRegion");
 var desk = new RectPx(0, -300, 4480, 1440);
@@ -153,18 +144,8 @@ Check(IntervalPlan.FolderName(new DateTime(2026, 11, 12, 9, 8, 7)) == "Interval-
 Check(IntervalPlan.FrameName(7, ".png") == "frame-00007.png", "frame name");
 Check(string.CompareOrdinal(IntervalPlan.FrameName(9, "png"), IntervalPlan.FrameName(10, "png")) < 0, "frames sort in order");
 
-Console.WriteLine("HotkeyList");
-Check(HotkeyList.TryParse(HotkeyList.Default, out var hl) && hl.Count == 4, "default list parses to 4");
-Check(HotkeyList.TryParse("", out hl) && hl.Count == 0, "empty list is valid");
-Check(!HotkeyList.TryParse("Ctrl+Alt+1;Ctrl+Alt+1", out _), "duplicates rejected");
-Check(!HotkeyList.TryParse("Ctrl+Alt+1;nonsense", out hl) && hl.Count == 0, "bad entry rejected");
-Check(!HotkeyList.TryParse(string.Join(';', Enumerable.Range(1, 10).Select(i => "Ctrl+Alt+Shift+F" + i)), out _), "more than 9 rejected");
-Check(HotkeyList.TryParse(" Ctrl+Alt+1 ; Ctrl+Alt+2 ;", out hl) && hl.Count == 2, "spaces and trailing separator tolerated");
-var pk = new Preferences { HotkeyMonitors = "junk", FixedWidth = 1, FixedHeight = 99999, IntervalSeconds = 0 }.Sanitize();
-Check(pk.HotkeyMonitors == HotkeyList.Default && pk.FixedWidth == 16 && pk.FixedHeight == 16384 && pk.IntervalSeconds == 1, "sanitize new fields");
-var allKeys = new[] { defs.HotkeyMenu, defs.HotkeyFullScreen, defs.HotkeyActiveWindow, defs.HotkeyRepeatLast }
-    .Concat(HotkeyList.Default.Split(';')).Select(k => { HotkeySpec.TryParse(k, out var sp); return sp; });
-Check(allKeys.Distinct().Count() == 8, "monitor hotkey defaults do not clash with the other four");
+var pk = new Preferences { FixedWidth = 1, FixedHeight = 99999, IntervalSeconds = 0 }.Sanitize();
+Check(pk.FixedWidth == 16 && pk.FixedHeight == 16384 && pk.IntervalSeconds == 1, "sanitize new fields");
 Check(AppStateMachine.ForMode(PickMode.FixedRegion) == AppState.RegionPicking, "fixed region counts as region picking");
 
 Console.WriteLine("ImageFormats");
@@ -553,24 +534,13 @@ Console.WriteLine("PixelAdjust");
     Check(Throws(() => PixelAdjust.Invert(new byte[3])), "pixel ops: partial pixel rejected");
 }
 
-Console.WriteLine("PrintScreenPlan");
+Console.WriteLine("Print Screen override");
 {
-    Check(PrintScreenPlan.IsPrintScreen("PrintScreen") && PrintScreenPlan.IsPrintScreen("printscreen"), "prtsc plan: recognises Print Screen, any case");
-    Check(!PrintScreenPlan.IsPrintScreen("Ctrl+PrintScreen") && !PrintScreenPlan.IsPrintScreen("Win+Shift+X") && !PrintScreenPlan.IsPrintScreen(null), "prtsc plan: modified/other keys are not Print Screen");
-    var (menu, rem) = PrintScreenPlan.Enable("Win+Shift+X", "");
-    Check(menu == "PrintScreen" && rem == "Win+Shift+X", "prtsc plan: enable points menu at Print Screen and remembers the old key");
-    (menu, rem) = PrintScreenPlan.Enable("PrintScreen", "Win+Shift+X");
-    Check(menu == "PrintScreen" && rem == "Win+Shift+X", "prtsc plan: enable while already on Print Screen keeps the remembered key");
-    (menu, rem) = PrintScreenPlan.Enable("Win+Shift+Z", "Win+Shift+Q");
-    Check(rem == "Win+Shift+Q", "prtsc plan: re-enable never overwrites the original remembered key");
-    Check(PrintScreenPlan.Disable("PrintScreen", "Win+Shift+X") == "Win+Shift+X", "prtsc plan: disable restores the remembered key");
-    Check(PrintScreenPlan.Disable("PrintScreen", "") == "PrintScreen", "prtsc plan: disable with nothing remembered keeps the current key");
-    Check(PrintScreenPlan.Disable("Win+Shift+Z", "junk!!") == "Win+Shift+Z", "prtsc plan: disable ignores an invalid remembered key");
-    var sp = new Preferences { PrintScreenSnippingPrior = 7, HotkeyMenuBeforeTakeover = "junk!!" }.Sanitize();
-    Check(sp.PrintScreenSnippingPrior == 1 && sp.HotkeyMenuBeforeTakeover == "", "prefs sanitize: prior clamps to [-1,1], invalid remembered key dropped");
-    sp = new Preferences { PrintScreenSnippingPrior = -5, HotkeyMenuBeforeTakeover = "Win+Shift+X" }.Sanitize();
-    Check(sp.PrintScreenSnippingPrior == -1 && sp.HotkeyMenuBeforeTakeover == "Win+Shift+X", "prefs sanitize: -1 (value absent) and a valid remembered key survive");
-    Check(new Preferences().ShowTrayIcon && new Preferences().PrintScreenTakeover, "prefs defaults: tray icon shown, Print Screen takeover ON by default");
+    var sp = new Preferences { PrintScreenSnippingPrior = 7 }.Sanitize();
+    Check(sp.PrintScreenSnippingPrior == 1, "prefs sanitize: recorded prior clamps to [-1,1]");
+    sp = new Preferences { PrintScreenSnippingPrior = -5 }.Sanitize();
+    Check(sp.PrintScreenSnippingPrior == -1, "prefs sanitize: -1 (the value was absent) survives the clamp");
+    Check(new Preferences().ShowTrayIcon, "prefs defaults: tray icon shown");
 }
 
 Console.WriteLine("ModeBarLayout");
@@ -877,6 +847,44 @@ Console.WriteLine("Streaming audio (WavReader + PcmResampler)");
             Check(got.SequenceEqual(whole), $"resampler: {from}→{to} in {chunkFrames}-frame chunks is sample-identical to whole-array");
         }
     }
+}
+
+Console.WriteLine("Pause clock + WAV concatenation");
+{
+    TimeSpan S(double s) => TimeSpan.FromSeconds(s);
+    var clock = new PauseClock();
+    Check(!clock.IsPaused && clock.MediaTime(S(5)) == S(5), "pauseclock: running media time equals wall time");
+    clock.Pause(S(5));
+    Check(clock.IsPaused && clock.MediaTime(S(9)) == S(5), "pauseclock: media time freezes at the pause point");
+    clock.Pause(S(6));
+    Check(clock.MediaTime(S(9)) == S(5), "pauseclock: a second pause while paused is a no-op");
+    clock.Resume(S(9));
+    Check(!clock.IsPaused && clock.MediaTime(S(9)) == S(5) && clock.MediaTime(S(11)) == S(7), "pauseclock: media time resumes where it froze");
+    clock.Resume(S(10));
+    Check(clock.MediaTime(S(11)) == S(7), "pauseclock: resume while running is a no-op");
+    clock.Pause(S(12)); clock.Resume(S(14));
+    Check(clock.MediaTime(S(20)) == S(14) && clock.PausedTotal(S(20)) == S(6), "pauseclock: multiple spans accumulate (4 s + 2 s)");
+
+    // Two WAV segments joined end-to-end reproduce the concatenated samples.
+    var segA = new short[2000]; var segB = new short[3000];
+    for (int i = 0; i < segA.Length; i++) segA[i] = (short)(i % 997);
+    for (int i = 0; i < segB.Length; i++) segB[i] = (short)(3000 - i % 991);
+    using var inA = new MemoryStream(); using (var w = new WavWriter(inA, 44100, 2)) w.Write(segA);
+    using var inB = new MemoryStream(); using (var w = new WavWriter(inB, 44100, 2)) w.Write(segB);
+    using var joined = new MemoryStream();
+    inA.Position = 0; inB.Position = 0;
+    WavConcat.Concatenate(new Stream[] { inA, inB }, joined);
+    joined.Position = 0;
+    using var jr = new WavReader(joined, leaveOpen: true);
+    Check(jr.SampleRate == 44100 && jr.TotalFrames == 2500, "wavconcat: joined header keeps rate, frames add up");
+    var all = new List<short>(); var buf = new short[1024];
+    int n; while ((n = jr.Read(buf)) > 0) all.AddRange(buf.AsSpan(0, n).ToArray());
+    Check(all.SequenceEqual(segA.Concat(segB)), "wavconcat: joined samples are exactly segment A then B");
+    using var inC = new MemoryStream(); using (var w = new WavWriter(inC, 48000, 2)) w.Write(segA);
+    inA.Position = 0; inC.Position = 0;
+    bool concatThrew = false;
+    try { WavConcat.Concatenate(new Stream[] { inA, inC }, new MemoryStream()); } catch (InvalidDataException) { concatThrew = true; }
+    Check(concatThrew, "wavconcat: mismatched sample rates are rejected");
 }
 
 Console.WriteLine($"\n{passed} passed, {failed} failed");
