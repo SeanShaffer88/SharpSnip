@@ -99,6 +99,8 @@ internal static class TesselTheme
     {
         switch (d)
         {
+            case FrameworkElement k when k.Tag is "keep":   // owner of the control styles it (the editor's chrome)
+                break;
             case TextBlock t:
                 if (!ReferenceEquals(t.Foreground, Danger)) t.Foreground = Foreground;
                 break;

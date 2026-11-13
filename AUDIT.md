@@ -109,6 +109,11 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.20.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
+- Editor chrome restyled (`EditorChrome`): icon tool cells, key hints, swatches, slider, dark menus, status bar, themed dialogs. Build 0 warnings, 463 self-test checks pass (no Core change).
+- **Unverified:** every pixel of it. XAML control templates are parsed at runtime (`XamlReader`), so a template typo would only show when the editor opens. High Contrast variant and hotkeys likewise not run.
+- Removed Apply B/C sliders; Brightness / contrast is now a dialog.
+
 ## v0.19.0 additions (compile-verified on Linux against .NET 10; not run on Windows)
 - `AreaMask` bounds and masking are self-tested. The Region picker's A and Backspace keys, the extra overlay outlines and the dim holes are Windows-layer code that has never run on hardware. Multi-area works within one capture; there is no scrolling or freehand variant, and a delay countdown re-resolves only the single-area case.
 

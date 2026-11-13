@@ -23,6 +23,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Window-control capture | ✅ (element picker) |
 | Menu capture (disappearing menus) | ✅ via delay; hotkey-while-menu-open 🔜 |
 | Print Screen key replaces Snipping Tool | ✅ v0.6.0 — Settings option; prior Windows switch value + old menu hotkey recorded and restored on untick / `--clean`; **on by default + self-applying at startup** — v0.6.1 |
+| Editor in TesselGUI revision 3 (matches the mode bar) | ✅ v0.20 — icon tool cells, hotkeys, swatches, dropdown menus, themed dialogs |
 | Settings window in TesselGUI revision 2 | ✅ v0.6.1 — GitHub-scheme tokens, themed inputs/buttons/combos/checkboxes; OS title bar unthemed |
 | Snipping-Tool-style mode bar (top-of-screen tab, icon buttons) | ✅ v0.6.0 — design A picked by SEAN 2026-11-13 from rendered mockups; replaces the text HUD menu, all keys unchanged |
 | Multiple-area capture (several regions, one action) | ✅ v0.19 — Region tool: A adds an area, Enter combines them into one transparent-gapped image |

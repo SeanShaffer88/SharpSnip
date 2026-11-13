@@ -48,11 +48,10 @@ internal sealed class EditorWindow : Window
     private readonly TextBlock _status = new() { Margin = new Thickness(8, 4, 8, 4) };
     private readonly Button _openFolder = new() { Content = "Open folder", Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 4, 0), ToolTip = "Show the saved file in Explorer." };
     private readonly Button _copyPath = new() { Content = "Copy path", Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 4, 0), ToolTip = "Copy the saved file's full path to the clipboard." };
-    private readonly ComboBox _color = new() { Width = 90, ToolTip = "Annotation colour." };
-    private readonly Slider _thickness = new() { Minimum = 1, Maximum = 20, Value = 4, Width = 100, ToolTip = "Stroke thickness." };
+    private int _colorIndex;
+    private readonly Slider _thickness = new() { Minimum = 1, Maximum = 20, Value = 4, Width = 110, ToolTip = "Stroke thickness." };
+    private readonly EditorChrome _chrome = new(SystemParameters.HighContrast);
 
-    private readonly Slider _bright = new() { Minimum = -100, Maximum = 100, Value = 0, Width = 80, ToolTip = "Brightness for the Apply B/C button." };
-    private readonly Slider _contrast = new() { Minimum = 50, Maximum = 200, Value = 100, Width = 80, ToolTip = "Contrast (100 = unchanged) for the Apply B/C button." };
     private int _stepCount;
     private BitmapSource _base;
     private Tool _tool = Tool.Pen;
@@ -61,6 +60,19 @@ internal sealed class EditorWindow : Window
     private Polyline? _stroke;
     private TextBox? _editing;
     private string? _savedPath;
+
+    private static readonly Dictionary<Key, Tool> ToolKeys = new()
+    {
+        [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
+        [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
+    };
+    private readonly Dictionary<Tool, ToggleButton> _toolCells = new();
+
+    private void SelectTool(Tool t, ToggleButton cell)
+    {
+        _tool = t;
+        foreach (var kv in _toolCells) kv.Value.IsChecked = kv.Value == cell;
+    }
 
     private static readonly (string Name, Color Color)[] Palette =
     {
@@ -78,13 +90,17 @@ internal sealed class EditorWindow : Window
 
         var root = new DockPanel();
         root.Children.Add(BuildToolbar()); DockPanel.SetDock(root.Children[0], Dock.Top);
-        var statusBar = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)) };
+        Background = _chrome.CanvasBg; Foreground = _chrome.Ink; FontFamily = new FontFamily("Segoe UI"); FontSize = 12;
+        _status.Foreground = _chrome.Muted; _status.Tag = EditorChrome.Keep;
+        foreach (var sb in new[] { _openFolder, _copyPath }) { sb.Template = _chrome.ChipTemplate; sb.Foreground = _chrome.Ink; sb.Tag = EditorChrome.Keep; sb.Height = 22; }
+        var statusBar = new DockPanel { Background = _chrome.Surface };
         var statusButtons = new StackPanel { Orientation = Orientation.Horizontal };
         statusButtons.Children.Add(_openFolder); statusButtons.Children.Add(_copyPath);
         DockPanel.SetDock(statusButtons, Dock.Right);
         statusBar.Children.Add(statusButtons); statusBar.Children.Add(_status);
-        DockPanel.SetDock(statusBar, Dock.Bottom);
-        root.Children.Add(statusBar);
+        var statusEdge = new Border { BorderBrush = _chrome.Edge, BorderThickness = new Thickness(0, 1, 0, 0), Child = statusBar };
+        DockPanel.SetDock(statusEdge, Dock.Bottom);
+        root.Children.Add(statusEdge);
         var side = BuildMetaPanel(cap, meta, monitorCount, delay);
         DockPanel.SetDock(side, Dock.Right);
         root.Children.Add(side);
@@ -93,7 +109,10 @@ internal sealed class EditorWindow : Window
         RenderOptions.SetBitmapScalingMode(_image, BitmapScalingMode.NearestNeighbor);
         SetBase(_base);
         root.Children.Add(new Viewbox { Stretch = Stretch.Uniform, Child = _surface, Margin = new Thickness(8), Focusable = false });
+        root.Background = _chrome.CanvasBg;
         Content = root;
+        if (!SystemParameters.HighContrast) Loaded += (_, _) => TesselTheme.Apply(this);
+        else { Background = _chrome.CanvasBg; Foreground = _chrome.Ink; }
 
         _layer.MouseLeftButtonDown += OnDown;
         _layer.MouseMove += OnMove;
@@ -106,7 +125,13 @@ internal sealed class EditorWindow : Window
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Undo, (_, _) => DoUndo(), (_, e) => e.CanExecute = _editing is null && _undo.Count > 0));
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Redo, (_, _) => DoRedo(), (_, e) => e.CanExecute = _editing is null && _redo.Count > 0));
         InputBindings.Add(new KeyBinding(ApplicationCommands.Redo, Key.Z, ModifierKeys.Control | ModifierKeys.Shift));
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && _editing is null) { Close(); e.Handled = true; } };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (_editing is not null) return;
+            if (e.Key == Key.Escape) { Close(); e.Handled = true; return; }
+            if (Keyboard.Modifiers != ModifierKeys.None || Keyboard.FocusedElement is TextBox) return;
+            if (ToolKeys.TryGetValue(e.Key, out var t) && _toolCells.TryGetValue(t, out var cell)) { SelectTool(t, cell); e.Handled = true; }
+        };
 
         _status.Text = meta.Mode + (cap.HasGaps ? " · monitor layout has gaps (matte fill)" : "");
         Loaded += (_, _) => ApplyAutoEffect();
@@ -135,103 +160,149 @@ internal sealed class EditorWindow : Window
 
     private UIElement BuildToolbar()
     {
-        var bar = new WrapPanel { Margin = new Thickness(6), Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF7, 0xF7)) };
-        var group = new List<ToggleButton>();
-        void AddTool(string label, Tool t, string tip)
+        var c = _chrome;
+        // ---- tools row ----
+        var tools = new DockPanel { Margin = new Thickness(6, 4, 6, 4) };
+        var left = new StackPanel { Orientation = Orientation.Horizontal };
+        var right = new StackPanel { Orientation = Orientation.Horizontal };
+        DockPanel.SetDock(right, Dock.Right);
+        void AddTool(string label, string icon, string key, Tool t, string tip)
         {
-            var b = new ToggleButton { Content = label, Margin = new Thickness(2), Padding = new Thickness(8, 3, 8, 3), ToolTip = tip, IsChecked = t == _tool };
-            b.Click += (_, _) => { _tool = t; foreach (var g in group) g.IsChecked = g == b; };
-            group.Add(b); bar.Children.Add(b);
+            var b = c.ToolCell(label, icon, key, tip);
+            b.IsChecked = t == _tool;
+            b.Click += (_, _) => SelectTool(t, b);
+            _toolCells[t] = b; left.Children.Add(b);
         }
-        AddTool("Pen", Tool.Pen, "Freehand pen. Drag on the image.");
-        AddTool("Highlighter", Tool.Highlighter, "Translucent wide marker.");
-        AddTool("Arrow", Tool.Arrow, "Drag from tail to head.");
-        AddTool("Rect", Tool.Rect, "Drag a rectangle outline.");
-        AddTool("Ellipse", Tool.Ellipse, "Drag an ellipse outline.");
-        AddTool("Text", Tool.Text, "Click to type. Enter commits, Esc discards.");
-        AddTool("Step", Tool.Step, "Click to drop the next numbered step marker (1, 2, 3…).");
-        AddTool("Blur", Tool.Blur, "Drag over sensitive content to pixelate it.");
-        AddTool("Crop", Tool.Crop, "Drag the area to keep. Applies immediately; Undo restores.");
-        AddTool("Cut out", Tool.Cut, "Drag across the image to remove a strip and join the two sides. A wide drag removes rows, a tall drag removes columns. Annotations are baked in; Undo restores.");
+        AddTool("Pen", "pen", "P", Tool.Pen, "Freehand pen. Drag on the image.");
+        AddTool("Highlight", "highlighter", "H", Tool.Highlighter, "Translucent wide marker.");
+        AddTool("Arrow", "arrow", "A", Tool.Arrow, "Drag from tail to head.");
+        AddTool("Rect", "rect", "R", Tool.Rect, "Drag a rectangle outline.");
+        AddTool("Ellipse", "ellipse", "O", Tool.Ellipse, "Drag an ellipse outline.");
+        AddTool("Text", "text", "T", Tool.Text, "Click to type. Enter commits, Esc discards.");
+        AddTool("Step", "step", "N", Tool.Step, "Click to drop the next numbered step marker (1, 2, 3…).");
+        left.Children.Add(new Border { Width = 1, Margin = new Thickness(6, 8, 6, 8), Background = c.Edge });
+        AddTool("Blur", "blur", "B", Tool.Blur, "Drag over sensitive content to pixelate it.");
+        AddTool("Crop", "crop", "C", Tool.Crop, "Drag the area to keep. Applies immediately; Undo restores.");
+        AddTool("Cut out", "cut", "X", Tool.Cut, "Drag across the image to remove a strip and join the two sides. A wide drag removes rows, a tall drag removes columns. Annotations are baked in; Undo restores.");
 
-        foreach (var (name, _) in Palette) _color.Items.Add(name);
-        _color.SelectedIndex = 0;
-        bar.Children.Add(new TextBlock { Text = "Colour", Margin = new Thickness(10, 4, 4, 0) }); bar.Children.Add(_color);
-        bar.Children.Add(new TextBlock { Text = "Size", Margin = new Thickness(10, 4, 4, 0) }); bar.Children.Add(_thickness);
-
-        Button Act(string label, string tip, Action a)
+        Button Cell(string label, string icon, string tip, Action a)
         {
-            var b = new Button { Content = label, Margin = new Thickness(2), Padding = new Thickness(8, 3, 8, 3), ToolTip = tip };
-            b.Click += (_, _) => a(); bar.Children.Add(b); return b;
+            var b = c.ActionCell(label, icon, tip); b.Click += (_, _) => a(); right.Children.Add(b); return b;
         }
-        bar.Children.Add(new Separator { Margin = new Thickness(6, 0, 6, 0) });
-        Act("Undo", "Undo last edit (Ctrl+Z).", DoUndo);
-        Act("Redo", "Redo (Ctrl+Y).", DoRedo);
-        Act("Copy", "Copy the edited image to the clipboard (Ctrl+C).", CopyImage);
-        Act("Copy text", "Recognise the text in this image (built-in Windows OCR, offline) and copy it to the clipboard.", () => _ = CopyTextAsync());
-        Act("Redact", "Find emails, cards, IPs, phone numbers and key-shaped tokens in the image's text and cover them with black boxes (undoable).", () => _ = RedactAsync());
-        Act("Replace text…", "Find text in the image (OCR) and replace it: the original is covered with the surrounding colour and the new text drawn in (undoable).", () =>
+        Cell("Undo", "undo", "Undo last edit. Key: Ctrl+Z.", DoUndo);
+        Cell("Redo", "redo", "Redo. Key: Ctrl+Y.", DoRedo);
+        Cell("Copy", "copy", "Copy the edited image to the clipboard. Key: Ctrl+C.", CopyImage);
+        var save = c.SaveButton("Save to the output folder."); save.Click += (_, _) => Save(); right.Children.Add(save);
+        tools.Children.Add(right); tools.Children.Add(left);
+
+        // ---- options row ----
+        var opts = new DockPanel { Margin = new Thickness(10, 0, 8, 0), Height = 32 };
+        var optsLeft = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var optsRight = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        DockPanel.SetDock(optsRight, Dock.Right);
+        TextBlock Label(string t) => new() { Text = t, Foreground = c.Muted, Tag = EditorChrome.Keep, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        optsLeft.Children.Add(Label("Colour"));
+        var swatches = new List<ToggleButton>();
+        for (int i = 0; i < Palette.Length; i++)
         {
-            if (EditorDialogs.ReplaceText(this) is { } rr) _ = ReplaceTextAsync(rr.Find, rr.Replace);
-        });
-        Act("Resize…", "Resize the whole image to new pixel dimensions. Annotations are baked in; Undo restores.", () =>
+            int idx = i;
+            var sw = c.Swatch(Palette[i].Color, Palette[i].Name);
+            sw.IsChecked = i == _colorIndex;
+            sw.Click += (_, _) => { _colorIndex = idx; foreach (var o in swatches) o.IsChecked = o == sw; };
+            swatches.Add(sw); optsLeft.Children.Add(sw);
+        }
+        var wl = Label("Width"); wl.Margin = new Thickness(18, 0, 8, 0); optsLeft.Children.Add(wl);
+        _thickness.Style = c.SliderStyle; _thickness.Tag = EditorChrome.Keep; _thickness.VerticalAlignment = VerticalAlignment.Center;
+        System.Windows.Automation.AutomationProperties.SetName(_thickness, "Stroke width");
+        optsLeft.Children.Add(_thickness);
+
+        void Add(string label, string tip, Action<Func<string, string, Action, MenuItem>, Action> fill)
         {
-            if (EditorDialogs.Resize(this, _base.PixelWidth, _base.PixelHeight) is { } sz && (sz.W != _base.PixelWidth || sz.H != _base.PixelHeight))
-                ResizeBase(sz.W, sz.H);
-        });
-        Act("Watermark…", "Stamp a text watermark, in the corner or tiled. Annotations are baked in; Undo restores.", () =>
+            var (btn, menu) = c.MenuButton(label, tip);
+            Func<string, string, Action, MenuItem> item = (h, t, a) => { var mi = c.Item(h, t, a); menu.Items.Add(mi); return mi; };
+            fill(item, () => menu.Items.Add(c.Sep()));
+            optsRight.Children.Add(btn);
+        }
+        Add("Text", "Recognise, redact or replace text in the image; watermark.", (item, sep) =>
         {
-            if (EditorDialogs.Watermark(this) is { } wm) ApplyWatermark(wm.Text, wm.Tiled, wm.Opacity);
-        });
-        bar.Children.Add(new Separator { Margin = new Thickness(6, 0, 6, 0) });
-        Act("Invert", "Invert the colours of the whole image. Annotations are baked in; Undo restores.", () => TransformBase("Invert", (px, w, h) => { PixelAdjust.Invert(px); return (px, w, h); }));
-        Act("Grayscale", "Convert the whole image to grey. Annotations are baked in; Undo restores.", () => TransformBase("Grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); }));
-        Act("Frame", "Add a solid border around the whole image (grows the canvas). Size and colour: Effects…. Annotations are baked in; Undo restores.", () =>
-            TransformBase("Frame", (px, w, h) =>
+            item("Copy text", "Recognise the text in this image (built-in Windows OCR, offline) and copy it to the clipboard.", () => _ = CopyTextAsync());
+            item("Redact", "Find emails, cards, IPs, phone numbers and key-shaped tokens in the image's text and cover them with black boxes (undoable).", () => _ = RedactAsync());
+            item("Replace text…", "Find text in the image (OCR) and replace it: the original is covered with the surrounding colour and the new text drawn in (undoable).", () =>
             {
-                var c = EffectSettings.FrameRgb(_prefs.FrameColor);
-                return ImageFrames.AddBorder(px, w, h, EffectSettings.FrameThickness(_prefs.FrameThickness, w, h), c.R, c.G, c.B);
-            }));
-        Act("Shadow", "Add a soft drop shadow under the image on a transparent margin (keep PNG to preserve it). Size and strength: Effects…. Annotations are baked in; Undo restores.", () =>
-            TransformBase("Shadow", (px, w, h) =>
+                if (EditorDialogs.ReplaceText(this) is { } rr) _ = ReplaceTextAsync(rr.Find, rr.Replace);
+            });
+            sep();
+            item("Watermark…", "Stamp a text watermark, in the corner or tiled. Annotations are baked in; Undo restores.", () =>
             {
-                int blur = EffectSettings.ShadowBlur(_prefs.ShadowBlur, w, h), off = EffectSettings.ShadowOffset(blur);
-                return ImageFrames.AddShadow(px, w, h, blur, off, off, EffectSettings.ShadowOpacity(_prefs.ShadowOpacityPercent));
-            }));
-        Act("Torn", "Rip the edges of the whole image like torn paper (cut area becomes transparent; keep PNG to preserve it). Depth: Effects…. Annotations are baked in; Undo restores.", () =>
-            TransformBase("Torn edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Torn, EdgeSides.All, EffectSettings.EdgeDepth(_prefs.EdgeDepth, w, h), Environment.TickCount), w, h)));
-        Act("Wave", "Give the edges of the whole image a smooth wave (cut area becomes transparent; keep PNG to preserve it). Depth: Effects…. Annotations are baked in; Undo restores.", () =>
-            TransformBase("Wave edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Wave, EdgeSides.All, EffectSettings.EdgeDepth(_prefs.EdgeDepth, w, h), 0), w, h)));
-        Act("Effects…", "Set the Frame width and colour, Shadow blur and strength, and Torn/Wave depth. 0 = automatic by image size. Saved for next time.", () =>
-        {
-            if (EditorDialogs.Effects(this, _prefs)) { _persist(); _status.Text = "Effect settings saved"; }
+                if (EditorDialogs.Watermark(this) is { } wm) ApplyWatermark(wm.Text, wm.Tiled, wm.Opacity);
+            });
         });
-        Act("Flip ↔", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
-        Act("Flip ↕", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
-        Act("Rotate", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));
-        bar.Children.Add(new TextBlock { Text = "Bright", Margin = new Thickness(10, 4, 4, 0) }); bar.Children.Add(_bright);
-        bar.Children.Add(new TextBlock { Text = "Contrast", Margin = new Thickness(10, 4, 4, 0) }); bar.Children.Add(_contrast);
-        Act("Apply B/C", "Apply the brightness/contrast sliders to the whole image. Annotations are baked in; Undo restores.", () =>
+        Add("Effects", "Frame, shadow, torn and wave edges.", (item, sep) =>
         {
-            int b = (int)_bright.Value; double c = _contrast.Value / 100.0;
-            TransformBase("Brightness/contrast", (px, w, h) => { PixelAdjust.BrightnessContrast(px, b, c); return (px, w, h); });
-            _bright.Value = 0; _contrast.Value = 100;
-        });
-        Act("External editor…", "Save, then open the file in the external editor set in Settings.", () =>
-        {
-            if (string.IsNullOrWhiteSpace(_prefs.ExternalEditorPath)) { _status.Text = "No external editor set — add one in Settings."; return; }
-            if (_savedPath is null) Save();
-            if (_savedPath is null) return;
-            try
+            item("Frame", "Add a solid border around the whole image (grows the canvas). Size and colour: Settings…. Annotations are baked in; Undo restores.", () =>
+                TransformBase("Frame", (px, w, h) =>
+                {
+                    var col = EffectSettings.FrameRgb(_prefs.FrameColor);
+                    return ImageFrames.AddBorder(px, w, h, EffectSettings.FrameThickness(_prefs.FrameThickness, w, h), col.R, col.G, col.B);
+                }));
+            item("Shadow", "Add a soft drop shadow under the image on a transparent margin (keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+                TransformBase("Shadow", (px, w, h) =>
+                {
+                    int blur = EffectSettings.ShadowBlur(_prefs.ShadowBlur, w, h), off = EffectSettings.ShadowOffset(blur);
+                    return ImageFrames.AddShadow(px, w, h, blur, off, off, EffectSettings.ShadowOpacity(_prefs.ShadowOpacityPercent));
+                }));
+            item("Torn edge", "Rip the edges of the whole image like torn paper (cut area becomes transparent; keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+                TransformBase("Torn edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Torn, EdgeSides.All, EffectSettings.EdgeDepth(_prefs.EdgeDepth, w, h), Environment.TickCount), w, h)));
+            item("Wave edge", "Give the edges of the whole image a smooth wave (cut area becomes transparent; keep PNG to preserve it). Annotations are baked in; Undo restores.", () =>
+                TransformBase("Wave edge", (px, w, h) => (EdgeEffects.Apply(px, w, h, EdgeStyle.Wave, EdgeSides.All, EffectSettings.EdgeDepth(_prefs.EdgeDepth, w, h), 0), w, h)));
+            sep();
+            item("Settings…", "Set the Frame width and colour, Shadow blur and strength, and Torn/Wave depth. 0 = automatic by image size. Saved for next time.", () =>
             {
-                Process.Start(new ProcessStartInfo(_prefs.ExternalEditorPath.Trim()) { Arguments = "\"" + _savedPath + "\"", UseShellExecute = true });
-                _status.Text = "Opened in the external editor.";
-            }
-            catch (Exception ex) { Log.Error("External editor failed", ex); _status.Text = "Could not start the external editor: " + ex.Message; }
+                if (EditorDialogs.Effects(this, _prefs)) { _persist(); _status.Text = "Effect settings saved"; }
+            });
         });
-        Act("Save", "Save to the output folder (Ctrl+S).", Save);
-        Act("Reveal", "Save if needed, then show the file in Explorer. (The Windows share sheet is not implemented yet.)", () => { if (_savedPath is null) Save(); if (_savedPath is not null) Process.Start("explorer.exe", $"/select,\"{_savedPath}\""); });
-        return bar;
+        Add("Adjust", "Resize, colours, flip and rotate.", (item, sep) =>
+        {
+            item("Resize…", "Resize the whole image to new pixel dimensions. Annotations are baked in; Undo restores.", () =>
+            {
+                if (EditorDialogs.Resize(this, _base.PixelWidth, _base.PixelHeight) is { } sz && (sz.W != _base.PixelWidth || sz.H != _base.PixelHeight))
+                    ResizeBase(sz.W, sz.H);
+            });
+            sep();
+            item("Invert", "Invert the colours of the whole image. Annotations are baked in; Undo restores.", () => TransformBase("Invert", (px, w, h) => { PixelAdjust.Invert(px); return (px, w, h); }));
+            item("Grayscale", "Convert the whole image to grey. Annotations are baked in; Undo restores.", () => TransformBase("Grayscale", (px, w, h) => { PixelAdjust.Grayscale(px); return (px, w, h); }));
+            item("Brightness / contrast…", "Set brightness and contrast, then apply to the whole image. Annotations are baked in; Undo restores.", () =>
+            {
+                if (EditorDialogs.BrightContrast(this) is { } bc)
+                    TransformBase("Brightness/contrast", (px, w, h) => { PixelAdjust.BrightnessContrast(px, bc.Brightness, bc.Contrast); return (px, w, h); });
+            });
+            sep();
+            item("Flip horizontal", "Flip the image left-to-right. Annotations are baked in; Undo restores.", () => TransformBase("Flip horizontal", (px, w, h) => { PixelAdjust.FlipHorizontal(px, w, h); return (px, w, h); }));
+            item("Flip vertical", "Flip the image top-to-bottom. Annotations are baked in; Undo restores.", () => TransformBase("Flip vertical", (px, w, h) => { PixelAdjust.FlipVertical(px, w, h); return (px, w, h); }));
+            item("Rotate 90°", "Rotate the image 90° clockwise. Annotations are baked in; Undo restores.", () => TransformBase("Rotate 90°", PixelAdjust.Rotate90Clockwise));
+        });
+        Add("More", "External editor and reveal in Explorer.", (item, sep) =>
+        {
+            item("External editor…", "Save, then open the file in the external editor set in Settings.", () =>
+            {
+                if (string.IsNullOrWhiteSpace(_prefs.ExternalEditorPath)) { _status.Text = "No external editor set — add one in Settings."; return; }
+                if (_savedPath is null) Save();
+                if (_savedPath is null) return;
+                try
+                {
+                    Process.Start(new ProcessStartInfo(_prefs.ExternalEditorPath.Trim()) { Arguments = "\"" + _savedPath + "\"", UseShellExecute = true });
+                    _status.Text = "Opened in the external editor.";
+                }
+                catch (Exception ex) { Log.Error("External editor failed", ex); _status.Text = "Could not start the external editor: " + ex.Message; }
+            });
+            item("Reveal in Explorer", "Save if needed, then show the file in Explorer. (The Windows share sheet is not implemented yet.)", () => { if (_savedPath is null) Save(); if (_savedPath is not null) Process.Start("explorer.exe", $"/select,\"{_savedPath}\""); });
+        });
+        opts.Children.Add(optsRight); opts.Children.Add(optsLeft);
+
+        var stack = new StackPanel();
+        stack.Children.Add(new Border { Background = c.Bar, BorderBrush = c.Edge, BorderThickness = new Thickness(0, 0, 0, 1), Child = tools });
+        stack.Children.Add(new Border { Background = c.Surface, BorderBrush = c.Edge, BorderThickness = new Thickness(0, 0, 0, 1), Child = opts });
+        return stack;
     }
 
     private UIElement BuildMetaPanel(CaptureResult cap, CaptureMeta m, int monitors, int delay)
@@ -253,11 +324,11 @@ internal sealed class EditorWindow : Window
         var tb = new TextBox
         {
             Text = string.Join(Environment.NewLine, lines), IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
-            BorderThickness = new Thickness(0), Background = Brushes.Transparent, Margin = new Thickness(8),
+            BorderThickness = new Thickness(0), Background = Brushes.Transparent, Foreground = _chrome.Ink, Margin = new Thickness(8), Tag = EditorChrome.Keep,
             ToolTip = "Capture details, handy for bug reports. Select and copy as needed.",
         };
         System.Windows.Automation.AutomationProperties.SetName(tb, "Capture metadata");
-        return new Border { Width = 260, BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1, 0, 0, 0), Child = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tb } };
+        return new Border { Width = 260, Background = _chrome.Surface, BorderBrush = _chrome.Edge, BorderThickness = new Thickness(1, 0, 0, 0), Child = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tb } };
     }
 
     private void SetBase(BitmapSource src)
@@ -271,7 +342,7 @@ internal sealed class EditorWindow : Window
 
     // ---- drawing -------------------------------------------------------------------------------
 
-    private Color CurrentColor => Palette[Math.Max(0, _color.SelectedIndex)].Color;
+    private Color CurrentColor => Palette[Math.Clamp(_colorIndex, 0, Palette.Length - 1)].Color;
     private Brush Stroke(double alpha = 1) => new SolidColorBrush(Color.FromArgb((byte)(alpha * 255), CurrentColor.R, CurrentColor.G, CurrentColor.B));
 
     private void Push(IEdit e) { _undo.Push(e); _redo.Clear(); }
