@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.24.0] - 2026-11-13
+
+### Added
+- Editor **Adjust > Hue / colour balance…** dialog: rotate hues (-180..180 degrees) and add or remove red, green and blue (-100..100). Annotations are baked in; Undo restores.
+- Core: `PixelAdjust.HueShift`, `PixelAdjust.ColorBalance`. 7 new self-test checks (484 total).
+
 ## [0.23.0] - 2026-11-13
 
 ### Added

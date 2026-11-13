@@ -109,6 +109,9 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.24.0 additions (compile-verified on Linux; not run on Windows)
+- Core `HueShift` and `ColorBalance`: **Verified** by 7 self-test checks (identity, wrap, green-dominant at 120 degrees, grey and alpha preserved, clamps). Hue uses the common Rec.601 rotation matrix, an approximation, not a perceptual HSL rotation. Dialog: Unverified. No live preview; apply, look, Undo.
+
 ## v0.23.0 additions (compile-verified on Linux; not run on Windows)
 - Core `LoupeView.Zoom`: **Verified** by 5 self-test checks. Editor Magnify tool (`ImageBrush` with a relative viewbox): **Unverified**. Zoom fixed at 2x. Assumes the capture bitmap maps 1:1 to layer units (96 dpi), as the rest of the editor does.
 
