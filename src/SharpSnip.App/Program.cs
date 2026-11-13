@@ -38,7 +38,7 @@ public static class Program
   SharpSnip.exe --verbose               start with debug logging
   SharpSnip.exe --version | --help";
 
-    private const string Version = "0.8.1";
+    private const string Version = "0.9.0";
 
     [STAThread]
     public static int Main(string[] args)
