@@ -204,3 +204,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] In a region pick, press Esc once: back to the mode menu. Press Esc three times quickly: the session ends and the overlay closes.
 - [ ] Triple Esc works in element, freehand, window and colour-pick modes.
 - [ ] Force a contained UI error (log shows 'Unhandled UI exception'): a tray notice appears, then not again for a minute.
+
+## v0.25.3 manual rows (deferred by owner)
+- [ ] Open a very large capture (e.g. 2 x 4K), apply Sharpen or Torn: the window stays responsive-looking (wait cursor), the edit lands, Undo restores it.
+- [ ] Apply 6 or more large edits in a row: memory stays bounded; the oldest edits stop being undoable, the newest still undo.
+- [ ] Close the editor while an edit runs: no crash.

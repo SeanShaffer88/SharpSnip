@@ -1209,5 +1209,14 @@ Console.WriteLine("AreaMask");
     Check(!reset.Press(5000) && !reset.Press(5100) && !reset.Press(10), "escape chord: an earlier tick (counter reset) drops stale presses");
 }
 
+
+{
+    Check(UndoBudget.KeepCount(new long[] { 100, 100, 100 }, 250) == 2, "undo budget: keeps the newest entries that fit");
+    Check(UndoBudget.KeepCount(new long[] { 900, 10 }, 100) == 1, "undo budget: always keeps the latest entry, even over budget");
+    Check(UndoBudget.KeepCount(Array.Empty<long>(), 100) == 0, "undo budget: nothing to keep");
+    Check(UndoBudget.KeepCount(new long[] { 0, 0, 0, 0 }, 0) == 4, "undo budget: free entries (annotations) are all kept");
+    Check(UndoBudget.BitmapBytes(1920, 1080) == 8294400, "undo budget: bitmap size in bytes");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
