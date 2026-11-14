@@ -1218,5 +1218,25 @@ Console.WriteLine("AreaMask");
     Check(UndoBudget.BitmapBytes(1920, 1080) == 8294400, "undo budget: bitmap size in bytes");
 }
 
+
+{
+    Check(Math.Abs(WcagContrast.Ratio("#000000", "#FFFFFF") - 21.0) < 0.01, "contrast: black on white is 21:1");
+    Check(WcagContrast.Ratio("#777777", "#FFFFFF") is > 4.4 and < 4.6, "contrast: #777 on white is about 4.48:1");
+    // The dark theme's text tokens (TesselTheme / EditorChrome) on every surface they sit on.
+    string[] surfaces = { "#1B1B1D", "#1F1F22", "#232326", "#2A2A2F", "#28282D", "#17171A" };
+    bool inkOk = true, mutedOk = true;
+    foreach (var surface in surfaces)
+    {
+        inkOk &= WcagContrast.Ratio("#E6E3E1", surface) >= WcagContrast.AaNormalText;
+        mutedOk &= WcagContrast.Ratio("#A3A0A4", surface) >= WcagContrast.AaNormalText;
+    }
+    Check(inkOk, "contrast: foreground token meets AA 4.5:1 on every dark surface");
+    Check(mutedOk, "contrast: muted token meets AA 4.5:1 on every dark surface");
+    Check(WcagContrast.Ratio("#89868A", "#232326") < WcagContrast.AaNormalText, "contrast: the old muted value #89868A failed AA on the bar");
+    Check(WcagContrast.Ratio("#E8939F", "#232326") >= WcagContrast.AaLargeOrUi, "contrast: focus ring colour meets 3:1 on the bar");
+    var badHex = false; try { WcagContrast.Luminance("red"); } catch (FormatException) { badHex = true; }
+    Check(badHex, "contrast: malformed colour rejected");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

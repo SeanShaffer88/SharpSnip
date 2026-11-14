@@ -21,7 +21,7 @@ internal sealed class EditorChrome
         string Hover, string HoverInk, string Pressed, string Selected, string SelInk, string SelLine,
         string Accent, string AccentHover, string AccentPressed, string ActionInk, string Focus)
     {
-        public static readonly Palette Dark = new("#17171A", "#232326", "#1F1F22", "#43434A", "#E6E3E1", "#89868A",
+        public static readonly Palette Dark = new("#17171A", "#232326", "#1F1F22", "#43434A", "#E6E3E1", "#A3A0A4",
             "#28282D", "#E6E3E1", "#2E2E34", "#2A2A2F", "#E6E3E1", "#960018", "#960018", "#A81226", "#7E0014", "#FFFFFF", "#E8939F");
         public static readonly Palette HighContrast = new("#000000", "#000000", "#000000", "#FFFFFF", "#FFFFFF", "#FFFFFF",
             "#FFFFFF", "#000000", "#C0C0C0", "#FFFFFF", "#000000", "#000000", "#FFFFFF", "#E0E0E0", "#C0C0C0", "#000000", "#FFFFFF");

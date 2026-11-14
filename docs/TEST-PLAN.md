@@ -209,3 +209,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Open a very large capture (e.g. 2 x 4K), apply Sharpen or Torn: the window stays responsive-looking (wait cursor), the edit lands, Undo restores it.
 - [ ] Apply 6 or more large edits in a row: memory stays bounded; the oldest edits stop being undoable, the newest still undo.
 - [ ] Close the editor while an edit runs: no crash.
+
+## v0.25.4 manual rows (deferred by owner)
+- [ ] Editor and Settings: key hints, status bar text and secondary labels are readable at 100% scale on a normal monitor; nothing looks washed out against the new muted grey.
