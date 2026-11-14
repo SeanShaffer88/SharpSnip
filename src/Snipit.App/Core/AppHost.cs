@@ -46,6 +46,7 @@ internal sealed class AppHost : IDisposable
         }
         else WorkflowTrust.Approve(_prefs, TrustKey.Get());
         _router = new ModeRouter(_prefs, _uia, Notify, SavePrefs);
+        Program.UiErrorReported += msg => Application.Current?.Dispatcher.InvokeAsync(() => Notify("Snipit", "Something went wrong and was contained: " + msg + ". Details are in the log.", null));
 
         using var iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("icon.ico");
         _tray = new WinForms.NotifyIcon

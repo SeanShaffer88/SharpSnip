@@ -1197,5 +1197,17 @@ Console.WriteLine("AreaMask");
     Check(cbBig[2] == 255 && cbBig[1] == 0 && cbBig[0] == 100, "balance: offsets clamped to +-255");
 }
 
+
+{
+    var ch = new EscapeChord();
+    Check(!ch.Press(1000) && !ch.Press(1400) && ch.Press(1800), "escape chord: three presses inside the window fire on the third");
+    Check(!ch.Press(2000) && !ch.Press(2100), "escape chord: restarts after firing");
+    var slow = new EscapeChord();
+    Check(!slow.Press(0) && !slow.Press(1000) && !slow.Press(2000) && !slow.Press(3000), "escape chord: slow presses never fire");
+    Check(!slow.Press(3500) && slow.Press(3800), "escape chord: three inside 1.5 s after slow ones fires");
+    var reset = new EscapeChord();
+    Check(!reset.Press(5000) && !reset.Press(5100) && !reset.Press(10), "escape chord: an earlier tick (counter reset) drops stale presses");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

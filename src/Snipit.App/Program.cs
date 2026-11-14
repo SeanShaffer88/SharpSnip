@@ -40,7 +40,11 @@ public static class Program
   Snipit.exe --verbose               start with debug logging
   Snipit.exe --version | --help";
 
-    private const string Version = "0.25.1";
+    private const string Version = "0.25.2";
+
+    private static long _lastUiErrorTick;
+    /// <summary>Raised (at most once a minute) when the UI thread hit an exception that was contained. AppHost shows a tray notice.</summary>
+    internal static event Action<string>? UiErrorReported;
 
     [STAThread]
     public static int Main(string[] args)
@@ -85,6 +89,13 @@ public static class Program
         {
             Log.Error("Unhandled UI exception", e.Exception);
             e.Handled = true; // never show a crash dialog; the session cleans itself up in finally blocks
+            // Do not hide it either: tell the user once a minute that something failed and where the log is.
+            long now = Environment.TickCount64;
+            if (now - _lastUiErrorTick >= 60_000 || _lastUiErrorTick == 0)
+            {
+                _lastUiErrorTick = now;
+                try { UiErrorReported?.Invoke(e.Exception.Message); } catch (Exception ex) { Log.Error("UI error notice failed", ex); }
+            }
         };
         using var host = new AppHost();
         return app.Run();

@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.2] - 2026-11-14
+
+### Fixed
+- **A stuck overlay can always be escaped.** Pressing Esc three times within 1.5 seconds now ends the capture session, region pick or colour pick from the input hook itself, whatever the picker is doing. A single Esc still goes back one step as before.
+- **Contained errors are no longer silent.** When the UI thread hits an exception that Snipit contains, a tray notice says something went wrong and points to the log (at most once a minute).
+- Core: `EscapeChord`. 5 new self-test checks (494 total).
+
 ## [0.25.1] - 2026-11-14
 
 ### Security
