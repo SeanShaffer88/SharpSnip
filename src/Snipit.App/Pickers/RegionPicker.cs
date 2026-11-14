@@ -1,5 +1,6 @@
 using System.Windows.Media.Imaging;
 using Snipit.Core;
+using Snipit.Native;
 
 namespace Snipit;
 
