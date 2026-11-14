@@ -394,7 +394,7 @@ internal sealed class EditorWindow : Window
     {
         if (_editing is not null) { CommitText(); return; }
         _start = e.GetPosition(_layer);
-        _layer.CaptureMouse();
+        if (!_layer.CaptureMouse()) return;
         switch (_tool)
         {
             case Tool.Pen:
