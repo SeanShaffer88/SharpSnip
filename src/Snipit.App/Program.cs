@@ -40,7 +40,7 @@ public static class Program
   Snipit.exe --verbose               start with debug logging
   Snipit.exe --version | --help";
 
-    private const string Version = "0.25.0";
+    private const string Version = "0.25.1";
 
     [STAThread]
     public static int Main(string[] args)
@@ -310,7 +310,7 @@ public static class Program
     private static Preferences LoadPrefsChecked()
     {
         var prefs = PrefsStore.Load(AppPaths.PrefsPath, out _);
-        if (WorkflowTrust.IsTampered(prefs)) { prefs.WorkflowsLocked = true; Log.Warn("Workflow settings changed outside Snipit; program-launching steps are blocked."); }
+        if (WorkflowTrust.IsTampered(prefs, TrustKey.Get())) { prefs.WorkflowsLocked = true; Log.Warn("Workflow settings changed outside Snipit; program-launching steps are blocked."); }
         return prefs;
     }
 

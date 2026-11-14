@@ -38,13 +38,13 @@ internal sealed class AppHost : IDisposable
     public AppHost()
     {
         _prefs = PrefsStore.Load(AppPaths.PrefsPath, out string? warn);
-        if (WorkflowTrust.IsTampered(_prefs))
+        if (WorkflowTrust.IsTampered(_prefs, TrustKey.Get()))
         {
             _prefs.WorkflowsLocked = true;
             warn = (warn is null ? "" : warn + " ") + "Workflow and editor settings changed outside Snipit, so they are paused. Open Settings and press Save to approve them.";
             Log.Warn("Workflow settings changed outside Snipit; program-launching steps are blocked until the user saves Settings.");
         }
-        else WorkflowTrust.Approve(_prefs);
+        else WorkflowTrust.Approve(_prefs, TrustKey.Get());
         _router = new ModeRouter(_prefs, _uia, Notify, SavePrefs);
 
         using var iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("icon.ico");
@@ -403,7 +403,7 @@ internal sealed class AppHost : IDisposable
     {
         _prefs = p.Sanitize();
         _prefs.WorkflowsLocked = false;
-        WorkflowTrust.Approve(_prefs);   // the user just reviewed and saved these settings
+        WorkflowTrust.Approve(_prefs, TrustKey.Get());   // the user just reviewed and saved these settings
         _router.Prefs = _prefs;
         SavePrefs();
         return null;
@@ -483,7 +483,7 @@ internal sealed class AppHost : IDisposable
     {
         try
         {
-            if (!_prefs.WorkflowsLocked) WorkflowTrust.Approve(_prefs);   // while locked the old hash stays, so the file keeps reading as changed
+            if (!_prefs.WorkflowsLocked) WorkflowTrust.Approve(_prefs, TrustKey.Get());   // while locked the old hash stays, so the file keeps reading as changed
             PrefsStore.Save(AppPaths.PrefsPath, _prefs);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Log.Error("Could not save settings", ex); }
