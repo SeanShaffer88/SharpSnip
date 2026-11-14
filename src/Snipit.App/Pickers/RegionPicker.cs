@@ -151,7 +151,7 @@ internal sealed class RegionPicker : PickerBase
         else
         {
             if (!_dragMoved) _rect = _startRect;
-            confirm = !_dragMoved && _startRect.Contains(_downX, _downY) && _startRect.Contains(x, y);
+            confirm = _drag == Drag.Move && !_dragMoved && _startRect.Contains(x, y);
         }
         _drag = Drag.None;
         if (confirm) { Confirm(); return true; }
