@@ -198,7 +198,7 @@ internal sealed class ModeRouter
         // (a past capture from the tray history). The Settings auto-effect, which
         // the editor used to apply on open, is applied to the capture itself here.
         var image = ApplyAutoEffect(cap.Image);
-        ClipboardWriter.SetImage(image);
+        bool copied = ClipboardWriter.SetImage(image);
         if (cap.Megapixels > 100) _notify("Snipit", $"Large capture ({cap.Megapixels:F0} MP). Saving may be slow.", null);
 
         // Tear down input now the capture is done, so no hook outlives the session.
@@ -207,7 +207,7 @@ internal sealed class ModeRouter
 
         _sm.TryTransition(AppState.Exporting);
         string path = Exporter.Save(image, Prefs);
-        _notify("Copied to clipboard", "Saved " + path, path);
+        _notify(copied ? "Copied to clipboard" : "Clipboard unavailable", "Saved " + path, path);
         WorkflowRunner.MaybeRun(Prefs, "Capture", path, _notify);
     }
 
@@ -402,11 +402,11 @@ internal sealed class ModeRouter
 
             var cap = CaptureEngine.Capture(rect, monitors, Prefs.MatteArgb);
             RememberRect(rect);
-            ClipboardWriter.SetImage(cap.Image);       // clipboard first: the latency target is hotkey → clipboard
+            bool copied = ClipboardWriter.SetImage(cap.Image); // clipboard first: the latency target is hotkey → clipboard
 
             _sm.TryTransition(AppState.Exporting);
             string path = Exporter.Save(cap.Image, Prefs);
-            _notify("Copied to clipboard", "Saved " + path, path);
+            _notify(copied ? "Copied to clipboard" : "Clipboard unavailable", "Saved " + path, path);
             WorkflowRunner.MaybeRun(Prefs, "Capture", path, _notify);
         }
         catch (Exception ex)

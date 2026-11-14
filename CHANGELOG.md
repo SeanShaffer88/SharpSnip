@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.28.0] - 2026-11-14
 
 ### Added
 
@@ -11,6 +11,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Changed
 
 - **Region capture** finishes when you release a normal drag. Hold Shift when starting a drag to keep the selection on screen for adjustment or multiple areas. Click inside the staged selection or press Enter to finish.
+
+### Fixed
+
+- If Snipit cannot copy a capture to the clipboard, the notification reports the clipboard failure and shows where the image was saved.
 
 ## [0.27.0] - 2026-11-14
 
