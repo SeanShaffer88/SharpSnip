@@ -90,9 +90,27 @@ jobs:
           $keyboardValue = 'PrintScreenKeyForSnippingEnabled'
 
           function Run-Native($Program, [string[]]$Arguments) {
-              $output = & $Program @Arguments
-              if ($LASTEXITCODE -ne 0) { throw "$Program exited $LASTEXITCODE. Output: $($output -join ' ')" }
-              return ($output -join [Environment]::NewLine)
+              $info = [Diagnostics.ProcessStartInfo]::new($Program)
+              $info.UseShellExecute = $false
+              $info.RedirectStandardOutput = $true
+              $info.RedirectStandardError = $true
+              $info.CreateNoWindow = $true
+              foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
+              $child = [Diagnostics.Process]::Start($info)
+              try {
+                  $stdout = $child.StandardOutput.ReadToEndAsync()
+                  $stderr = $child.StandardError.ReadToEndAsync()
+                  if (!$child.WaitForExit(120000)) {
+                      $child.Kill($true)
+                      throw "$Program timed out"
+                  }
+                  if ($child.ExitCode -ne 0) {
+                      throw "$Program exited $($child.ExitCode). $($stdout.Result) $($stderr.Result)"
+                  }
+                  return $stdout.Result
+              } finally {
+                  $child.Dispose()
+              }
           }
 
           function Assert-Version($Expected) {
@@ -195,7 +213,6 @@ jobs:
               Write-Host 'Verified baseline install, in-place upgrade, portable-profile startup, Print Screen recovery and non-purge uninstall.'
           } finally {
               if (Test-Path -LiteralPath $receiptPath) {
-                  & $newSetup --uninstall --to $dest --json --silent
-                  Write-Host "Lifecycle cleanup exit: $LASTEXITCODE"
+                  Write-Host (Run-Native $newSetup @('--uninstall','--to',$dest,'--json','--silent'))
               }
           }
