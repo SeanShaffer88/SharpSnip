@@ -571,19 +571,35 @@ internal sealed class EditorWindow : Window
 
     private void TransformBase(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op) => _ = TransformBaseAsync(label, op);
 
-    /// <summary>
-    /// The pixel work runs off the UI thread so a large capture does not freeze the window; the editor is
-    /// disabled until it finishes (one whole-image edit at a time). Flatten and the final swap stay on the UI thread.
-    /// </summary>
-    private async Task TransformBaseAsync(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op)
+    /// <summary>Keeps the image and annotations stable while an asynchronous edit is underway.</summary>
+    private async Task RunExclusiveEditAsync(Func<Task> edit)
     {
         if (_busy) { _status.Text = "Still working on the last edit…"; return; }
-        _busy = true;
         var oldCursor = Cursor;
+        var root = Content as UIElement;
+        bool wasEnabled = root?.IsEnabled ?? true;
+        _busy = true;
         try
         {
             Cursor = Cursors.Wait;
-            if (Content is UIElement root) root.IsEnabled = false;
+            if (root is not null) root.IsEnabled = false;
+            await edit();
+        }
+        finally
+        {
+            _busy = false;
+            Cursor = oldCursor;
+            if (root is not null) root.IsEnabled = wasEnabled;
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    /// <summary>Runs pixel work off the UI thread. Flatten and the final swap stay on the UI thread.</summary>
+    private Task TransformBaseAsync(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op)
+        => RunExclusiveEditAsync(async () =>
+    {
+        try
+        {
             _status.Text = label + "…";
             var flat = Flatten();
             var src = flat.Format == PixelFormats.Bgra32 ? flat : new FormatConvertedBitmap(flat, PixelFormats.Bgra32, null, 0);
@@ -601,13 +617,7 @@ internal sealed class EditorWindow : Window
             Log.Error(label + " failed", ex);
             _status.Text = label + " failed: " + ex.Message;
         }
-        finally
-        {
-            _busy = false;
-            Cursor = oldCursor;
-            if (Content is UIElement root) root.IsEnabled = true;
-        }
-    }
+    });
 
     /// <summary>Swaps in a new base image (annotations baked into it) as one undoable edit.</summary>
     private void SwapBase(BitmapSource newBase, string label)
@@ -798,13 +808,14 @@ internal sealed class EditorWindow : Window
         }
     }
 
-    private async Task RedactAsync()
+    private Task RedactAsync() => RunExclusiveEditAsync(async () =>
     {
         _status.Text = "Scanning for sensitive text…";
         try
         {
             // OCR runs on the base image, not the flattened one: annotations are not text.
             var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (!IsVisible) return;
             if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
             var hits = Redactor.Find(words);
             if (hits.Count == 0) { _status.Text = "No sensitive text found (emails, cards, IPs, phone numbers, key-shaped tokens)."; return; }
@@ -829,14 +840,15 @@ internal sealed class EditorWindow : Window
             Log.Error("Redact failed", ex);
             _status.Text = "Redact failed: " + ex.Message;
         }
-    }
+    });
 
-    private async Task ReplaceTextAsync(string find, string replace)
+    private Task ReplaceTextAsync(string find, string replace) => RunExclusiveEditAsync(async () =>
     {
         _status.Text = "Finding text…";
         try
         {
             var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (!IsVisible) return;
             if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
             var matches = TextReplace.Find(words, find);
             if (matches.Count == 0) { _status.Text = $"\"{find}\" was not found in the image's text."; return; }
@@ -872,7 +884,7 @@ internal sealed class EditorWindow : Window
             Log.Error("Replace text failed", ex);
             _status.Text = "Replace failed: " + ex.Message;
         }
-    }
+    });
 
     /// <summary>Average colour of the pixels just outside a rectangle — the best guess at what hides behind it.</summary>
     private static Color SamplePerimeter(byte[] px, int w, int h, RectPx r)

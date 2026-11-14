@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [0.25.8] - 2026-11-14
 
+### Fixed
+- The three-press Esc shortcut stays active when changing capture modes and during the capture countdown.
+- Redact and Replace text finish before another image edit can start, preserving edits and keeping OCR coordinates aligned with the image.
+
 ### Changed
 - **Self-test split by area.** The 1,200-line `Program.cs` is now eight `Tests.<Area>.cs` files plus a short runner, so new checks no longer clash on top-level names. Same 509 checks.
 - **One version number.** `Snipit.exe --version` and the help text read the version stamped from `Directory.Build.props`; the hardcoded copy in `Program.cs` is gone. A release now edits `Directory.Build.props` and `seanpak.json` only.
@@ -38,7 +42,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Fixed
 - **Whole-image editor edits no longer freeze the window.** Sharpen, Hue, Colour, Shadow, Torn, Wave, Frame, Cut out, Invert, Grayscale, Flip, Rotate and the rest now do their pixel work off the UI thread. The editor is disabled with a wait cursor and a status line while an edit runs, then enabled again.
-- **Undo memory is capped.** Each whole-image edit keeps a full bitmap, so a few edits of a large multi-monitor capture could use gigabytes. The history now keeps the newest edits within 512 MB (the latest edit always stays undoable); annotations cost nothing and are all kept.
+- Undo history uses a 512 MB estimated budget for whole-image edits. The latest edit is kept.
 - Core: `UndoBudget`. 5 new self-test checks (499 total).
 
 ## [0.25.2] - 2026-11-14
