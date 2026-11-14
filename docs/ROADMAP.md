@@ -2,7 +2,7 @@
 
 Goal: eventually cover the full feature list Sean supplied (screen capture, recording, annotation, AI/smart tools, library, sharing, utilities).
 
-**Status through v0.26.0.** ✅ Implemented · 🔜 Planned · ❓ Needs a design or scope decision · ⛔ Outside the offline scope unless approved.
+**Status through v0.27.0.** ✅ Implemented · 🔜 Planned · ❓ Needs a design or scope decision · ⛔ Outside the offline scope unless approved.
 
 Implementation status comes from the source and release history. The Windows field test covered the v0.16.0 x64 installer and portable build, live UI and Print Screen behavior, SharpSnip settings carryover, and uninstall cleanup. See [Windows field verification](../CHANGELOG.md#windows-field-verification), [AUDIT.md](../AUDIT.md), and [TEST-PLAN.md](TEST-PLAN.md).
 
@@ -29,7 +29,7 @@ Blueprint v2 shipped in v0.1 with element, region, window and full-screen captur
 | Dark settings and capture mode bar | ✅ TesselGUI revision 3, with a movable capture bar since v0.14 |
 | Multiple-area capture | ✅ v0.19. In Region mode, press A to save up to 16 rectangles, then Enter to combine the selected areas into one image. |
 | Hand Print Screen back automatically on uninstall | ❓ Requires an uninstall hook in SeanPak. Writing the setting at install time would change the user's Print Screen behavior. |
-| Freehand and polygon capture | ✅ Freehand capture with transparency outside the outline. 🔜 Click-by-click polygon capture. |
+| Freehand and polygon capture | ✅ Drag to draw freehand or click vertices to draw a polygon (v0.27.0). Save as PNG to preserve transparency outside the outline. |
 | Scrolling capture | ✅ v0.5.0. Uses UI Automation ScrollPattern where available, with a wheel-and-stitch fallback. |
 | Capture backend | ✅ Windows Graphics Capture for stills, with a GDI fallback |
 | Webcam still | ❓ WinRT MediaCapture design |

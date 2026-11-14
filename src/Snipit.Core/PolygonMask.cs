@@ -29,13 +29,13 @@ public static class PolygonMask
         {
             var (xi, yi) = polygon[i];
             var (xj, yj) = polygon[j];
-            if ((yi > y) != (yj > y) && x < (double)(xj - xi) * (y - yi) / (yj - yi) + xi)
+            if ((yi > y) != (yj > y) && x < ((double)xj - xi) * ((double)y - yi) / ((double)yj - yi) + xi)
                 inside = !inside;
         }
         return inside;
     }
 
-    /// <summary>Sets alpha 0 on every pixel of the frame that lies outside the polygon.</summary>
+    /// <summary>Clears every BGRA channel outside the polygon.</summary>
     public static void ApplyAlpha(byte[] bgra, int width, int height, IReadOnlyList<(int X, int Y)> polygon, RectPx frameRect)
     {
         if (bgra.Length < (long)width * height * 4) throw new ArgumentException("Buffer smaller than the declared frame.", nameof(bgra));
@@ -45,7 +45,10 @@ public static class PolygonMask
             for (int col = 0; col < width; col++)
             {
                 if (!Contains(polygon, frameRect.X + col, vy))
-                    bgra[(row * width + col) * 4 + 3] = 0;
+                {
+                    int i = (row * width + col) * 4;
+                    bgra[i] = bgra[i + 1] = bgra[i + 2] = bgra[i + 3] = 0;
+                }
             }
         }
     }

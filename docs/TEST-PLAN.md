@@ -232,3 +232,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Draw right/down, left/up, and near-axis connectors. Check Undo, Redo, and toolbar fit at minimum width.
 - [ ] Draw a short connector with a thick stroke. Its overlapping endpoints stay filled. A click or drag under 4 pixels adds no annotation.
 - [ ] Switch away from the editor while dragging to interrupt mouse capture. The draft disappears and the next drag produces one undoable connector.
+
+## v0.27.0 manual rows (deferred by owner)
+- [ ] Draw a freehand outline. Then click corners and close separate polygons by clicking the first point, double-clicking the last point, and pressing Enter.
+- [ ] Pause longer than the Windows double-click interval before clicking the last point again. The polygon stays open. Backspace removes the last vertex and Esc clears.
+- [ ] Try to close three points on a diagonal line. The picker stays open. Save a valid polygon capture as PNG and verify that the area outside the outline is transparent.

@@ -159,10 +159,12 @@ static partial class Tests
             Check(PolygonMask.Contains(tri, 2, 2) && !PolygonMask.Contains(tri, 15, 15), "polygon: triangle hypotenuse respected");
             Check(PolygonMask.Bounds(tri) == new RectPx(0, 0, 21, 21), "polygon: bounds include the outline pixels");
             var frame = new byte[4 * 4 * 4];
-            for (int i = 3; i < frame.Length; i += 4) frame[i] = 255;
+            Array.Fill(frame, (byte)255);
             var mask = new List<(int, int)> { (1, 1), (2, 1), (2, 2), (1, 2) };
             PolygonMask.ApplyAlpha(frame, 4, 4, mask, new RectPx(0, 0, 4, 4));
-            Check(frame[(0 * 4 + 0) * 4 + 3] == 0 && frame[(1 * 4 + 1) * 4 + 3] == 255, "polygon: alpha cleared outside, kept inside");
+            Check(frame.AsSpan(0, 4).SequenceEqual(new byte[4]) &&
+                  frame.AsSpan(20, 4).SequenceEqual(new byte[] { 255, 255, 255, 255 }),
+                  "polygon: every BGRA channel cleared outside and preserved inside");
             Check(ColorReadout.Format(255, 0, 16, 120, 40) == "#FF0010 · (255, 0, 16) · 120, 40", "readout: hex, rgb and position");
         }
 
@@ -199,6 +201,45 @@ static partial class Tests
             var back = ConnectorRoute.Elbow(100, 100, 20, 60);
             Check(back[0] == (100, 100) && back[1] == (20, 100) && back[2] == (20, 60), "leftward drag keeps start and end");
             Check(ConnectorRoute.Elbow(5, 5, 5, 5).Length == 2, "zero-length drag is two points");
+        }
+
+        Console.WriteLine("PolygonBuilder");
+        {
+            var pb = new PolygonBuilder();
+            long tick = 0;
+            PolygonBuilder.Result Click(PolygonBuilder builder, int x, int y, int elapsed = 100) =>
+                builder.Click(x, y, tick += elapsed, 500);
+            Check(Click(pb, 10, 10) == PolygonBuilder.Result.Added && Click(pb, 60, 10) == PolygonBuilder.Result.Added, "clicks add vertices");
+            Check(Click(pb, 61, 11) == PolygonBuilder.Result.Ignored && pb.Count == 2, "a repeat click on the last vertex is ignored below three vertices");
+            Check(!pb.CanClose, "two vertices cannot close");
+            Click(pb, 60, 60);
+            Check(pb.CanClose, "three spread-out vertices can close");
+            Check(Click(pb, 14, 13, 900) == PolygonBuilder.Result.Closed, "click near the first vertex closes after a pause");
+            Check(Click(pb, 60, 60, 501) == PolygonBuilder.Result.Ignored, "a delayed click at the last vertex does not close");
+            Check(Click(pb, 62, 60, 500) == PolygonBuilder.Result.Closed, "double-click on the last vertex closes within time and distance");
+            Check(Click(pb, 58, 60) == PolygonBuilder.Result.Ignored, "clicks must also be close to one another");
+            Click(pb, 30, 60);
+            Check(pb.Undo() && Click(pb, 60, 60) == PolygonBuilder.Result.Ignored, "undo clears the double-click association");
+            Check(pb.Undo() && pb.Count == 2 && pb.Points[^1] == (60, 10), "undo removes the last vertex");
+            pb.Clear();
+            Check(pb.Count == 0 && !pb.Undo(), "clear empties and undo on empty is false");
+            var tiny = new PolygonBuilder();
+            Click(tiny, 0, 0); Click(tiny, 3, 0); Click(tiny, 3, 3);
+            Check(!tiny.CanClose && Click(tiny, 1, 1) == PolygonBuilder.Result.Ignored, "a tiny outline refuses to close");
+            var collinear = new PolygonBuilder();
+            Click(collinear, 0, 0); Click(collinear, 20, 20); Click(collinear, 40, 40);
+            Check(!collinear.CanClose && Click(collinear, 0, 0) == PolygonBuilder.Result.Ignored, "a diagonal line refuses to close");
+            Click(collinear, 60, 20);
+            Check(collinear.CanClose, "an initially collinear outline can be extended to make a polygon");
+            var crossing = new PolygonBuilder();
+            Click(crossing, 0, 0); Click(crossing, 30, 30); Click(crossing, 0, 30); Click(crossing, 30, 0);
+            Check(crossing.CanClose, "self-crossing outlines retain even-odd fill");
+            var concave = new PolygonBuilder();
+            Click(concave, 0, 0); Click(concave, 0, 40); Click(concave, 20, 20); Click(concave, 40, 40); Click(concave, 40, 0);
+            Check(concave.CanClose, "concave outlines can close");
+            var wide = new PolygonBuilder();
+            Click(wide, int.MinValue, int.MinValue); Click(wide, int.MaxValue, int.MaxValue); Click(wide, int.MaxValue, int.MinValue);
+            Check(!wide.CanClose, "outlines larger than a representable capture cannot close");
         }
     }
 }
