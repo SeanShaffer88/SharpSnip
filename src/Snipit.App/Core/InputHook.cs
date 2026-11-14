@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Snipit.Core;
 using Snipit.Native;
 
 namespace Snipit;
@@ -19,6 +20,10 @@ internal sealed class InputHook : IDisposable
     public Func<int, int, bool>? LeftDown, LeftUp, RightDown;   // x, y
     public Action<int, int>? Move;                   // x, y
     public Func<int, int, int, bool>? Wheel;         // x, y, delta
+
+    /// <summary>Called when Esc is pressed three times within <see cref="EscapeChord.WindowMs"/>, before any picker handler sees the key. The way out of a stuck overlay.</summary>
+    public Action? PanicEscape;
+    private readonly EscapeChord _chord = new();
 
     public long LastInputTick { get; private set; } = Environment.TickCount64;
     public bool IsActive => _kb != IntPtr.Zero || _ms != IntPtr.Zero;
@@ -46,6 +51,7 @@ internal sealed class InputHook : IDisposable
 
     public void ClearHandlers()
     {
+        PanicEscape = null;
         KeyDown = null; LeftDown = null; LeftUp = null; RightDown = null; Move = null; Wheel = null;
     }
 
@@ -64,6 +70,7 @@ internal sealed class InputHook : IDisposable
                     if (down)
                     {
                         LastInputTick = Environment.TickCount64;
+                        if (vk == 0x1B && PanicEscape is { } panic && _chord.Press(LastInputTick)) { try { panic(); } catch (Exception ex) { Log.Error("Panic escape failed", ex); } }
                         if (!NativeMethods.CtrlAltWinDown() && KeyDown?.Invoke(vk) == true)
                         {
                             _swallowedKeys.Add(vk);

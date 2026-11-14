@@ -43,6 +43,7 @@ internal sealed class ModeRouter
         var monitors = MonitorEnumerator.Refresh();
         using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
         using var hook = new InputHook();
+        hook.PanicEscape = cts.Cancel;   // Esc three times quickly always ends the session, whatever the picker is doing
         var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, SavePrefs = _persistPrefs, DelaySeconds = Prefs.DefaultDelaySeconds, FullTarget = FullScreenTarget.Parse(Prefs.FullScreenTarget), ScrollCapture = scroll };
 
         // Watchdog (§11): a stuck overlay must never trap the user. 60 s without input ends the session.
@@ -128,6 +129,7 @@ internal sealed class ModeRouter
             using var cts = new CancellationTokenSource();
             using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
             using var hook = new InputHook();
+            hook.PanicEscape = cts.Cancel;   // Esc three times quickly always ends the session, whatever the picker is doing
             var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia };
             var picker = new ColorPickerPicker(ctx, snapshot, monitors);
             dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -246,6 +248,7 @@ internal sealed class ModeRouter
         var monitors = MonitorEnumerator.Refresh();
         using var overlays = new OverlayHost(monitors, OverlayStyle.From(Prefs));
         using var hook = new InputHook();
+        hook.PanicEscape = cts.Cancel;   // Esc three times quickly always ends the session, whatever the picker is doing
         var ctx = new PickerContext { Overlays = overlays, Hook = hook, Prefs = Prefs, Uia = _uia, DelaySeconds = 0, FullTarget = FullScreenTarget.Current };
         var dog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         dog.Tick += (_, _) =>
