@@ -1238,5 +1238,28 @@ Console.WriteLine("AreaMask");
     Check(badHex, "contrast: malformed colour rejected");
 }
 
+
+{
+    // Clone must carry every stored setting (Settings starts from it so unedited settings are never reset).
+    var src = new Preferences();
+    foreach (var prop in typeof(Preferences).GetProperties())
+    {
+        if (!prop.CanWrite || !prop.CanRead) continue;
+        object? v = prop.PropertyType == typeof(bool) ? !(bool)prop.GetValue(src)!
+                  : prop.PropertyType == typeof(int) ? (object)((int)prop.GetValue(src)! + 7)
+                  : prop.PropertyType == typeof(double) ? (object)0.5
+                  : prop.PropertyType == typeof(string) ? "x" + prop.Name
+                  : prop.PropertyType == typeof(uint) ? (object)(((uint)prop.GetValue(src)!) + 3u)
+                  : null;
+        if (v is not null) prop.SetValue(src, v);
+    }
+    var cl = src.Clone();
+    var lost = typeof(Preferences).GetProperties().Where(pp => pp.CanWrite && pp.CanRead && !Equals(pp.GetValue(src), pp.GetValue(cl)) && pp.PropertyType.IsValueType | pp.PropertyType == typeof(string)).Select(pp => pp.Name).ToList();
+    Check(lost.Count == 0, "preferences clone carries every simple setting" + (lost.Count == 0 ? "" : ": lost " + string.Join(", ", lost)));
+    Check(new Preferences().EditorToolHotkeys, "editor tool hotkeys default to on");
+    var fx = new Preferences { FrameThickness = 9, ShadowBlur = 11, EdgeDepth = 13 }.Clone();
+    Check(fx.FrameThickness == 9 && fx.ShadowBlur == 11 && fx.EdgeDepth == 13, "clone keeps the effect settings the Settings dialog used to reset");
+}
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

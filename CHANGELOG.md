@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.5] - 2026-11-14
+
+### Fixed
+- **Saving Settings no longer resets the Frame, Shadow and Torn/Wave settings.** The Settings window built a fresh preferences object and only copied some fields, so pressing Save reset the Effects… values (frame width and colour, shadow blur and strength, edge depth) to automatic. It now starts from a copy of the stored settings and changes only what the window edits, so a setting added later can never be dropped this way.
+
+### Added
+- **Single-key tool shortcuts in the editor can be turned off** (Settings > Single-key tool shortcuts in the editor; on by default). Meets the WCAG rule that letter-key shortcuts must be switchable.
+- Core: `Preferences.Clone`. 3 new self-test checks (509 total), including one that fails if any simple setting is lost by the copy.
+
 ## [0.25.4] - 2026-11-14
 
 ### Fixed

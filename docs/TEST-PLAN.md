@@ -212,3 +212,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.25.4 manual rows (deferred by owner)
 - [ ] Editor and Settings: key hints, status bar text and secondary labels are readable at 100% scale on a normal monitor; nothing looks washed out against the new muted grey.
+
+## v0.25.5 manual rows (deferred by owner)
+- [ ] Effects… set Frame 20 px, Save; open Settings, press Save; reopen Effects…: Frame is still 20 px.
+- [ ] Settings: untick Single-key tool shortcuts, Save, open the editor: P, H, etc. do nothing; clicking tools still works; Esc still closes. Tick again: keys work.
