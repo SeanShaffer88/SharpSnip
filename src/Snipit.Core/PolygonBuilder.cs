@@ -37,7 +37,8 @@ public sealed class PolygonBuilder
                 minY = Math.Min(minY, y); maxY = Math.Max(maxY, y);
                 hasBend |= (Int128)dx * ((long)y - first.Y) != (Int128)dy * ((long)x - first.X);
             }
-            return hasBend && (long)maxX - minX + 1 >= MinExtent && (long)maxY - minY + 1 >= MinExtent;
+            long width = (long)maxX - minX + 1, height = (long)maxY - minY + 1;
+            return hasBend && width is >= MinExtent and <= int.MaxValue && height is >= MinExtent and <= int.MaxValue;
         }
     }
 

@@ -239,7 +239,7 @@ static partial class Tests
             Check(concave.CanClose, "concave outlines can close");
             var wide = new PolygonBuilder();
             Click(wide, int.MinValue, int.MinValue); Click(wide, int.MaxValue, int.MaxValue); Click(wide, int.MaxValue, int.MinValue);
-            Check(wide.CanClose, "validation stays exact across the integer coordinate range");
+            Check(!wide.CanClose, "outlines larger than a representable capture cannot close");
         }
     }
 }
