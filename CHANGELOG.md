@@ -5,8 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [0.27.0] - 2026-11-14
 
 ### Added
-- **Click-by-click polygon capture.** In Freehand mode a plain click now starts a polygon instead of a drag outline: click each corner, then click the first point, double-click, or press Enter to finish. Backspace removes the last corner; Esc clears the polygon (a second Esc leaves the mode); right-click cancels. A live rubber-band line follows the cursor. Dragging still draws a freehand outline, and the result is the same transparent-outside PNG.
-- `PolygonBuilder` in Snipit.Core holds the click, close and undo rules, with 9 new checks.
+- **Click-by-click polygon capture.** In Freehand mode a plain click now starts a polygon instead of a drag outline: click each corner, then click the first point, double-click the last point, or press Enter to finish. Backspace removes the last corner; Esc clears the polygon (a second Esc leaves the mode); right-click cancels. A live rubber-band line follows the cursor. Dragging still draws a freehand outline. Save as PNG to preserve transparency outside the outline.
+- `PolygonBuilder` in Snipit.Core holds the click, timing, close, and undo rules. The mask clears every pixel channel outside the outline.
 
 ## [0.26.0] - 2026-11-14
 

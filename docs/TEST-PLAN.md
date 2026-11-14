@@ -234,4 +234,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Switch away from the editor while dragging to interrupt mouse capture. The draft disappears and the next drag produces one undoable connector.
 
 ## v0.27.0 manual rows (deferred by owner)
-- [ ] Freehand: drag still works; click corners then click first point / double-click / Enter; Backspace; Esc; hint text changes.
+- [ ] Draw a freehand outline. Then click corners and close separate polygons by clicking the first point, double-clicking the last point, and pressing Enter.
+- [ ] Pause longer than the Windows double-click interval before clicking the last point again. The polygon stays open. Backspace removes the last vertex and Esc clears.
+- [ ] Try to close three points on a diagonal line. The picker stays open. Save a valid polygon capture as PNG and verify that the area outside the outline is transparent.

@@ -1,5 +1,6 @@
 using System.Windows.Media.Imaging;
 using Snipit.Core;
+using Snipit.Native;
 
 namespace Snipit;
 
@@ -50,7 +51,7 @@ internal sealed class FreehandPicker : PickerBase
     protected override void RefreshHint() =>
         Ctx.Overlays.HintAt(_poly.Count == 0
             ? $"Freehand · drag an outline, or click points for a polygon · [Space] delay {DelayText} · [Esc] back"
-            : $"Polygon · click points · click the first point, double-click or [Enter] to finish · [Backspace] undo · [Esc] clear", _x, _y);
+            : "Polygon · click points · click the first point, double-click the last point or [Enter] to finish · [Backspace] undo · [Esc] clear", _x, _y);
 
     protected override void OnMove(int x, int y)
     {
@@ -92,11 +93,7 @@ internal sealed class FreehandPicker : PickerBase
 
     protected override bool OnLeftDown(int x, int y)
     {
-        if (_poly.Count > 0)
-        {
-            if (_poly.Click(x, y) == PolygonBuilder.Result.Closed) FinishPolygon(); else TracePolygon();
-            return true;
-        }
+        if (_poly.Count > 0) return true;
         _drawing = true;
         _points.Clear();
         _points.Add((x, y));
@@ -105,7 +102,16 @@ internal sealed class FreehandPicker : PickerBase
 
     protected override bool OnLeftUp(int x, int y)
     {
-        if (!_drawing) return true; // polygon vertices are taken on press
+        _x = x; _y = y;
+        if (_poly.Count > 0)
+        {
+            if (_poly.Click(x, y, Environment.TickCount64, NativeMethods.GetDoubleClickTime()) == PolygonBuilder.Result.Closed)
+                FinishPolygon();
+            else
+                TracePolygon();
+            return true;
+        }
+        if (!_drawing) return true;
         _drawing = false;
         _points.Add((x, y));
         var bounds = PolygonMask.Bounds(_points);
@@ -113,7 +119,7 @@ internal sealed class FreehandPicker : PickerBase
         {
             // a click, not a drag: this is the first vertex of a click-by-click polygon
             _points.Clear();
-            _poly.Click(x, y);
+            _poly.Click(x, y, Environment.TickCount64, NativeMethods.GetDoubleClickTime());
             TracePolygon(); RefreshHint();
             return true;
         }

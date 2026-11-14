@@ -22,7 +22,7 @@ While Snipit runs it switches off Windows' "Print Screen opens Snipping Tool" se
 | Element | UI Automation hit-test under the cursor. `Tab` next sibling, `PgUp`/`PgDn` parent/child, `Ctrl+Wheel` expand to container. Falls back to region when an app exposes no UIA. |
 | Scrolling | Pick a scrollable element (tray → Scrolling capture…, or `C` in the mode menu) and capture its full content as one tall image — UIA ScrollPattern when available, wheel-and-stitch otherwise. |
 | Region | Rubber band with 8 handles, live size read-out, magnifier (with a #hex colour readout), edge snapping to windows, move/resize after drawing. |
-| Freehand | Drag an outline, or click corners for a polygon (click the first point, double-click or Enter to finish; Backspace undoes) (`H` in the menu); the bounding box is captured and everything outside the outline is transparent. |
+| Freehand | Drag an outline, or click corners for a polygon (click the first point, double-click the last point or press Enter to finish; Backspace undoes) (`H` in the menu); the bounding box is captured. Save as PNG to preserve transparency outside the outline. |
 | Recording | Record a monitor or region to MP4 — system sound and microphone mixed in, optional webcam picture-in-picture, quality presets, time/size limits, one-shot scheduling — or straight to animated GIF. Tray → Record screen…, or `--record`. |
 | Draw on screen | A live annotation overlay (tray item): draw over the screen; the strokes appear in captures and recordings. |
 | Window | Window under cursor, full frame or client area only (`C`). |

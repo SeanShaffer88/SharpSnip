@@ -13,31 +13,50 @@ public sealed class PolygonBuilder
     public const int MinExtent = 8;
 
     private readonly List<(int X, int Y)> _points = new();
+    private (int X, int Y, long Tick)? _lastClick;
 
     public enum Result { Added, Closed, Ignored }
 
     public IReadOnlyList<(int X, int Y)> Points => _points;
     public int Count => _points.Count;
 
-    /// <summary>True when there are enough vertices and the outline is big enough to capture.</summary>
+    /// <summary>True when the outline spans the minimum size and has noncollinear vertices.</summary>
     public bool CanClose
     {
         get
         {
             if (_points.Count < MinVertices) return false;
-            var b = PolygonMask.Bounds(_points);
-            return b.Width >= MinExtent && b.Height >= MinExtent;
+            var first = _points[0];
+            var second = _points[1];
+            long dx = (long)second.X - first.X, dy = (long)second.Y - first.Y;
+            int minX = first.X, maxX = first.X, minY = first.Y, maxY = first.Y;
+            bool hasBend = false;
+            foreach (var (x, y) in _points)
+            {
+                minX = Math.Min(minX, x); maxX = Math.Max(maxX, x);
+                minY = Math.Min(minY, y); maxY = Math.Max(maxY, y);
+                hasBend |= (Int128)dx * ((long)y - first.Y) != (Int128)dy * ((long)x - first.X);
+            }
+            return hasBend && (long)maxX - minX + 1 >= MinExtent && (long)maxY - minY + 1 >= MinExtent;
         }
     }
 
-    public Result Click(int x, int y)
+    public Result Click(int x, int y, long tick, uint doubleClickTime)
     {
+        var previous = _lastClick;
+        _lastClick = (x, y, tick);
         if (_points.Count >= MinVertices)
         {
             var first = _points[0];
             if (Near(first, x, y, CloseRadius)) return CanClose ? Result.Closed : Result.Ignored;
-            // double-click: a second click on the last vertex finishes the outline
-            if (Near(_points[^1], x, y, DuplicateRadius)) return CanClose ? Result.Closed : Result.Ignored;
+            if (Near(_points[^1], x, y, DuplicateRadius))
+            {
+                bool doubleClick = previous is { } last && tick >= last.Tick &&
+                    (Int128)tick - last.Tick <= doubleClickTime &&
+                    Near(_points[^1], last.X, last.Y, DuplicateRadius) &&
+                    Near((last.X, last.Y), x, y, DuplicateRadius);
+                return doubleClick && CanClose ? Result.Closed : Result.Ignored;
+            }
         }
         if (_points.Count > 0 && Near(_points[^1], x, y, DuplicateRadius)) return Result.Ignored;
         _points.Add((x, y));
@@ -49,10 +68,16 @@ public sealed class PolygonBuilder
     {
         if (_points.Count == 0) return false;
         _points.RemoveAt(_points.Count - 1);
+        _lastClick = null;
         return true;
     }
 
-    public void Clear() => _points.Clear();
+    public void Clear()
+    {
+        _points.Clear();
+        _lastClick = null;
+    }
 
-    private static bool Near((int X, int Y) p, int x, int y, int r) => Math.Abs(p.X - x) <= r && Math.Abs(p.Y - y) <= r;
+    private static bool Near((int X, int Y) p, int x, int y, int r) =>
+        Math.Abs((long)p.X - x) <= r && Math.Abs((long)p.Y - y) <= r;
 }
