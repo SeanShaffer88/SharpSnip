@@ -49,9 +49,9 @@ internal sealed class InputHook : IDisposable
         LastInputTick = Environment.TickCount64;
     }
 
+    /// <summary>Removes the current picker's handlers. Panic escape belongs to the whole session.</summary>
     public void ClearHandlers()
     {
-        PanicEscape = null;
         KeyDown = null; LeftDown = null; LeftUp = null; RightDown = null; Move = null; Wheel = null;
     }
 
@@ -137,6 +137,7 @@ internal sealed class InputHook : IDisposable
     public void Dispose()
     {
         ClearHandlers();
+        PanicEscape = null;
         if (_kb != IntPtr.Zero) { NativeMethods.UnhookWindowsHookEx(_kb); _kb = IntPtr.Zero; }
         if (_ms != IntPtr.Zero) { NativeMethods.UnhookWindowsHookEx(_ms); _ms = IntPtr.Zero; }
         _swallowedKeys.Clear();
