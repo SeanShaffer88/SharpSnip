@@ -7,6 +7,8 @@ dotnet run --project tests/Snipit.SelfTest
 345 checks over geometry, monitor stitching, target resolution, delay cycle, region hit-testing/resize/snap, state machine, settings load/save/quarantine, file naming, image-format selection, GIF encoding, APNG writing, PDF writing, scroll stitching, OCR text assembly, redaction detection, pixel adjustments (incl. borders), the Print Screen override record, mode-bar layout, pixel blitting, recording planning, quality presets, recording output sizes and limits, WAV writing, PCM mixing/resampling, scaled blitting, webcam overlay layout, resize/watermark planning, OCR text-replace matching, polygon masking, the loupe colour readout format, workflow step parsing/expansion, workflow FFmpeg routing, the FFmpeg export plans, the click gate, recording-region resolution, pause timing and WAV segment joining. Last result: **345 passed, 0 failed**.
 
 ## Manual (needs real Windows hardware)
+**v0.16.0 field pass (2026-11-14).** Sean verified live UI and Print Screen behavior, retained SharpSnip settings, and uninstall cleanup. See the [v0.16.0 field verification record](../CHANGELOG.md#0160---2026-11-13) for the tested builds.
+
 **Field pass 2026-11-13 (owner, v0.5.0 release build): "Everything works."** The tray menu (all entries) and the hotkey-conflict notification were observed in the owner's captures. The rows below were not re-run one by one; the table remains the checklist for a deep pass.
 Use an isolated Windows profile with neither `%APPDATA%\Snipit` nor `%APPDATA%\SharpSnip`. Record the result as Verified, Partially verified, or Unverified.
 

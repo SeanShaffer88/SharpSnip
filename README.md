@@ -13,6 +13,8 @@ Offline only. No telemetry, no accounts, no network code.
 
 While Snipit runs it switches off Windows' "Print Screen opens Snipping Tool" setting, and it hands the setting back when it exits, crashes or you log off. If Snipit was killed hard (power loss, Task Manager) the setting can stay off. **Before you uninstall, exit Snipit from its tray menu; if it was killed, run `Snipit.exe --restore-printscreen` first.** The SeanPak installer has no uninstall hook yet, so uninstalling cannot do this for you.
 
+**Windows field test (v0.16.0).** Sean tested the installer and portable build, verified the live UI and Print Screen behavior, and confirmed that SharpSnip settings carried over and uninstall cleaned up the installed build. [Full test results](CHANGELOG.md#windows-field-verification)
+
 ## Features
 
 | Mode | What it does |
