@@ -84,6 +84,9 @@ public sealed class Preferences
     /// <summary>False when the user hid the tray icon from its context menu. Running Snipit again brings it back.</summary>
     public bool ShowTrayIcon { get; set; } = true;
 
+    /// <summary>Single-letter tool keys in the editor (P pen, H highlight, A arrow, R rect, O ellipse, T text, N step, K callout, G stamp, B blur, S spotlight, M magnify, C crop, X cut). Turn off if they clash with your assistive technology.</summary>
+    public bool EditorToolHotkeys { get; set; } = true;
+
     /// <summary>Matte for monitor-layout gaps as 0xAARRGGBB.</summary>
     public uint MatteArgb => MatteColor switch
     {
@@ -96,6 +99,14 @@ public sealed class Preferences
     public string Extension => ImageFormats.Normalize(ImageFormat) ?? ImageFormats.Default;
 
     /// <summary>Clamp every field to a legal value. Never throws.</summary>
+    /// <summary>A deep copy (through JSON, so every stored setting is carried). Settings starts from this so a setting the dialog does not edit is never silently reset.</summary>
+    public Preferences Clone()
+    {
+        var copy = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(this)) ?? new Preferences();
+        copy.WorkflowsLocked = WorkflowsLocked;   // runtime-only flag, never serialised
+        return copy;
+    }
+
     public Preferences Sanitize()
     {
         SchemaVersion = CurrentSchema;

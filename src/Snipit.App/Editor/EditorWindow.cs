@@ -131,6 +131,7 @@ internal sealed class EditorWindow : Window
         {
             if (_editing is not null || _busy) return;
             if (e.Key == Key.Escape) { Close(); e.Handled = true; return; }
+            if (!_prefs.EditorToolHotkeys) return;
             if (Keyboard.Modifiers != ModifierKeys.None || Keyboard.FocusedElement is TextBox) return;
             if (ToolKeys.TryGetValue(e.Key, out var t))
             {

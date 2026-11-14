@@ -20,6 +20,7 @@ internal sealed class SettingsWindow : Window
     private readonly ComboBox _format = new(), _target = new(), _delay = new(), _matte = new(), _effect = new();
     private readonly CheckBox _toasts = new() { Content = "Show notifications" };
     private readonly CheckBox _contrast = new() { Content = "High-contrast highlight" };
+    private readonly CheckBox _toolKeys = new() { Content = "Single-key tool shortcuts in the editor" };
     private readonly Slider _dim = new() { Minimum = 20, Maximum = 90, Width = 200, TickFrequency = 10, IsSnapToTickEnabled = false };
     private readonly TextBlock _error = new() { Foreground = TesselTheme.Danger, TextWrapping = TextWrapping.Wrap };
 
@@ -68,6 +69,7 @@ internal sealed class SettingsWindow : Window
         _matte.SelectedItem = prefs.MatteColor; _matte.ToolTip = "Fill for empty corners when monitors form an L-shape.";
         _effect.SelectedItem = AutoEffects.Sanitize(prefs.AutoEffect); _effect.ToolTip = "Applied automatically to every capture. Border draws a thin black frame; Grayscale converts to grey.";
         _toasts.IsChecked = prefs.ShowToasts; _toasts.ToolTip = "Balloon notifications after saving or on errors.";
+        _toolKeys.IsChecked = prefs.EditorToolHotkeys; _toolKeys.ToolTip = "P pen, H highlight, A arrow, R rect, O ellipse, T text, N step, K callout, G stamp, B blur, S spotlight, M magnify, C crop, X cut out. Turn off if letter keys clash with your assistive technology.";
         _contrast.IsChecked = prefs.HighContrastHighlight; _contrast.ToolTip = "Thicker yellow highlight and opaque hint bars.";
         _dim.Value = prefs.DimmerOpacity * 100; _dim.ToolTip = "How dark the screen gets while picking.";
 
@@ -89,7 +91,7 @@ internal sealed class SettingsWindow : Window
         Add("Fixed region width", _fixW); Add("Fixed region height", _fixH); Add("Interval (seconds)", _interval);
         Add("Full-screen target", _target); Add("Default delay (s)", _delay);
         Add("Gap fill", _matte); Add("Dimmer darkness", _dim); Add("Auto effect", _effect);
-        Add("", _toasts); Add("", _contrast);
+        Add("", _toasts); Add("", _contrast); Add("", _toolKeys);
         Add("", _error);
 
         var ok = new Button { Content = "Save", IsDefault = true, Width = 80, Margin = new Thickness(4), ToolTip = "Apply and store settings." };
@@ -125,32 +127,25 @@ internal sealed class SettingsWindow : Window
 
     private void Commit()
     {
-        var p = new Preferences
-        {
-            OutputFolder = _folder.Text.Trim(), ImageFormat = (string)_format.SelectedItem,
-            ColorFormatName = _prefs.ColorFormatName,
-            PresetRect = _presetRect,
-            ExternalEditorPath = _extEditor.Text.Trim(),
-            FfmpegPath = _ffmpeg.Text.Trim(),
-            Workflows = _workflows, CaptureWorkflow = SelectedWorkflow(_wfCapture), RecordingWorkflow = SelectedWorkflow(_wfRecording),
-            FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor",
-            DefaultDelaySeconds = (int)_delay.SelectedItem, MatteColor = (string)_matte.SelectedItem,
-            ShowToasts = _toasts.IsChecked == true,
-            HighContrastHighlight = _contrast.IsChecked == true, DimmerOpacity = _dim.Value / 100,
-            EditorBounds = _prefs.EditorBounds, EditorMaximized = _prefs.EditorMaximized,
-            LastCaptureRect = _prefs.LastCaptureRect,
-            ModeBarCenter = _prefs.ModeBarCenter,
-            PrintScreenSnippingPrior = _prefs.PrintScreenSnippingPrior,
-            PrintScreenPriorRecorded = _prefs.PrintScreenPriorRecorded,
-            ShowTrayIcon = _prefs.ShowTrayIcon,
-            AutoEffect = (string)_effect.SelectedItem,
-            // Recording preferences are edited in the Recorder window; carry them over untouched.
-            RecordingFps = _prefs.RecordingFps, RecordSystemAudio = _prefs.RecordSystemAudio,
-            RecordMic = _prefs.RecordMic, RecordingQualityName = _prefs.RecordingQualityName, RecordingSizeName = _prefs.RecordingSizeName,
-            RecordWebcam = _prefs.RecordWebcam, WebcamCorner = _prefs.WebcamCorner,
-            RecordMaxMinutes = _prefs.RecordMaxMinutes, RecordMaxMb = _prefs.RecordMaxMb,
-            RecordingRegion = _prefs.RecordingRegion,
-        };
+        // Start from a copy of what is stored so settings this window does not edit (effect sizes, recording
+        // options, hotkeys flag, ...) are carried over instead of being reset to defaults.
+        var p = _prefs.Clone();
+        p.OutputFolder = _folder.Text.Trim();
+        p.ImageFormat = (string)_format.SelectedItem;
+        p.PresetRect = _presetRect;
+        p.ExternalEditorPath = _extEditor.Text.Trim();
+        p.FfmpegPath = _ffmpeg.Text.Trim();
+        p.Workflows = _workflows;
+        p.CaptureWorkflow = SelectedWorkflow(_wfCapture);
+        p.RecordingWorkflow = SelectedWorkflow(_wfRecording);
+        p.FullScreenTarget = _target.SelectedIndex == 1 ? "AllMonitors" : "CurrentMonitor";
+        p.DefaultDelaySeconds = (int)_delay.SelectedItem;
+        p.MatteColor = (string)_matte.SelectedItem;
+        p.ShowToasts = _toasts.IsChecked == true;
+        p.HighContrastHighlight = _contrast.IsChecked == true;
+        p.DimmerOpacity = _dim.Value / 100;
+        p.AutoEffect = (string)_effect.SelectedItem;
+        p.EditorToolHotkeys = _toolKeys.IsChecked == true;
         // Per-field validation (owner field report, 2026-11-13): one bad field must
         // never discard the whole save — an invalid entry keeps its previous value
         // and is named in the warning, everything else applies and persists.
