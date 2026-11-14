@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>0.25.5</Version>
+    <Version>0.25.6</Version>
     <Authors>Sean Shaffer</Authors>
     <Product>Snipit</Product>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>

@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.6] - 2026-11-14
+
+### Security
+- **Release workflow supply chain pinned.** GitHub Actions are pinned to commit SHAs (with the version in a comment), and the SeanPak packager is checked out at a pinned commit instead of its moving default branch, so a tag push builds exactly the code that was reviewed. FFmpeg was already hash-pinned. A weekly Dependabot check proposes action bumps as PRs.
+- Tooling and CI only; no change to the program.
+
 ## [0.25.5] - 2026-11-14
 
 ### Fixed
