@@ -199,3 +199,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Fresh install, no settings: add an external editor and a workflow with a run step in Settings, Save: they work. Restart: still work.
 - [ ] Edit settings.json by hand (change the run step), restart: banner says paused; the run step is blocked; Settings > Save re-approves.
 - [ ] Copy a working settings.json to another PC or delete HKCU\\Software\\Snipit\\TrustKey: launching steps pause until Save.
+
+## v0.25.2 manual rows (deferred by owner)
+- [ ] In a region pick, press Esc once: back to the mode menu. Press Esc three times quickly: the session ends and the overlay closes.
+- [ ] Triple Esc works in element, freehand, window and colour-pick modes.
+- [ ] Force a contained UI error (log shows 'Unhandled UI exception'): a tray notice appears, then not again for a minute.
