@@ -1,6 +1,6 @@
 {
   "appName": "Snipit",
-  "version": "0.25.3",
+  "version": "0.25.4",
   "publisher": "Sean Shaffer",
   "primaryExe": "Snipit.exe",
   "desktopShortcut": true,
