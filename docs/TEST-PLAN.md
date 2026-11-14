@@ -237,3 +237,10 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Draw a freehand outline. Then click corners and close separate polygons by clicking the first point, double-clicking the last point, and pressing Enter.
 - [ ] Pause longer than the Windows double-click interval before clicking the last point again. The polygon stays open. Backspace removes the last vertex and Esc clears.
 - [ ] Try to close three points on a diagonal line. The picker stays open. Save a valid polygon capture as PNG and verify that the area outside the outline is transparent.
+
+## v0.28.0 Windows checks
+
+- [ ] With Quick Mode off, Print Screen opens the toolbox. Turn on Quick Mode, set a countdown, then press Print Screen. Capture starts immediately, copies the image, and saves it without opening the toolbox.
+- [ ] Test Current monitor and All monitors. Restart Snipit and check that the tray item reflects the saved Quick Mode setting. Left-click the tray or choose Capture… with Quick Mode on and verify that each opens the toolbox.
+- [ ] Draw and release a normal region, then repeat with Shift to stage it. Move or resize the staged selection before clicking inside its body or pressing Enter. Add a second area with A. Verify the Recorder region picker still waits for confirmation.
+- [ ] Hold the clipboard open from an independent test process and capture in both Quick Mode and normal mode. Verify the clipboard warning and saved file, including the notification's folder link. Release the clipboard and verify the next capture copies normally.
