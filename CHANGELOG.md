@@ -74,6 +74,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Portable copies use the `data` folder beside the executable. Installed copies continue using an existing `%APPDATA%\SharpSnip` folder, including saved settings and Print Screen recovery. Fresh profiles use `%APPDATA%\Snipit`.
 - Release tags and downloads before v0.16.0 retain the SharpSnip name.
 
+### Windows field verification
+
+On 2026-11-14, Sean tested the v0.16.0 Windows x64 installer and portable build. He verified live UI and Print Screen behavior, confirmed existing SharpSnip settings carried over, and confirmed uninstall cleaned up the installed build.
+
 ## [0.15.0] - 2026-11-13
 
 ### Added
