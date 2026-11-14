@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.3] - 2026-11-14
+
+### Fixed
+- **Whole-image editor edits no longer freeze the window.** Sharpen, Hue, Colour, Shadow, Torn, Wave, Frame, Cut out, Invert, Grayscale, Flip, Rotate and the rest now do their pixel work off the UI thread. The editor is disabled with a wait cursor and a status line while an edit runs, then enabled again.
+- **Undo memory is capped.** Each whole-image edit keeps a full bitmap, so a few edits of a large multi-monitor capture could use gigabytes. The history now keeps the newest edits within 512 MB (the latest edit always stays undoable); annotations cost nothing and are all kept.
+- Core: `UndoBudget`. 5 new self-test checks (499 total).
+
 ## [0.25.2] - 2026-11-14
 
 ### Fixed
