@@ -27,6 +27,7 @@ Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini e
 | Settings window in TesselGUI revision 2 | ✅ v0.6.1 — GitHub-scheme tokens, themed inputs/buttons/combos/checkboxes; OS title bar unthemed |
 | Snipping-Tool-style mode bar (top-of-screen tab, icon buttons) | ✅ v0.6.0 — design A picked by SEAN 2026-11-13 from rendered mockups; replaces the text HUD menu, all keys unchanged |
 | Multiple-area capture (several regions, one action) | ✅ v0.19 — Region tool: A adds an area, Enter combines them into one transparent-gapped image |
+| Hand Print Screen back automatically on uninstall | ❓ needs a SeanPak uninstall hook (SeanPak has none yet: "There are no uninstall hooks yet"); a registryWrites entry cannot do it safely, because it would change Print Screen behaviour at install time |
 | Freehand and polygon capture | freehand ✅ (Freehand mode, mask into transparent PNG); click-by-click polygon 🔜 |
 | Scrolling capture (web pages, documents, wide tables) | ✅ v0.5.0 — UIA ScrollPattern first, wheel-and-stitch fallback |
 | Windows.Graphics.Capture backend (DRM-aware, HDR) | ✅ unreleased — WGC is now the primary stills backend with automatic GDI fallback; runtime field check still owed |
