@@ -18,12 +18,13 @@ internal sealed class EditorWindow : Window
 {
     private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Callout, Stamp, Blur, Spotlight, Loupe, Crop, Cut }
 
-    private interface IEdit { void Undo(); void Redo(); }
+    private interface IEdit { void Undo(); void Redo(); long Cost { get; } }
 
     private sealed class AddEdit : IEdit
     {
         private readonly Canvas _c; private readonly UIElement _e;
         public AddEdit(Canvas c, UIElement e) { _c = c; _e = e; }
+        public long Cost => 0;
         public void Undo() => _c.Children.Remove(_e);
         public void Redo() { if (!_c.Children.Contains(_e)) _c.Children.Add(_e); }
     }
@@ -33,6 +34,7 @@ internal sealed class EditorWindow : Window
         private readonly EditorWindow _w; private readonly BitmapSource _oldBase, _newBase; private readonly List<UIElement> _oldItems;
         public BaseEdit(EditorWindow w, BitmapSource oldBase, BitmapSource newBase, List<UIElement> oldItems)
         { _w = w; _oldBase = oldBase; _newBase = newBase; _oldItems = oldItems; }
+        public long Cost => UndoBudget.BitmapBytes(_newBase.PixelWidth, _newBase.PixelHeight);
         public void Undo() { _w.SetBase(_oldBase); _w._layer.Children.Clear(); foreach (var e in _oldItems) _w._layer.Children.Add(e); }
         public void Redo() { _w.SetBase(_newBase); _w._layer.Children.Clear(); }
     }
@@ -120,15 +122,16 @@ internal sealed class EditorWindow : Window
         _openFolder.Click += (_, _) => { if (_savedPath is not null) Process.Start("explorer.exe", $"/select,\"{_savedPath}\""); };
         _copyPath.Click += (_, _) => { if (_savedPath is not null) { try { Clipboard.SetText(_savedPath); _status.Text = "Path copied."; } catch (Exception) { _status.Text = "Clipboard busy."; } } };
 
-        CommandBindings.Add(new CommandBinding(ApplicationCommands.Save, (_, _) => Save(), (_, e) => e.CanExecute = _editing is null));
-        CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, (_, _) => CopyImage(), (_, e) => e.CanExecute = _editing is null));
-        CommandBindings.Add(new CommandBinding(ApplicationCommands.Undo, (_, _) => DoUndo(), (_, e) => e.CanExecute = _editing is null && _undo.Count > 0));
-        CommandBindings.Add(new CommandBinding(ApplicationCommands.Redo, (_, _) => DoRedo(), (_, e) => e.CanExecute = _editing is null && _redo.Count > 0));
+        CommandBindings.Add(new CommandBinding(ApplicationCommands.Save, (_, _) => Save(), (_, e) => e.CanExecute = _editing is null && !_busy));
+        CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, (_, _) => CopyImage(), (_, e) => e.CanExecute = _editing is null && !_busy));
+        CommandBindings.Add(new CommandBinding(ApplicationCommands.Undo, (_, _) => DoUndo(), (_, e) => e.CanExecute = _editing is null && !_busy && _undo.Count > 0));
+        CommandBindings.Add(new CommandBinding(ApplicationCommands.Redo, (_, _) => DoRedo(), (_, e) => e.CanExecute = _editing is null && !_busy && _redo.Count > 0));
         InputBindings.Add(new KeyBinding(ApplicationCommands.Redo, Key.Z, ModifierKeys.Control | ModifierKeys.Shift));
         PreviewKeyDown += (_, e) =>
         {
-            if (_editing is not null) return;
+            if (_editing is not null || _busy) return;
             if (e.Key == Key.Escape) { Close(); e.Handled = true; return; }
+            if (!_prefs.EditorToolHotkeys) return;
             if (Keyboard.Modifiers != ModifierKeys.None || Keyboard.FocusedElement is TextBox) return;
             if (ToolKeys.TryGetValue(e.Key, out var t))
             {
@@ -371,7 +374,19 @@ internal sealed class EditorWindow : Window
     private Color CurrentColor => Palette[Math.Clamp(_colorIndex, 0, Palette.Length - 1)].Color;
     private Brush Stroke(double alpha = 1) => new SolidColorBrush(Color.FromArgb((byte)(alpha * 255), CurrentColor.R, CurrentColor.G, CurrentColor.B));
 
-    private void Push(IEdit e) { _undo.Push(e); _redo.Clear(); }
+    private void Push(IEdit e)
+    {
+        _undo.Push(e); _redo.Clear();
+        // Whole-image edits each keep a full bitmap; drop the oldest ones past the memory budget.
+        var costs = _undo.Select(x => x.Cost).ToList();                  // newest first
+        int keep = UndoBudget.KeepCount(costs, UndoBudget.DefaultBytes);
+        if (keep < costs.Count)
+        {
+            var arr = _undo.ToArray();
+            _undo.Clear();
+            for (int i = keep - 1; i >= 0; i--) _undo.Push(arr[i]);
+        }
+    }
 
     private void OnDown(object sender, MouseButtonEventArgs e)
     {
@@ -552,16 +567,47 @@ internal sealed class EditorWindow : Window
     /// flattened image and swaps it in as the new base, like Crop: annotations are
     /// baked in, and Undo restores the previous base and its annotation layer.
     /// </summary>
-    private void TransformBase(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op)
+    private bool _busy;
+
+    private void TransformBase(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op) => _ = TransformBaseAsync(label, op);
+
+    /// <summary>Keeps the image and annotations stable while an asynchronous edit is underway.</summary>
+    private async Task RunExclusiveEditAsync(Func<Task> edit)
+    {
+        if (_busy) { _status.Text = "Still working on the last edit…"; return; }
+        var oldCursor = Cursor;
+        var root = Content as UIElement;
+        bool wasEnabled = root?.IsEnabled ?? true;
+        _busy = true;
+        try
+        {
+            Cursor = Cursors.Wait;
+            if (root is not null) root.IsEnabled = false;
+            await edit();
+        }
+        finally
+        {
+            _busy = false;
+            Cursor = oldCursor;
+            if (root is not null) root.IsEnabled = wasEnabled;
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    /// <summary>Runs pixel work off the UI thread. Flatten and the final swap stay on the UI thread.</summary>
+    private Task TransformBaseAsync(string label, Func<byte[], int, int, (byte[] Pixels, int Width, int Height)> op)
+        => RunExclusiveEditAsync(async () =>
     {
         try
         {
+            _status.Text = label + "…";
             var flat = Flatten();
             var src = flat.Format == PixelFormats.Bgra32 ? flat : new FormatConvertedBitmap(flat, PixelFormats.Bgra32, null, 0);
             int w = src.PixelWidth, h = src.PixelHeight, stride = w * 4;
             var px = new byte[stride * h];
             src.CopyPixels(px, stride, 0);
-            var (data, nw, nh) = op(px, w, h);
+            var (data, nw, nh) = await Task.Run(() => op(px, w, h));
+            if (!IsVisible) return;                                      // the window was closed meanwhile
             var bmp = BitmapSource.Create(nw, nh, 96, 96, PixelFormats.Bgra32, null, data, nw * 4);
             bmp.Freeze();
             SwapBase(bmp, label + " applied");
@@ -571,7 +617,7 @@ internal sealed class EditorWindow : Window
             Log.Error(label + " failed", ex);
             _status.Text = label + " failed: " + ex.Message;
         }
-    }
+    });
 
     /// <summary>Swaps in a new base image (annotations baked into it) as one undoable edit.</summary>
     private void SwapBase(BitmapSource newBase, string label)
@@ -762,13 +808,14 @@ internal sealed class EditorWindow : Window
         }
     }
 
-    private async Task RedactAsync()
+    private Task RedactAsync() => RunExclusiveEditAsync(async () =>
     {
         _status.Text = "Scanning for sensitive text…";
         try
         {
             // OCR runs on the base image, not the flattened one: annotations are not text.
             var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (!IsVisible) return;
             if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
             var hits = Redactor.Find(words);
             if (hits.Count == 0) { _status.Text = "No sensitive text found (emails, cards, IPs, phone numbers, key-shaped tokens)."; return; }
@@ -793,14 +840,15 @@ internal sealed class EditorWindow : Window
             Log.Error("Redact failed", ex);
             _status.Text = "Redact failed: " + ex.Message;
         }
-    }
+    });
 
-    private async Task ReplaceTextAsync(string find, string replace)
+    private Task ReplaceTextAsync(string find, string replace) => RunExclusiveEditAsync(async () =>
     {
         _status.Text = "Finding text…";
         try
         {
             var (words, error) = await OcrService.RecognizeWordsAsync(_base);
+            if (!IsVisible) return;
             if (words is null) { _status.Text = error ?? "OCR is unavailable."; return; }
             var matches = TextReplace.Find(words, find);
             if (matches.Count == 0) { _status.Text = $"\"{find}\" was not found in the image's text."; return; }
@@ -836,7 +884,7 @@ internal sealed class EditorWindow : Window
             Log.Error("Replace text failed", ex);
             _status.Text = "Replace failed: " + ex.Message;
         }
-    }
+    });
 
     /// <summary>Average colour of the pixels just outside a rectangle — the best guess at what hides behind it.</summary>
     private static Color SamplePerimeter(byte[] px, int w, int h, RectPx r)

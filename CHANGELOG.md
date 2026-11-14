@@ -2,6 +2,56 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.8] - 2026-11-14
+
+### Fixed
+- The three-press Esc shortcut stays active when changing capture modes and during the capture countdown.
+- Redact and Replace text finish before another image edit can start, preserving edits and keeping OCR coordinates aligned with the image.
+
+### Changed
+- **Self-test split by area.** The 1,200-line `Program.cs` is now eight `Tests.<Area>.cs` files plus a short runner, so new checks no longer clash on top-level names. Same 509 checks.
+- **One version number.** `Snipit.exe --version` and the help text read the version stamped from `Directory.Build.props`; the hardcoded copy in `Program.cs` is gone. A release now edits `Directory.Build.props` and `seanpak.json` only.
+
+## [0.25.7] - 2026-11-14
+
+### Changed
+- **Docs: uninstalling.** The README now says to exit Snipit (or run `Snipit.exe --restore-printscreen` if it was killed) before uninstalling, because the SeanPak installer has no uninstall hook that could hand the Print Screen key back. The roadmap records the missing SeanPak feature. I looked at using the installer's registry writes instead and rejected it: it would change Print Screen behaviour at install time for everyone.
+
+## [0.25.6] - 2026-11-14
+
+### Security
+- **Release workflow supply chain pinned.** GitHub Actions are pinned to commit SHAs (with the version in a comment), and the SeanPak packager is checked out at a pinned commit instead of its moving default branch, so a tag push builds exactly the code that was reviewed. FFmpeg was already hash-pinned. A weekly Dependabot check proposes action bumps as PRs.
+- Tooling and CI only; no change to the program.
+
+## [0.25.5] - 2026-11-14
+
+### Fixed
+- **Saving Settings no longer resets the Frame, Shadow and Torn/Wave settings.** The Settings window built a fresh preferences object and only copied some fields, so pressing Save reset the Effects… values (frame width and colour, shadow blur and strength, edge depth) to automatic. It now starts from a copy of the stored settings and changes only what the window edits, so a setting added later can never be dropped this way.
+
+### Added
+- **Single-key tool shortcuts in the editor can be turned off** (Settings > Single-key tool shortcuts in the editor; on by default). Meets the WCAG rule that letter-key shortcuts must be switchable.
+- Core: `Preferences.Clone`. 3 new self-test checks (509 total), including one that fails if any simple setting is lost by the copy.
+
+## [0.25.4] - 2026-11-14
+
+### Fixed
+- **Muted text now meets WCAG AA.** The muted grey (#89868A, about 4.3:1 on the toolbar) used for key hints, labels and status text is lightened to #A3A0A4 (about 5.6:1) in the editor and the themed windows. This departs from the TesselGUI token value on purpose.
+- Core: `WcagContrast`, with self-tests asserting the foreground and muted tokens pass 4.5:1 on every dark surface. 7 new checks (506 total).
+
+## [0.25.3] - 2026-11-14
+
+### Fixed
+- **Whole-image editor edits no longer freeze the window.** Sharpen, Hue, Colour, Shadow, Torn, Wave, Frame, Cut out, Invert, Grayscale, Flip, Rotate and the rest now do their pixel work off the UI thread. The editor is disabled with a wait cursor and a status line while an edit runs, then enabled again.
+- Undo history uses a 512 MB estimated budget for whole-image edits. The latest edit is kept.
+- Core: `UndoBudget`. 5 new self-test checks (499 total).
+
+## [0.25.2] - 2026-11-14
+
+### Fixed
+- **A stuck overlay can always be escaped.** Pressing Esc three times within 1.5 seconds now ends the capture session, region pick or colour pick from the input hook itself, whatever the picker is doing. A single Esc still goes back one step as before.
+- **Contained errors are no longer silent.** When the UI thread hits an exception that Snipit contains, a tray notice says something went wrong and points to the log (at most once a minute).
+- Core: `EscapeChord`. 5 new self-test checks (494 total).
+
 ## [0.25.1] - 2026-11-14
 
 ### Security

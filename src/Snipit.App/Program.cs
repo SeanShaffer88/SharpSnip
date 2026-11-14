@@ -10,7 +10,7 @@ public static class Program
     private const string MutexName = @"Local\7C1D5E2A-3B84-4F0A-9E61-2A5B8D0C4F13-SharpSnip";
     /// <summary>A second launch sets this event; the running instance answers by restoring its tray icon and opening Settings.</summary>
     internal const string ShowEventName = @"Local\7C1D5E2A-3B84-4F0A-9E61-2A5B8D0C4F13-SharpSnipShow";
-    private const string Usage =
+    private static string Usage =>
 @"Snipit " + Version + @"
   Snipit.exe                         start in the tray
   Snipit.exe --fullscreen [options]  one-shot capture, then exit
@@ -40,7 +40,14 @@ public static class Program
   Snipit.exe --verbose               start with debug logging
   Snipit.exe --version | --help";
 
-    private const string Version = "0.25.1";
+    /// <summary>Single source of truth is &lt;Version&gt; in Directory.Build.props; MSBuild stamps it into the assembly.</summary>
+    private static readonly string Version =
+        (typeof(Program).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "0.0.0").Split('+')[0];
+
+    private static long _lastUiErrorTick;
+    /// <summary>Raised (at most once a minute) when the UI thread hit an exception that was contained. AppHost shows a tray notice.</summary>
+    internal static event Action<string>? UiErrorReported;
 
     [STAThread]
     public static int Main(string[] args)
@@ -85,6 +92,13 @@ public static class Program
         {
             Log.Error("Unhandled UI exception", e.Exception);
             e.Handled = true; // never show a crash dialog; the session cleans itself up in finally blocks
+            // Do not hide it either: tell the user once a minute that something failed and where the log is.
+            long now = Environment.TickCount64;
+            if (now - _lastUiErrorTick >= 60_000 || _lastUiErrorTick == 0)
+            {
+                _lastUiErrorTick = now;
+                try { UiErrorReported?.Invoke(e.Exception.Message); } catch (Exception ex) { Log.Error("UI error notice failed", ex); }
+            }
         };
         using var host = new AppHost();
         return app.Run();

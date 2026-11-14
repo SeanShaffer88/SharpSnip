@@ -201,3 +201,29 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Fresh install, no settings: add an external editor and a workflow with a run step in Settings, Save: they work. Restart: still work.
 - [ ] Edit settings.json by hand (change the run step), restart: banner says paused; the run step is blocked; Settings > Save re-approves.
 - [ ] Copy a working settings.json to another PC or delete HKCU\\Software\\Snipit\\TrustKey: launching steps pause until Save.
+
+## v0.25.2 manual rows (deferred by owner)
+- [ ] In a region pick, press Esc once: back to the mode menu. Press Esc three times quickly: the session ends and the overlay closes.
+- [ ] Triple Esc works in element, freehand, window and colour-pick modes.
+- [ ] Force a contained UI error (log shows 'Unhandled UI exception'): a tray notice appears, then not again for a minute.
+
+## v0.25.3 manual rows (deferred by owner)
+- [ ] Open a very large capture (e.g. 2 x 4K), apply Sharpen or Torn: the window stays responsive-looking (wait cursor), the edit lands, Undo restores it.
+- [ ] Apply enough large whole-image edits to exceed the 512 MB estimated undo budget. Verify that the oldest whole-image edits stop being undoable and the newest still undo.
+- [ ] Close the editor while an edit runs: no crash.
+
+## v0.25.4 manual rows (deferred by owner)
+- [ ] Editor and Settings: key hints, status bar text and secondary labels are readable at 100% scale on a normal monitor; nothing looks washed out against the new muted grey.
+
+## v0.25.5 manual rows (deferred by owner)
+- [ ] Effects… set Frame 20 px, Save; open Settings, press Save; reopen Effects…: Frame is still 20 px.
+- [ ] Settings: untick Single-key tool shortcuts, Save, open the editor: P, H, etc. do nothing; clicking tools still works; Esc still closes. Tick again: keys work.
+
+## v0.25.6 manual rows (deferred by owner)
+- [ ] Next release tag: the Release workflow resolves every pinned action, builds SeanPak at the pinned commit, and attaches the three assets.
+
+## v0.25.7 manual rows (deferred by owner)
+- [ ] README renders the new Uninstalling section.
+
+## v0.25.8 manual rows (deferred by owner)
+- [ ] `Snipit.exe --version` prints the same version as the installer.
