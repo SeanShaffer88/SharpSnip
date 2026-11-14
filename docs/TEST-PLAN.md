@@ -209,7 +209,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.25.3 manual rows (deferred by owner)
 - [ ] Open a very large capture (e.g. 2 x 4K), apply Sharpen or Torn: the window stays responsive-looking (wait cursor), the edit lands, Undo restores it.
-- [ ] Apply 6 or more large edits in a row: memory stays bounded; the oldest edits stop being undoable, the newest still undo.
+- [ ] Apply enough large whole-image edits to exceed the 512 MB estimated undo budget. Verify that the oldest whole-image edits stop being undoable and the newest still undo.
 - [ ] Close the editor while an edit runs: no crash.
 
 ## v0.25.4 manual rows (deferred by owner)
