@@ -40,7 +40,7 @@ public static class Program
   Snipit.exe --verbose               start with debug logging
   Snipit.exe --version | --help";
 
-    private const string Version = "0.25.5";
+    private const string Version = "0.25.6";
 
     private static long _lastUiErrorTick;
     /// <summary>Raised (at most once a minute) when the UI thread hit an exception that was contained. AppHost shows a tray notice.</summary>

@@ -1,0 +1,7 @@
+version: 2
+updates:
+  # Pinned action SHAs do not move by themselves; this proposes the bumps as PRs.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

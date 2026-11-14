@@ -216,3 +216,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 ## v0.25.5 manual rows (deferred by owner)
 - [ ] Effects… set Frame 20 px, Save; open Settings, press Save; reopen Effects…: Frame is still 20 px.
 - [ ] Settings: untick Single-key tool shortcuts, Save, open the editor: P, H, etc. do nothing; clicking tools still works; Esc still closes. Tick again: keys work.
+
+## v0.25.6 manual rows (deferred by owner)
+- [ ] Next release tag: the Release workflow resolves every pinned action, builds SeanPak at the pinned commit, and attaches the three assets.
