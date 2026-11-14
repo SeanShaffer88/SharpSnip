@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.8] - 2026-11-14
+
+### Changed
+- **Self-test split by area.** The 1,200-line `Program.cs` is now eight `Tests.<Area>.cs` files plus a short runner, so new checks no longer clash on top-level names. Same 509 checks.
+- **One version number.** `Snipit.exe --version` and the help text read the version stamped from `Directory.Build.props`; the hardcoded copy in `Program.cs` is gone. A release now edits `Directory.Build.props` and `seanpak.json` only.
+
 ## [0.25.7] - 2026-11-14
 
 ### Changed

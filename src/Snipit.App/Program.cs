@@ -10,7 +10,7 @@ public static class Program
     private const string MutexName = @"Local\7C1D5E2A-3B84-4F0A-9E61-2A5B8D0C4F13-SharpSnip";
     /// <summary>A second launch sets this event; the running instance answers by restoring its tray icon and opening Settings.</summary>
     internal const string ShowEventName = @"Local\7C1D5E2A-3B84-4F0A-9E61-2A5B8D0C4F13-SharpSnipShow";
-    private const string Usage =
+    private static string Usage =>
 @"Snipit " + Version + @"
   Snipit.exe                         start in the tray
   Snipit.exe --fullscreen [options]  one-shot capture, then exit
@@ -40,7 +40,10 @@ public static class Program
   Snipit.exe --verbose               start with debug logging
   Snipit.exe --version | --help";
 
-    private const string Version = "0.25.7";
+    /// <summary>Single source of truth is &lt;Version&gt; in Directory.Build.props; MSBuild stamps it into the assembly.</summary>
+    private static readonly string Version =
+        (typeof(Program).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "0.0.0").Split('+')[0];
 
     private static long _lastUiErrorTick;
     /// <summary>Raised (at most once a minute) when the UI thread hit an exception that was contained. AppHost shows a tray notice.</summary>
