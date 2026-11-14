@@ -18,7 +18,7 @@ Use an isolated Windows profile with neither `%APPDATA%\Snipit` nor `%APPDATA%\S
 | 2 | Element mode on Chrome, Explorer, Notepad, VS Code, Win11 Settings | Highlight follows cursor, click captures exactly the rect (±1 px) |
 | 3 | `Tab`, `PgUp`, `PgDn`, `Ctrl+Wheel` in element mode | Deterministic and reversible |
 | 4 | Element mode over an app with no UIA (a game) | Switches to region picker, no error |
-| 5 | Region: draw, move, resize by each handle, double-click, Enter | Correct rect; snap to window edges; loupe follows |
+| 5 | Region: drag and release, then Shift-drag, move, resize, click inside or press Enter | Correct rect; snap to window edges; loupe follows |
 | 6 | Window mode, `C` toggle | Frame vs client area both correct (incl. Win11 shadow-less frame) |
 | 7 | Full screen: `Tab`, `A`, `1`..`9`, `Enter` on 2 monitors | Correct monitor highlighted and captured only |
 | 8 | All-monitors capture at 100% + 150% | One image, no gaps/overlap; pixel test at monitor seam |
@@ -50,7 +50,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## Unreleased manual rows (recording)
 - [ ] `Snipit.exe --record 5` on the primary monitor: a timestamped MP4 lands in the output folder and plays back in a standard player, showing the desktop and cursor moving; `--record 5 --monitor 2 --fps 60 --out C:\Temp\rec.mp4` honours its arguments; `--region 100,100,800,600` records only that rectangle.
-- [ ] Tray → Record screen…: the window opens themed, Start begins (elapsed ticks, tray's Stop recording enables), Stop from either the window or the tray saves the MP4 and toasts its name; ticking the region option after a region capture records just that rectangle; "Pick region…" hides the window, lets you drag a fresh rectangle (Esc cancels and changes nothing), and the window returns showing the new region's size and position; a recording started with the region ticked covers only that rectangle, and the picked region is still offered after a restart.
+- [ ] Tray → Record screen…: the window opens themed, Start begins (elapsed ticks, tray's Stop recording enables), Stop from either the window or the tray saves the MP4 and toasts its name; ticking the region option after a region capture records just that rectangle; "Pick region…" hides the window, lets you drag a fresh rectangle and then click inside it or press Enter to select it (Esc cancels and changes nothing), and the window returns showing the new region's size and position; a recording started with the region ticked covers only that rectangle, and the picked region is still offered after a restart.
 - [ ] Record 10 s with music playing and Microphone ticked while speaking: the MP4 plays back with both the music and the voice audible and roughly in sync; `--record 5 --no-audio` produces a silent MP4.
 - [ ] Record with Webcam overlay ticked: the camera appears in the chosen corner, moving live; the same scene at Quality Low vs Ultra shows the expected file-size difference; `--record 5 --webcam --webcam-corner TopLeft` agrees.
 - [ ] Set Max minutes to 1 and record: the recording stops itself at about a minute with a "limit reached" toast; schedule a recording two minutes ahead for 1 minute: it starts and stops on its own; `--record 5 --at` with a time two minutes out waits, then records.
@@ -140,7 +140,7 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Edit a workflow step in `settings.json` with Notepad, start Snipit: toast says workflows are paused; a capture workflow with a run step reports "blocked"; Settings > Save re-enables it.
 
 ## v0.19.0 manual rows (deferred by owner)
-- Region tool: drag an area, press A, drag a second area elsewhere, press Enter. The result is one PNG covering both, transparent between them. The first area stays undimmed and outlined while you draw the second.
+- Region tool: Shift-drag the first area, press A, drag a second area elsewhere, then click inside it or press Enter. The result is one PNG covering both, transparent between them. The first area stays undimmed and outlined while you draw the second.
 - Backspace removes the last area; with nothing being drawn it removes the previous added area. A lone area with Enter captures normally.
 
 ## v0.18.0 manual rows (deferred by owner)

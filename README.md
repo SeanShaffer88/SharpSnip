@@ -7,7 +7,7 @@ Windows screenshot tool with an **element picker**: hover any button, toolbar, p
 
 Offline only. No telemetry, no accounts, no network code.
 
-> **Status v0.27.0.** Click-by-click polygon capture in Freehand mode. v0.26.0: The Connector tool draws an elbow line with endpoint dots (L when single-key shortcuts are enabled). v0.25.8: Self-test split into per-area files; version read from one place. v0.25.7: Uninstall guidance for the Print Screen override. v0.25.6: Release workflow actions and the SeanPak packager are pinned. v0.25.5: Settings Save no longer resets effect settings; editor letter-key shortcuts can be turned off. v0.25.4: Muted text lightened to pass WCAG AA contrast. v0.25.3: Editor edits run off the UI thread; undo history uses a 512 MB estimated budget for whole-image edits. v0.25.2: Triple-Esc panic exit and visible contained errors. v0.25.1: Workflow trust hash is now keyed per user. v0.19.0: Region capture can combine several areas into one image (press A after each). v0.18.0 added a Cut out tool; the editor has a Cut out tool that removes a strip and joins the sides. v0.17.0 added an Effects… dialog for Frame, Shadow, Torn and Wave sizes. v0.16.0 renamed SharpSnip to Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
+> **Status v0.27.0.** Click-by-click polygon capture in Freehand mode. v0.26.0: The Connector tool draws an elbow line with endpoint dots (L when single-key shortcuts are enabled). v0.25.8: Self-test split into per-area files; version read from one place. v0.25.7: Uninstall guidance for the Print Screen override. v0.25.6: Release workflow actions and the SeanPak packager are pinned. v0.25.5: Settings Save no longer resets effect settings; editor letter-key shortcuts can be turned off. v0.25.4: Muted text lightened to pass WCAG AA contrast. v0.25.3: Editor edits run off the UI thread; undo history uses a 512 MB estimated budget for whole-image edits. v0.25.2: Triple-Esc panic exit and visible contained errors. v0.25.1: Workflow trust hash is now keyed per user. v0.19.0: Region capture can combine several areas into one image. v0.18.0 added a Cut out tool; the editor has a Cut out tool that removes a strip and joins the sides. v0.17.0 added an Effects… dialog for Frame, Shadow, Torn and Wave sizes. v0.16.0 renamed SharpSnip to Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
 
 ## Uninstalling and Print Screen
 
@@ -21,7 +21,7 @@ While Snipit runs it switches off Windows' "Print Screen opens Snipping Tool" se
 |---|---|
 | Element | UI Automation hit-test under the cursor. `Tab` next sibling, `PgUp`/`PgDn` parent/child, `Ctrl+Wheel` expand to container. Falls back to region when an app exposes no UIA. |
 | Scrolling | Pick a scrollable element (tray → Scrolling capture…, or `C` in the mode menu) and capture its full content as one tall image — UIA ScrollPattern when available, wheel-and-stitch otherwise. |
-| Region | Rubber band with 8 handles, live size read-out, magnifier (with a #hex colour readout), edge snapping to windows, move/resize after drawing. |
+| Region | Drag and release to capture. To adjust or combine areas, hold Shift when starting the first drag. Move or resize the staged selection, or press A to keep it and draw another. Click inside the current selection or press Enter to capture. |
 | Freehand | Drag an outline, or click corners for a polygon (click the first point, double-click the last point or press Enter to finish; Backspace undoes) (`H` in the menu); the bounding box is captured. Save as PNG to preserve transparency outside the outline. |
 | Recording | Record a monitor or region to MP4 — system sound and microphone mixed in, optional webcam picture-in-picture, quality presets, time/size limits, one-shot scheduling — or straight to animated GIF. Tray → Record screen…, or `--record`. |
 | Draw on screen | A live annotation overlay (tray item): draw over the screen; the strokes appear in captures and recordings. |
@@ -38,7 +38,7 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
 | Action | Default |
 |---|---|
-| Open mode menu | Print Screen or left-click the tray icon |
+| Open capture toolbox | Left-click the tray icon, choose **Capture…**, or press Print Screen with Quick Mode off |
 | Full screen | `D` for the current monitor, `F` for all monitors, or `1`–`9` for a numbered monitor in the mode bar |
 | Active window | Window mode in the mode bar |
 | Repeat last capture | Tray menu |
@@ -47,7 +47,7 @@ Every capture is placed on the clipboard (PNG + bitmap) immediately.
 
 The menu is a bar that slides down from the top of the screen — click a mode, or use its key: `E` element, `R` region, `W` window, `S` fixed-size region, `H` freehand, `F` all monitors, `D` this monitor, `1`..`9` monitor N, `Space` cycles delay, `Esc` cancels. Right-click acts as `Esc`. A preset region (Settings) can be captured from the tray menu.
 
-Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Print Screen is Snipit's only hotkey, and it is not a setting: while Snipit runs, Print Screen opens its menu instead of Snipping Tool's (the Windows switch for it is turned off at start), and quitting Snipit restores the switch to whatever it was before. Captures land in your Pictures folder unless you pick another, its windows follow the TesselGUI revision 3 (Carmine) design standard, and the tray icon can be hidden from its own menu — running Snipit again brings it back. Settings and logs use an existing `%APPDATA%\SharpSnip` directory, including any saved Print Screen recovery record. Fresh profiles use `%APPDATA%\Snipit`. A `data` folder beside `Snipit.exe` takes precedence for portable copies. Keep that folder alongside the new executable when switching a portable copy.
+Output folder, format (PNG/JPEG/BMP/GIF/TIFF/PDF), delay and more are in tray → Settings. Print Screen is Snipit's only global hotkey. It opens the capture toolbox by default. Enable **Quick Mode** in the tray menu to capture the target selected under **Settings → Full-screen target** immediately, with no countdown. Snipit copies and saves the capture and runs its configured capture workflow. Quitting Snipit restores the Windows Print Screen setting. Captures land in your Pictures folder unless you pick another, its windows follow the TesselGUI revision 3 (Carmine) design standard, and the tray icon can be hidden from its own menu — running Snipit again brings it back. Settings and logs use an existing `%APPDATA%\SharpSnip` directory, including any saved Print Screen recovery record. Fresh profiles use `%APPDATA%\Snipit`. A `data` folder beside `Snipit.exe` takes precedence for portable copies. Keep that folder alongside the new executable when switching a portable copy.
 
 ### Switching from SharpSnip
 

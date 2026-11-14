@@ -6,27 +6,28 @@ namespace Snipit;
 
 /// <summary>
 /// Region picker (§3B): rubber-band with 8 handles, size read-out, magnifier loupe, and edge snapping to
-/// visible windows. Drag outside to start over, inside to move, handles to resize. Enter / double-click captures.
+/// visible windows. A normal drag captures on release. Shift stages the rectangle for editing.
 /// </summary>
 internal sealed class RegionPicker : PickerBase
 {
     private enum Drag { None, New, Move, Resize }
 
     private const int HandleTol = 8, SnapTol = 8;
+    private const int MinSelection = 4, DragThreshold = 4;
+    private readonly bool _captureOnRelease;
 
     private Drag _drag;
     private RegionHandle _handle;
     private RectPx _rect = RectPx.Empty, _startRect;
     private int _anchorX, _anchorY, _downX, _downY, _x, _y;
-    private long _lastDownTick;
-    private int _lastDownX, _lastDownY;
+    private bool _stageNewRegion, _dragMoved;
     private List<int> _snapX = new(), _snapY = new();
     private BitmapSource? _frozen;
     private RectPx _frozenRect;
     private RectPx _union;
     private readonly List<RectPx> _areas = new();
 
-    public RegionPicker(PickerContext ctx) : base(ctx) { }
+    public RegionPicker(PickerContext ctx, bool captureOnRelease) : base(ctx) => _captureOnRelease = captureOnRelease;
     public override PickMode Mode => PickMode.Region;
 
     protected override void Enter()
@@ -57,9 +58,13 @@ internal sealed class RegionPicker : PickerBase
     protected override void Leave() { Ctx.Overlays.Areas(Array.Empty<RectPx>()); Ctx.Overlays.Loupe(null, RectPx.Empty, 0, 0); }
 
     protected override void RefreshHint() =>
-        Ctx.Overlays.HintAt(_areas.Count == 0
-            ? $"Region · drag to select · [A] add another area · [Enter] capture · [Space] delay {DelayText} · [Esc] back"
-            : $"Region · {_areas.Count} area{(_areas.Count == 1 ? "" : "s")} added · [A] add this one · [Back] remove last · [Enter] capture · [Esc] back", _x, _y);
+        Ctx.Overlays.HintAt(_areas.Count > 0
+            ? $"Region · {_areas.Count} saved · drag another or click selection to capture · [A] keep · [Backspace] remove · [Enter] capture"
+            : !_rect.IsEmpty && _drag == Drag.None
+                ? "Region · drag to adjust · click selection or [Enter] to finish · [A] keep · [Esc] back"
+                : _captureOnRelease
+                    ? $"Region · drag and release to capture · [Shift]+drag to adjust or add areas · [Space] delay {DelayText} · [Esc] back"
+                    : "Region · drag to select · click selection or [Enter] to finish · [Esc] back", _x, _y);
 
     private void Visuals()
     {
@@ -89,6 +94,15 @@ internal sealed class RegionPicker : PickerBase
     {
         _x = x; _y = y;
         Ctx.Overlays.Loupe(_frozen, _frozenRect, x, y);
+        if (_drag == Drag.None) return;
+        UpdateDrag(x, y);
+        Visuals();
+    }
+
+    private void UpdateDrag(int x, int y)
+    {
+        _dragMoved |= Math.Abs((long)x - _downX) >= DragThreshold || Math.Abs((long)y - _downY) >= DragThreshold;
+        if (!_dragMoved && _drag != Drag.New) return;
         switch (_drag)
         {
             case Drag.New:
@@ -100,9 +114,7 @@ internal sealed class RegionPicker : PickerBase
             case Drag.Resize:
                 _rect = RegionGeometry.Resize(_startRect, _handle, SnapX(x), SnapY(y)).Intersect(_union);
                 break;
-            default: return;
         }
-        Visuals();
     }
 
     private int SnapX(int v) => RegionGeometry.Snap(v, _snapX, SnapTol);
@@ -110,16 +122,16 @@ internal sealed class RegionPicker : PickerBase
 
     protected override bool OnLeftDown(int x, int y)
     {
-        long now = Environment.TickCount64;
-        bool dbl = now - _lastDownTick <= NativeMethods.GetDoubleClickTime()
-                   && Math.Abs(x - _lastDownX) <= NativeMethods.GetSystemMetrics(NativeMethods.SM_CXDOUBLECLK)
-                   && Math.Abs(y - _lastDownY) <= NativeMethods.GetSystemMetrics(NativeMethods.SM_CYDOUBLECLK);
-        _lastDownTick = now; _lastDownX = x; _lastDownY = y;
-        if (dbl && !_rect.IsEmpty && _rect.Contains(x, y)) { Confirm(); return true; }
-
+        _dragMoved = false;
         _downX = x; _downY = y; _startRect = _rect;
         var h = RegionGeometry.HitTest(_rect, x, y, HandleTol);
-        if (h == RegionHandle.None) { _drag = Drag.New; _anchorX = SnapX(x); _anchorY = SnapY(y); _rect = RectPx.Empty; }
+        if (h == RegionHandle.None)
+        {
+            _drag = Drag.New;
+            _stageNewRegion = !_captureOnRelease || _areas.Count > 0 || ShiftDown();
+            _anchorX = SnapX(x); _anchorY = SnapY(y);
+            _rect = RectPx.Empty;
+        }
         else if (h == RegionHandle.Body) _drag = Drag.Move;
         else { _drag = Drag.Resize; _handle = h; }
         Visuals();
@@ -128,22 +140,37 @@ internal sealed class RegionPicker : PickerBase
 
     protected override bool OnLeftUp(int x, int y)
     {
-        if (_drag == Drag.New && (_rect.Width < 4 || _rect.Height < 4)) _rect = RectPx.Empty; // stray click
+        if (_drag == Drag.None) return true;
+        _x = x; _y = y;
+        UpdateDrag(x, y);
+        bool confirm;
+        if (_drag == Drag.New)
+        {
+            if (!_dragMoved || _rect.Width < MinSelection || _rect.Height < MinSelection) _rect = RectPx.Empty;
+            confirm = !_stageNewRegion && !_rect.IsEmpty;
+        }
+        else
+        {
+            if (!_dragMoved) _rect = _startRect;
+            confirm = _drag == Drag.Move && !_dragMoved && _startRect.Contains(x, y);
+        }
         _drag = Drag.None;
+        if (confirm) { Confirm(); return true; }
         Visuals();
         return true;
     }
 
     protected override bool HandleKey(int vk)
     {
-        if (vk == VkEnter) { Confirm(); return true; }
+        if (vk == VkEnter) { if (_drag == Drag.None) Confirm(); return true; }
         if (vk == 0x41) // [A] keep this area and start another
         {
-            if (!_rect.IsEmpty && _areas.Count < AreaMask.MaxAreas) { _areas.Add(_rect); _rect = RectPx.Empty; _drag = Drag.None; Visuals(); }
+            if (_drag == Drag.None && !_rect.IsEmpty && _areas.Count < AreaMask.MaxAreas) { _areas.Add(_rect); _rect = RectPx.Empty; Visuals(); }
             return true;
         }
         if (vk == 0x08) // [Backspace] drop the last added area
         {
+            if (_drag != Drag.None) return true;
             if (_rect.IsEmpty && _areas.Count > 0) _areas.RemoveAt(_areas.Count - 1);
             else _rect = RectPx.Empty;
             Visuals();

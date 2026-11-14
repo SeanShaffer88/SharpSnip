@@ -68,7 +68,7 @@ internal sealed class ModeRouter
                 PickerBase picker = mode switch
                 {
                     PickMode.Element => new ElementPicker(ctx),
-                    PickMode.Region => new RegionPicker(ctx),
+                    PickMode.Region => new RegionPicker(ctx, captureOnRelease: true),
                     PickMode.FixedRegion => new FixedRegionPicker(ctx),
                     PickMode.Window => new WindowPicker(ctx),
                     PickMode.FullScreen => new FullScreenPicker(ctx),
@@ -260,7 +260,7 @@ internal sealed class ModeRouter
             overlays.Show();
             hook.Start();
             dog.Start();
-            var outcome = await new RegionPicker(ctx).RunAsync(cts.Token);
+            var outcome = await new RegionPicker(ctx, captureOnRelease: false).RunAsync(cts.Token);
             return outcome.Kind == PickKind.Picked ? outcome.Result?.Rect : null;
         }
         catch (Exception ex)
