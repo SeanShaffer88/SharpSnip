@@ -200,5 +200,23 @@ static partial class Tests
             Check(back[0] == (100, 100) && back[1] == (20, 100) && back[2] == (20, 60), "leftward drag keeps start and end");
             Check(ConnectorRoute.Elbow(5, 5, 5, 5).Length == 2, "zero-length drag is two points");
         }
+
+        Console.WriteLine("PolygonBuilder");
+        {
+            var pb = new PolygonBuilder();
+            Check(pb.Click(10, 10) == PolygonBuilder.Result.Added && pb.Click(60, 10) == PolygonBuilder.Result.Added, "clicks add vertices");
+            Check(pb.Click(61, 11) == PolygonBuilder.Result.Ignored && pb.Count == 2, "a repeat click on the last vertex is ignored below three vertices");
+            Check(!pb.CanClose, "two vertices cannot close");
+            pb.Click(60, 60);
+            Check(pb.CanClose, "three spread-out vertices can close");
+            Check(pb.Click(14, 13) == PolygonBuilder.Result.Closed, "click near the first vertex closes");
+            Check(pb.Click(60, 60) == PolygonBuilder.Result.Closed, "double-click on the last vertex closes");
+            Check(pb.Undo() && pb.Count == 2 && pb.Points[^1] == (60, 10), "undo removes the last vertex");
+            pb.Clear();
+            Check(pb.Count == 0 && !pb.Undo(), "clear empties and undo on empty is false");
+            var tiny = new PolygonBuilder();
+            tiny.Click(0, 0); tiny.Click(3, 0); tiny.Click(3, 3);
+            Check(!tiny.CanClose && tiny.Click(1, 1) == PolygonBuilder.Result.Ignored, "a tiny outline refuses to close");
+        }
     }
 }
