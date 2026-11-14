@@ -109,6 +109,9 @@ Evidence labels: **Verified** (run and checked), **Partial** (compiled, reviewed
 
 - Scrolling capture: `ScrollStitch` (strip planning, composition, overlap detection) is **Verified (logic)** — pixel-provenance tests reproduce a source image exactly from overlapping strips, and the plan/anchor/edge cases are pinned. The app layer (`ScrollCapture`: ScrollPattern driving, wheel injection via SendInput, focus handling) is compile-verified only; TEST-PLAN.md has the manual rows. Known design limits: fixed-position headers inside a scrolled page will repeat in the wheel path (the pattern path is exact); a page that reflows while scrolling can misalign strips.
 
+## v0.25.1 changes (compile-verified on Linux; not run on Windows)
+- Core `WorkflowTrust` keyed with HMAC-SHA256: **Verified** by self-tests (blank-with-launch rejected, other-key rejected, legacy hash rejected, empty key rejected). `TrustKey` (HKCU) is **Unverified** on Windows. If the registry is unavailable the key is random per run, so settings read as changed (fails closed).
+
 ## v0.25.0 additions (compile-verified on Linux; not run on Windows)
 - Callout and Stamp are editor UI only (WPF shapes on the annotation layer); no Core change, so no new self-test checks (484). **Unverified:** bubble layout, tail alignment, long-text wrapping (capped at 360 px), glyph rendering (Segoe UI Symbol). The bubble's top-left, not the tail tip, sits at the click.
 

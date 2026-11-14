@@ -194,3 +194,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 - [ ] Callout (K): click, type a long sentence, Enter: white bubble, coloured ring, tail below left; wraps; Esc discards; Undo removes; saved image includes it.
 - [ ] Stamp menu: each of the 5 stamps drops a coloured disc with a white glyph; G then click repeats the last stamp; colour swatches change the disc.
 - [ ] Window at 1200 wide shows every tool cell and the right-hand buttons without clipping.
+
+## v0.25.1 manual rows (deferred by owner)
+- [ ] Fresh install, no settings: add an external editor and a workflow with a run step in Settings, Save: they work. Restart: still work.
+- [ ] Edit settings.json by hand (change the run step), restart: banner says paused; the run step is blocked; Settings > Save re-approves.
+- [ ] Copy a working settings.json to another PC or delete HKCU\\Software\\Snipit\\TrustKey: launching steps pause until Save.

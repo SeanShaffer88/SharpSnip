@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.1] - 2026-11-14
+
+### Security
+- **Workflow trust check hardened.** The hash over the editor, FFmpeg override and workflow settings is now keyed (HMAC-SHA256) with a per-user key kept in HKCU, so a settings file planted in a downloaded portable `data` folder, copied from another PC or edited by hand cannot carry a valid hash. A blank hash is now trusted only when there is nothing to launch; blank plus an editor, an FFmpeg override or a run/editor step reads as changed. Program-launching steps stay blocked until you press Save in Settings once.
+- Upgrade note: existing settings carry the old unkeyed hash, so program-launching workflow steps pause once after upgrading until you press Save in Settings.
+- 5 new self-test checks (489 total).
+
 ## [0.25.0] - 2026-11-13
 
 ### Added
