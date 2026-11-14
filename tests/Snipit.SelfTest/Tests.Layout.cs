@@ -188,5 +188,17 @@ static partial class Tests
             Check(WorkflowPlan.Find(wfDefs, "archive")?.Name == "Archive" && WorkflowPlan.Find(wfDefs, "nope") is null, "workflow: find by name, case-insensitive");
         }
 
+
+        Console.WriteLine("ConnectorRoute");
+        {
+            var h = ConnectorRoute.Elbow(0, 0, 100, 40);
+            Check(h.Length == 3 && h[1] == (100, 0) && h[2] == (100, 40), "wide drag bends horizontal first");
+            var v = ConnectorRoute.Elbow(0, 0, 40, 100);
+            Check(v.Length == 3 && v[1] == (0, 100), "tall drag bends vertical first");
+            Check(ConnectorRoute.Elbow(10, 10, 200, 12).Length == 2, "near-flat drag stays a straight line");
+            var back = ConnectorRoute.Elbow(100, 100, 20, 60);
+            Check(back[0] == (100, 100) && back[1] == (20, 100) && back[2] == (20, 60), "leftward drag keeps start and end");
+            Check(ConnectorRoute.Elbow(5, 5, 5, 5).Length == 2, "zero-length drag is two points");
+        }
     }
 }

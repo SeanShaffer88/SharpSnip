@@ -227,3 +227,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.25.8 manual rows (deferred by owner)
 - [ ] `Snipit.exe --version` prints the same version as the installer.
+
+## v0.26.0 manual rows (deferred by owner)
+- [ ] Connector: drag right/down, left/up, near-flat; undo/redo; toolbar still fits at min width.

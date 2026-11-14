@@ -16,7 +16,7 @@ namespace Snipit;
 /// <summary>Mini editor (§9). Annotations live in a canvas above the image; undo/redo is an action stack.</summary>
 internal sealed class EditorWindow : Window
 {
-    private enum Tool { Pen, Highlighter, Arrow, Rect, Ellipse, Text, Step, Callout, Stamp, Blur, Spotlight, Loupe, Crop, Cut }
+    private enum Tool { Pen, Highlighter, Arrow, Connector, Rect, Ellipse, Text, Step, Callout, Stamp, Blur, Spotlight, Loupe, Crop, Cut }
 
     private interface IEdit { void Undo(); void Redo(); long Cost { get; } }
 
@@ -65,7 +65,7 @@ internal sealed class EditorWindow : Window
 
     private static readonly Dictionary<Key, Tool> ToolKeys = new()
     {
-        [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
+        [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.A] = Tool.Arrow, [Key.L] = Tool.Connector, [Key.R] = Tool.Rect, [Key.O] = Tool.Ellipse,
         [Key.T] = Tool.Text, [Key.N] = Tool.Step, [Key.B] = Tool.Blur, [Key.S] = Tool.Spotlight, [Key.M] = Tool.Loupe, [Key.K] = Tool.Callout, [Key.G] = Tool.Stamp, [Key.C] = Tool.Crop, [Key.X] = Tool.Cut,
     };
     private readonly Dictionary<Tool, ToggleButton> _toolCells = new();
@@ -86,7 +86,7 @@ internal sealed class EditorWindow : Window
     {
         _prefs = prefs; _persist = persist; _notify = notify; _meta = meta; _base = cap.Image;
         Title = "Snipit";
-        Width = 1200; Height = 720; MinWidth = 1100; MinHeight = 420;
+        Width = 1240; Height = 720; MinWidth = 1140; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         AutomationProperties_Name(this, "Snipit editor");
 
@@ -184,6 +184,7 @@ internal sealed class EditorWindow : Window
         AddTool("Pen", "pen", "P", Tool.Pen, "Freehand pen. Drag on the image.");
         AddTool("Highlight", "highlighter", "H", Tool.Highlighter, "Translucent wide marker.");
         AddTool("Arrow", "arrow", "A", Tool.Arrow, "Drag from tail to head.");
+        AddTool("Connector", "connector", "L", Tool.Connector, "Drag: a right-angle connector with a dot at each end. Good for linking two callouts or steps.");
         AddTool("Rect", "rect", "R", Tool.Rect, "Drag a rectangle outline.");
         AddTool("Ellipse", "ellipse", "O", Tool.Ellipse, "Drag an ellipse outline.");
         AddTool("Text", "text", "T", Tool.Text, "Click to type. Enter commits, Esc discards.");
@@ -424,21 +425,24 @@ internal sealed class EditorWindow : Window
                 else if (_tool == Tool.Spotlight) { _draft.Stroke = Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)); }
                 else if (_tool is Tool.Crop or Tool.Cut) { _draft.Stroke = _tool == Tool.Cut ? Brushes.IndianRed : Brushes.White; _draft.StrokeDashArray = new DoubleCollection { 4, 3 }; _draft.Fill = _tool == Tool.Cut ? new SolidColorBrush(Color.FromArgb(70, 220, 60, 60)) : new SolidColorBrush(Color.FromArgb(40, 45, 156, 255)); }
                 else if (_tool == Tool.Blur) { _draft.Stroke = Brushes.Gray; _draft.StrokeDashArray = new DoubleCollection { 2, 2 }; }
-                else if (_tool == Tool.Arrow) { _draft = null; }
+                else if (_tool is Tool.Arrow or Tool.Connector) { _draft = null; }
                 else { _draft.Stroke = Stroke(); }
                 if (_draft is not null) { _draft.StrokeThickness = _tool is Tool.Crop or Tool.Cut or Tool.Blur or Tool.Spotlight ? 1 : _thickness.Value; _layer.Children.Add(_draft); }
+                else if (_tool == Tool.Connector) { _connectorDraft = MakeConnector(_start, _start); _layer.Children.Add(_connectorDraft); }
                 else { _arrowShaft = new Line { Stroke = Stroke(), StrokeThickness = _thickness.Value, StrokeStartLineCap = PenLineCap.Round, X1 = _start.X, Y1 = _start.Y, X2 = _start.X, Y2 = _start.Y }; _layer.Children.Add(_arrowShaft); }
                 break;
         }
     }
 
     private Line? _arrowShaft;
+    private System.Windows.Shapes.Path? _connectorDraft;
 
     private void OnMove(object sender, MouseEventArgs e)
     {
         if (!_layer.IsMouseCaptured) return;
         var p = Clamp(e.GetPosition(_layer));
         if (_stroke is not null) { _stroke.Points.Add(p); return; }
+        if (_connectorDraft is not null) { var old = _connectorDraft; _connectorDraft = MakeConnector(_start, p); _layer.Children.Remove(old); _layer.Children.Add(_connectorDraft); return; }
         if (_arrowShaft is not null) { _arrowShaft.X2 = p.X; _arrowShaft.Y2 = p.Y; return; }
         if (_draft is not null)
         {
@@ -456,6 +460,16 @@ internal sealed class EditorWindow : Window
         var end = Clamp(e.GetPosition(_layer));
 
         if (_stroke is not null) { Push(new AddEdit(_layer, _stroke)); _stroke = null; return; }
+
+        if (_connectorDraft is not null)
+        {
+            var conn = _connectorDraft; _connectorDraft = null;
+            _layer.Children.Remove(conn);
+            if ((end - _start).Length < 4) return;
+            conn = MakeConnector(_start, end);
+            _layer.Children.Add(conn); Push(new AddEdit(_layer, conn));
+            return;
+        }
 
         if (_arrowShaft is not null)
         {
@@ -506,6 +520,24 @@ internal sealed class EditorWindow : Window
             case Tool.Crop: ApplyCrop(rect); break;
             case Tool.Cut: ApplyCut(rect); break;
         }
+    }
+
+    private System.Windows.Shapes.Path MakeConnector(Point from, Point to)
+    {
+        var pts = ConnectorRoute.Elbow(from.X, from.Y, to.X, to.Y);
+        var line = new StreamGeometry();
+        using (var c = line.Open())
+        {
+            c.BeginFigure(new Point(pts[0].X, pts[0].Y), false, false);
+            for (int i = 1; i < pts.Length; i++) c.LineTo(new Point(pts[i].X, pts[i].Y), true, true);
+        }
+        double r = Math.Max(4, _thickness.Value * 1.6);
+        var g = new GeometryGroup();
+        g.Children.Add(line);
+        g.Children.Add(new EllipseGeometry(from, r, r));
+        g.Children.Add(new EllipseGeometry(to, r, r));
+        g.Freeze();
+        return new System.Windows.Shapes.Path { Data = g, Stroke = Stroke(), Fill = Stroke(), StrokeThickness = _thickness.Value, StrokeLineJoin = PenLineJoin.Round };
     }
 
     private System.Windows.Shapes.Path MakeArrow(Point from, Point to)
