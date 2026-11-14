@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Quick Mode** in the tray menu makes Print Screen immediately capture the full-screen target set in Settings. Snipit copies and saves the image. Left-click the tray icon or choose **Capture…** to open the capture toolbox.
+
 ## [0.27.0] - 2026-11-14
 
 ### Added

@@ -81,7 +81,8 @@ internal sealed class AppHost : IDisposable
 
         _hotkeys.HotkeyPressed += id =>
         {
-            if (id == HotkeyManager.IdMenu) _ = _router.RunSessionAsync();
+            if (id != HotkeyManager.IdMenu) return;
+            _ = _prefs.QuickMode ? _router.RunInstantFullScreenAsync(overrideDelay: 0) : _router.RunSessionAsync();
         };
         _hotkeys.RegisterPrintScreen();
         if (warn is not null) Notify("Snipit", warn, null);
@@ -100,7 +101,19 @@ internal sealed class AppHost : IDisposable
             m.Items.Add(i);
             return i;
         }
-        Item("Capture…", "Open the mode menu (same as Print Screen).", () => _ = _router.RunSessionAsync());
+        Item("Capture…", "Open the capture toolbox.", () => _ = _router.RunSessionAsync());
+        var quickMode = new WinForms.ToolStripMenuItem("Quick Mode")
+        {
+            Checked = _prefs.QuickMode,
+            ToolTipText = "Print Screen immediately captures the full-screen target set in Settings and copies and saves the image.",
+        };
+        quickMode.Click += (_, _) =>
+        {
+            _prefs.QuickMode = !_prefs.QuickMode;
+            quickMode.Checked = _prefs.QuickMode;
+            SavePrefs();
+        };
+        m.Items.Add(quickMode);
         Item("Scrolling capture…", "Pick a scrollable element and capture its full content as one tall image.", () => _ = _router.RunSessionAsync(scroll: true));
         Item("Pick colour…", "Pick any pixel on screen: shows its colour in a magnifier and copies it as HEX, RGB, HTML, C++ or Delphi text (1-5 or Tab changes the format).", () => _ = _router.RunColorPickAsync());
         Item("Full screen now", "Capture the configured monitor straight to the clipboard.", () => _ = _router.RunInstantFullScreenAsync());
@@ -122,12 +135,16 @@ internal sealed class AppHost : IDisposable
         m.Items.Add(_historyItem);
         Item("Open output folder", "Open the folder where captures are saved.", () => OpenFolder(Exporter.OutputFolder(_prefs)));
         Item("Open log folder", "Logs stay on this computer.", () => OpenFolder(AppPaths.LogDir));
-        Item("Settings…", "Hotkeys, output folder, delay and more.", ShowSettings);
+        Item("Settings…", "Output folder, capture delay, full-screen target and more.", ShowSettings);
         Item("Hide tray icon", "Hide the tray icon. Run Snipit again (for example from the Start menu) to bring it back.", HideTrayIcon);
         m.Items.Add(new WinForms.ToolStripSeparator());
         Item("Give Print Screen back", "Hand the Print Screen key back to Windows now (Snipping Tool). Snipit takes it again the next time it starts.", GivePrintScreenBack);
         Item("Exit", "Quit Snipit. Print Screen goes back to what it did before.", () => Application.Current.Shutdown());
-        m.Opening += (_, _) => RebuildHistory();
+        m.Opening += (_, _) =>
+        {
+            quickMode.Checked = _prefs.QuickMode;
+            RebuildHistory();
+        };
         return m;
     }
 
@@ -402,6 +419,8 @@ internal sealed class AppHost : IDisposable
     /// </summary>
     private string? Apply(Preferences p)
     {
+        // The tray can change Quick Mode while the Settings window is open.
+        p.QuickMode = _prefs.QuickMode;
         _prefs = p.Sanitize();
         _prefs.WorkflowsLocked = false;
         WorkflowTrust.Approve(_prefs, TrustKey.Get());   // the user just reviewed and saved these settings

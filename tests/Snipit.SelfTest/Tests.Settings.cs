@@ -41,6 +41,10 @@ static partial class Tests
         File.WriteAllText(oldFile, "{ \"SchemaVersion\": 1, \"HotkeyMenu\": \"Win+Shift+X\", \"PrintScreenTakeover\": true, \"ImageFormat\": \"jpg\" }");
         var migrated = PrefsStore.Load(oldFile, out var wOld);
         Check(wOld is null && migrated.ImageFormat == "jpg", "v0.1 settings file loads (removed hotkey keys are ignored)");
+        Check(!defs.QuickMode && !migrated.QuickMode, "Quick Mode defaults to off for new and existing profiles");
+        migrated.QuickMode = true;
+        PrefsStore.Save(oldFile, migrated);
+        Check(PrefsStore.Load(oldFile, out var quickWarning).QuickMode && quickWarning is null, "Quick Mode survives save and reload");
         File.Delete(oldFile);
         string recFile = Path.Combine(Path.GetTempPath(), "snipit-rec-" + Guid.NewGuid().ToString("N") + ".json");
         PrefsStore.Save(recFile, new Preferences { PrintScreenPriorRecorded = true, PrintScreenSnippingPrior = 1 });

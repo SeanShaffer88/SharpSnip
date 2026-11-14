@@ -14,6 +14,7 @@ public sealed class Preferences
     public int FixedHeight { get; set; } = 720;
     public int IntervalSeconds { get; set; } = 5;
     public string FullScreenTarget { get; set; } = "CurrentMonitor";
+    public bool QuickMode { get; set; }
     public int DefaultDelaySeconds { get; set; }
     public bool ShowToasts { get; set; } = true;
     public double DimmerOpacity { get; set; } = 0.47;
