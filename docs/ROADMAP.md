@@ -2,91 +2,101 @@
 
 Goal: eventually cover the full feature list Sean supplied (screen capture, recording, annotation, AI/smart tools, library, sharing, utilities).
 
-Legend: ✅ in v0.1 · 🔜 planned, no new dependency · 🟡 uses a Windows built-in API, needs design check · ❓ needs Sean's decision (new package, network, or large scope) · ⛔ conflicts with the offline / no-dependency charter unless Sean opts in per feature.
+**Status through v0.26.0.** ✅ Implemented · 🔜 Planned · ❓ Needs a design or scope decision · ⛔ Outside the offline scope unless approved.
 
-Order is a proposal. Each phase ends in a tagged release with README, changelog and tests updated.
+Implementation status comes from the source and release history. The Windows field test covered the v0.16.0 x64 installer and portable build, live UI and Print Screen behavior, SharpSnip settings carryover, and uninstall cleanup. See [Windows field verification](../CHANGELOG.md#windows-field-verification), [AUDIT.md](../AUDIT.md), and [TEST-PLAN.md](TEST-PLAN.md).
 
-## Phase 0 — v0.1 (this release)
-Blueprint v2: element, region, window, full-screen, multi-monitor, delay, mini editor, clipboard, export.
+The phase order is a proposal. Each phase ends in a tagged release with README, changelog and tests updated.
 
-## Phase 1 — v0.2 Capture breadth
+## Phase 0 — Capture foundation
+
+Blueprint v2 shipped in v0.1 with element, region, window and full-screen capture, multi-monitor support, delay, the editor, clipboard and export.
+
+## Phase 1 — Capture breadth
+
 | Feature | Status |
 |---|---|
-| Full-screen / multi-monitor / monitor-specific capture | ✅ (per-monitor *hotkeys* 🔜) |
-| Active-window capture hotkey | ✅ v0.2 (untested on Windows) |
+| Full-screen, all monitors, or a numbered monitor | ✅ Capture mode bar and CLI |
+| Window under the cursor | ✅ Window mode, with whole-window or client-area capture. The standalone active-window hotkey was retired in v0.10. |
 | Rectangular region | ✅ |
 | Fixed-size / exact-dimension region | ✅ v0.3 |
-| Repeat last capture / last region | ✅ v0.2 (session only; untested on Windows) |
+| Repeat last capture / preset region | ✅ Tray menu |
 | Delayed capture | ✅ |
-| Interval capture (every N s) | ✅ v0.3 |
-| Object / element / window capture | ✅ |
-| Window-control capture | ✅ (element picker) |
-| Menu capture (disappearing menus) | ✅ via delay; hotkey-while-menu-open 🔜 |
-| Print Screen key replaces Snipping Tool | ✅ v0.6.0 — Settings option; prior Windows switch value + old menu hotkey recorded and restored on untick / `--clean`; **on by default + self-applying at startup** — v0.6.1 |
-| Editor in TesselGUI revision 3 (matches the mode bar) | ✅ v0.20 — icon tool cells, hotkeys, swatches, dropdown menus, themed dialogs |
-| Settings window in TesselGUI revision 2 | ✅ v0.6.1 — GitHub-scheme tokens, themed inputs/buttons/combos/checkboxes; OS title bar unthemed |
-| Snipping-Tool-style mode bar (top-of-screen tab, icon buttons) | ✅ v0.6.0 — design A picked by SEAN 2026-11-13 from rendered mockups; replaces the text HUD menu, all keys unchanged |
-| Multiple-area capture (several regions, one action) | ✅ v0.19 — Region tool: A adds an area, Enter combines them into one transparent-gapped image |
-| Hand Print Screen back automatically on uninstall | ❓ needs a SeanPak uninstall hook (SeanPak has none yet: "There are no uninstall hooks yet"); a registryWrites entry cannot do it safely, because it would change Print Screen behaviour at install time |
-| Freehand and polygon capture | freehand ✅ (Freehand mode, mask into transparent PNG); click-by-click polygon 🔜 |
-| Scrolling capture (web pages, documents, wide tables) | ✅ v0.5.0 — UIA ScrollPattern first, wheel-and-stitch fallback |
-| Windows.Graphics.Capture backend (DRM-aware, HDR) | ✅ unreleased — WGC is now the primary stills backend with automatic GDI fallback; runtime field check still owed |
-| Webcam still | 🟡 WinRT MediaCapture |
-| Printer capture | ❓ needs a virtual printer driver; large scope |
+| Interval capture (every N seconds) | ✅ v0.3 |
+| Object and window-control capture | ✅ Element mode |
+| Menu capture | ✅ Capture delay. A dedicated menu-capture shortcut is pending. |
+| Print Screen replaces Snipping Tool | ✅ Sole global hotkey since v0.10. Exit Snipit or use `--restore-printscreen` before uninstalling. |
+| Dark settings and capture mode bar | ✅ TesselGUI revision 3, with a movable capture bar since v0.14 |
+| Multiple-area capture | ✅ v0.19. In Region mode, press A to save up to 16 rectangles, then Enter to combine the selected areas into one image. |
+| Hand Print Screen back automatically on uninstall | ❓ Requires an uninstall hook in SeanPak. Writing the setting at install time would change the user's Print Screen behavior. |
+| Freehand and polygon capture | ✅ Freehand capture with transparency outside the outline. 🔜 Click-by-click polygon capture. |
+| Scrolling capture | ✅ v0.5.0. Uses UI Automation ScrollPattern where available, with a wheel-and-stitch fallback. |
+| Capture backend | ✅ Windows Graphics Capture for stills, with a GDI fallback |
+| Webcam still | ❓ WinRT MediaCapture design |
+| Printer capture | ❓ Virtual printer driver |
 
-## Phase 2 — v0.3 Annotation and editing
+## Phase 2 — Annotation and editing
+
 | Feature | Status |
 |---|---|
-| Arrows, shapes, text, pen, highlighter, blur/pixelate, crop | ✅ |
-| Lines/connectors, speech-bubble callouts, step numbers, stamps | step numbers ✅, callouts ✅ v0.25, stamps ✅ v0.25; connectors ✅ v0.26 |
-| Spotlight / dim surroundings, magnify / loupe annotation | spotlight ✅ v0.22; magnify ✅ v0.23 |
-| Redaction (manual) | 🔜 |
-| Rotate, flip | ✅ v0.5.0 — editor buttons over tested Core `PixelAdjust` |
-| Resize | 🔜 |
-| Borders, frames, drop shadows, torn-edge/wave, cut-out | border + drop shadow ✅ v0.12; torn-edge + wave ✅ v0.15, sizes in Effects… v0.17; cut-out ✅ v0.18 (one strip per drag) |
-| Watermark | 🔜 |
-| Brightness / contrast / hue / saturation / balance, grayscale, invert, sharpen | invert + grayscale ✅ v0.5.0 (editor buttons); brightness/contrast ✅ in Core, editor control 🔜; saturation ✅ v0.21 (More/Less colour), sharpen ✅ v0.21; hue + balance ✅ v0.24 |
+| Arrows, shapes, text, pen, highlighter, pixelation, crop | ✅ |
+| Numbered step markers, callouts, stamps | ✅ Step markers in v0.7, callouts and stamps in v0.25 |
+| Lines and connectors | ✅ Connector in v0.26.0 draws a right-angle elbow with endpoint dots. Near-axis drags draw a straight connector. 🔜 Standalone line tool. |
+| Spotlight and magnify annotations | ✅ Spotlight in v0.22, magnify in v0.23 |
+| Manual redaction | ✅ Selective pixelation. 🔜 Dedicated manual redaction workflow. |
+| Rotate, flip, grayscale, invert | ✅ v0.5.0 |
+| Resize, watermark, brightness and contrast | ✅ v0.7. The brightness and contrast controls moved into Adjust in v0.20. |
+| Sharpen, saturation, hue, and colour balance | ✅ Sharpen and saturation in v0.21, hue and colour balance in v0.24 |
+| Frame, Shadow, Torn, and Wave effects | ✅ Frame and Shadow in v0.12, Torn and Wave in v0.15, configurable Effects dialog in v0.17 |
+| Cut out a strip | ✅ v0.18. Remove a strip and join the remaining sides. |
 | Fill, eraser / retouch | 🔜 |
-| Eyedropper with HEX / RGB / HTML / C++ / Delphi output, palette generation | ✅ v0.12 (picker + formats; palette helper in Core, no UI yet) |
-| Quick styles / themes, customisable toolbar | 🔜 |
-| Dark mode, hotkey customisation, portable mode | hotkeys ✅, portable ✅, dark mode 🔜 |
+| Eyedropper with HEX, RGB, HTML, C++, and Delphi output | ✅ v0.12. A palette generation helper exists in Core. 🔜 Palette UI. |
+| Dark editor and portable mode | ✅ TesselGUI revision 3 editor since v0.20. A `data` folder beside the executable enables portable mode. |
+| Quick styles, selectable themes, and toolbar customisation | 🔜 |
+| Shortcuts | ✅ Single-key editor shortcuts can be disabled since v0.25.5. Configurable global capture hotkeys were retired in v0.10. |
 
-## Phase 3 — v0.4 Library, export, utilities
+## Phase 3 — Library, export, and utilities
+
 | Feature | Status |
 |---|---|
-| Local searchable library, tags, filters, sort, recent tray, history gallery | 🔜 (local SQLite would be a new package ❓; JSON index otherwise) |
+| Recent captures | ✅ Tray list in v0.7. 🔜 Searchable library, tags, filters, sorting controls and history gallery. |
 | Custom file-naming patterns, automatic folder organisation | 🔜 |
-| Export PNG / JPG / BMP / TIFF / GIF | ✅ v0.5.0 (all in-box WPF encoders; format logic tested, encoders not yet run on Windows) |
-| Export PDF | ✅ v0.5.0 (hand-written single-image PDF writer, no package; Poppler-verified) |
-| Export PSD / TGA | ❓ custom writers, low priority |
-| Send to external program / open in external editor | 🔜 |
-| Automated after-capture tasks (copy, save, run script) | 🔜 |
+| Export PNG, JPG, BMP, TIFF, GIF, and PDF | ✅ Includes a lossless single-image PDF writer |
+| APNG and FFmpeg export | ✅ v0.8. FFmpeg converts recordings and GIFs to supported video or audio formats. |
+| Export PSD / TGA | ❓ Custom writers, low priority |
+| External editor | ✅ v0.7 |
+| Local workflows | ✅ v0.8 for after-capture and after-recording tasks. Recording conversion arrived in v0.9. Existing program-launching workflows may require approval in Settings from v0.25.1. |
 | Proprietary editable format (layers kept) | 🔜 |
-| Insert into Office documents | ❓ needs COM automation per app |
-| Screen magnifier, on-screen ruler / pixel measure, colour picker, whiteboard | 🔜 |
-| Hideable tray icon | ✅ v0.6.0 — context-menu option; running Snipit again restores it |
-| Scheduled captures, context-menu quick actions | 🔜 |
+| Insert into Office documents | ❓ COM automation per app |
+| Capture magnifier and pixel readout, colour picker, drawing on screen | ✅ Available in Region mode or from the tray, depending on the tool |
+| On-screen ruler and dedicated whiteboard | 🔜 |
+| Hideable tray icon | ✅ v0.6.0. Running Snipit again restores it. |
+| Scheduling and context-menu quick actions | ✅ Interval still captures, one-shot recorder scheduling, and tray quick actions. 🔜 Schedule a still capture for a specific time. |
 
-## Phase 4 — v0.5 Text recognition
+## Phase 4 — Text recognition
+
 | Feature | Status |
 |---|---|
-| OCR (grab / copy text from image), multi-language | ✅ v0.5.0 — editor Copy text via `Windows.Media.Ocr` (ships with Windows, no package); languages depend on installed language packs |
-| Text-inside-image search | 🔜 builds on OCR + library index |
-| Smart Redact (auto-find emails, numbers, keys) | ✅ v0.5.0 — editor Redact button; detectors + box mapping in tested Core, runs fully offline |
+| OCR and copy text from an image | ✅ v0.5.0. Uses `Windows.Media.Ocr` and the installed Windows OCR languages. |
+| OCR find and replace | ✅ v0.7 editor tool |
+| Text-inside-image search | 🔜 Builds on OCR and a library index |
+| Smart Redact (auto-find emails, numbers, keys) | ✅ v0.5.0. Detection and box mapping run offline. |
 
-## Phase 5 — v0.6+ Recording
+## Phase 5 — Recording
+
 | Feature | Status |
 |---|---|
-| Screen recording (full / window / region), 4K, frame-rate and quality settings, auto-save | 🟡 owner-approved 2026-11-13 as part of the recording suite — engine shipped unreleased (monitor → MP4 via WGC + MediaTranscoder, `--record` CLI); region, window, audio, webcam and in-app controls follow in the suite's slices |
-| System audio, microphone | ❓ WASAPI loopback via P/Invoke, or a package (NAudio) |
-| Webcam picture-in-picture, background blur, camera swap | ❓ |
-| Cursor highlight, click animation, on-screen drawing while recording | 🔜 after recorder exists |
-| Trim / combine clips, image-sequence → video, frame extraction | ❓ |
-| GIF from video / screen activity | ✅ v0.5.0 for interval capture (hand-written GIF89a writer, looping, per-frame delay; 256-colour palette). From a recorder: still ❓ with Phase 5 recording |
-| Audio noise removal | ❓ needs a DSP library |
+| Monitor and region recording to MP4 or animated GIF | ✅ Auto-save, pause and resume, frame-rate and quality settings, duration and file-size limits, and original size or 1080p/720p/480p caps. 🔜 Dedicated window recording. |
+| System audio and microphone | ✅ WASAPI system loopback and microphone capture |
+| Webcam picture-in-picture | ✅ Optional webcam overlay. 🔜 Background blur and camera switching. |
+| Drawing on screen while recording | ✅ Live annotations. 🔜 Cursor highlighting and click animation. |
+| Trim or combine clips, convert an image sequence to video, extract frames | ❓ |
+| GIF from screen activity or a recording | ✅ Direct GIF recording, animated GIF from interval capture, and FFmpeg GIF export |
+| Audio noise removal | ❓ DSP design or library |
 
 ## Needs a decision before any work (⛔ / ❓)
-- **Cloud and sharing** (share links, Dropbox/Drive/OneDrive/Box, Slack/Teams, email, social, FTP, YouTube, short links, cloud sync, enterprise SSO/analytics): all need the network. Snipit is offline by charter. Proposal: ship as optional, off-by-default, separately toggled modules, each with its own tokens stored via DPAPI. Email via `mailto:` and "share" via the Windows share sheet need no accounts.
-- **AI features** (AI Step Capture, AI background removal, AI captions/chapters, AI redaction risk scoring, Simplify, Smart Move): need a model. Options: local model files shipped or downloaded on demand (size, licence, new runtime dependency), or a cloud API (breaks offline). Not started.
-- **New packages**: SQLite (library), NAudio (audio), an ONNX runtime (local AI). Each needs explicit approval and pinned versions.
-- **Enterprise tier** (SSO, team analytics, custom branding, unlimited storage): out of scope for a single-user offline tool unless requested.
+
+- **Cloud and sharing** (share links, Dropbox/Drive/OneDrive/Box, Slack/Teams, email, social, FTP, YouTube, short links, cloud sync, enterprise SSO/analytics) need a network decision. Snipit is offline by charter. Proposed integrations would be optional and off by default. A Windows share sheet or `mailto:` flow can hand off to another app.
+- **AI features** (AI Step Capture, AI background removal, AI captions/chapters, AI redaction risk scoring, Simplify, Smart Move) need a model and a decision about local model files, licensing, runtime dependencies and network use.
+- **New packages**, such as SQLite for the library or an ONNX runtime for local AI, need a dependency decision and pinned versions.
+- **Enterprise tier** (SSO, team analytics, custom branding, unlimited storage) is outside the current single-user scope.

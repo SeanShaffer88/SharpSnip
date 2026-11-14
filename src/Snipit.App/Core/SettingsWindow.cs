@@ -69,7 +69,7 @@ internal sealed class SettingsWindow : Window
         _matte.SelectedItem = prefs.MatteColor; _matte.ToolTip = "Fill for empty corners when monitors form an L-shape.";
         _effect.SelectedItem = AutoEffects.Sanitize(prefs.AutoEffect); _effect.ToolTip = "Applied automatically to every capture. Border draws a thin black frame; Grayscale converts to grey.";
         _toasts.IsChecked = prefs.ShowToasts; _toasts.ToolTip = "Balloon notifications after saving or on errors.";
-        _toolKeys.IsChecked = prefs.EditorToolHotkeys; _toolKeys.ToolTip = "P pen, H highlight, A arrow, R rect, O ellipse, T text, N step, K callout, G stamp, B blur, S spotlight, M magnify, C crop, X cut out. Turn off if letter keys clash with your assistive technology.";
+        _toolKeys.IsChecked = prefs.EditorToolHotkeys; _toolKeys.ToolTip = "P pen, H highlight, A arrow, L connector, R rect, O ellipse, T text, N step, K callout, G stamp, B blur, S spotlight, M magnify, C crop, X cut out. Turn off if letter keys clash with your assistive technology.";
         _contrast.IsChecked = prefs.HighContrastHighlight; _contrast.ToolTip = "Thicker yellow highlight and opaque hint bars.";
         _dim.Value = prefs.DimmerOpacity * 100; _dim.ToolTip = "How dark the screen gets while picking.";
 

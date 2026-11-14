@@ -119,6 +119,7 @@ internal sealed class EditorWindow : Window
         _layer.MouseLeftButtonDown += OnDown;
         _layer.MouseMove += OnMove;
         _layer.MouseLeftButtonUp += OnUp;
+        _layer.LostMouseCapture += (_, _) => ClearConnectorDraft();
         _openFolder.Click += (_, _) => { if (_savedPath is not null) Process.Start("explorer.exe", $"/select,\"{_savedPath}\""); };
         _copyPath.Click += (_, _) => { if (_savedPath is not null) { try { Clipboard.SetText(_savedPath); _status.Text = "Path copied."; } catch (Exception) { _status.Text = "Clipboard busy."; } } };
 
@@ -442,7 +443,7 @@ internal sealed class EditorWindow : Window
         if (!_layer.IsMouseCaptured) return;
         var p = Clamp(e.GetPosition(_layer));
         if (_stroke is not null) { _stroke.Points.Add(p); return; }
-        if (_connectorDraft is not null) { var old = _connectorDraft; _connectorDraft = MakeConnector(_start, p); _layer.Children.Remove(old); _layer.Children.Add(_connectorDraft); return; }
+        if (_connectorDraft is not null) { _connectorDraft.Data = ConnectorGeometry(_start, p); return; }
         if (_arrowShaft is not null) { _arrowShaft.X2 = p.X; _arrowShaft.Y2 = p.Y; return; }
         if (_draft is not null)
         {
@@ -453,20 +454,27 @@ internal sealed class EditorWindow : Window
 
     private Point Clamp(Point p) => new(Math.Clamp(p.X, 0, _layer.Width), Math.Clamp(p.Y, 0, _layer.Height));
 
+    private void ClearConnectorDraft()
+    {
+        if (_connectorDraft is null) return;
+        _layer.Children.Remove(_connectorDraft);
+        _connectorDraft = null;
+    }
+
     private void OnUp(object sender, MouseButtonEventArgs e)
     {
         if (!_layer.IsMouseCaptured) return;
+        bool connecting = _connectorDraft is not null;
+        ClearConnectorDraft();
         _layer.ReleaseMouseCapture();
         var end = Clamp(e.GetPosition(_layer));
 
         if (_stroke is not null) { Push(new AddEdit(_layer, _stroke)); _stroke = null; return; }
 
-        if (_connectorDraft is not null)
+        if (connecting)
         {
-            var conn = _connectorDraft; _connectorDraft = null;
-            _layer.Children.Remove(conn);
             if ((end - _start).Length < 4) return;
-            conn = MakeConnector(_start, end);
+            var conn = MakeConnector(_start, end);
             _layer.Children.Add(conn); Push(new AddEdit(_layer, conn));
             return;
         }
@@ -523,6 +531,9 @@ internal sealed class EditorWindow : Window
     }
 
     private System.Windows.Shapes.Path MakeConnector(Point from, Point to)
+        => new() { Data = ConnectorGeometry(from, to), Stroke = Stroke(), Fill = Stroke(), StrokeThickness = _thickness.Value, StrokeLineJoin = PenLineJoin.Round };
+
+    private Geometry ConnectorGeometry(Point from, Point to)
     {
         var pts = ConnectorRoute.Elbow(from.X, from.Y, to.X, to.Y);
         var line = new StreamGeometry();
@@ -532,12 +543,12 @@ internal sealed class EditorWindow : Window
             for (int i = 1; i < pts.Length; i++) c.LineTo(new Point(pts[i].X, pts[i].Y), true, true);
         }
         double r = Math.Max(4, _thickness.Value * 1.6);
-        var g = new GeometryGroup();
+        var g = new GeometryGroup { FillRule = FillRule.Nonzero };
         g.Children.Add(line);
         g.Children.Add(new EllipseGeometry(from, r, r));
         g.Children.Add(new EllipseGeometry(to, r, r));
         g.Freeze();
-        return new System.Windows.Shapes.Path { Data = g, Stroke = Stroke(), Fill = Stroke(), StrokeThickness = _thickness.Value, StrokeLineJoin = PenLineJoin.Round };
+        return g;
     }
 
     private System.Windows.Shapes.Path MakeArrow(Point from, Point to)
