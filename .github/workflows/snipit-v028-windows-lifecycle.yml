@@ -1,0 +1,201 @@
+name: Windows installer lifecycle
+
+on:
+  push:
+    branches: [verify/snipit-v028-windows]
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build + self-test
+        run: |
+          dotnet build Snipit.sln -c Release
+          dotnet run --project tests/Snipit.SelfTest -c Release
+
+      - name: Publish app (self-contained win-x64)
+        run: dotnet publish src/Snipit.App -c Release -r win-x64 --self-contained true -o dist/files
+
+      - name: Stage the pinned FFmpeg bundle (LGPL)
+        shell: pwsh
+        run: |
+          $pin = Get-Content tools/ffmpeg.json | ConvertFrom-Json
+          Invoke-WebRequest -Uri $pin.url -OutFile ffmpeg-bundle.zip
+          $hash = (Get-FileHash ffmpeg-bundle.zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $pin.sha256) { throw "FFmpeg bundle SHA256 mismatch: got $hash, pin says $($pin.sha256)" }
+          Expand-Archive ffmpeg-bundle.zip -DestinationPath ffmpeg-bundle
+          New-Item -ItemType Directory -Force dist/files/ffmpeg | Out-Null
+          Copy-Item ffmpeg-bundle/*/bin/ffmpeg.exe dist/files/ffmpeg/
+          Copy-Item ffmpeg-bundle/*/bin/*.dll dist/files/ffmpeg/
+          Copy-Item ffmpeg-bundle/*/LICENSE.txt dist/files/ffmpeg/
+          Copy-Item THIRD-PARTY-NOTICES.md dist/files/
+
+      - name: Check out SeanPak
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: SeanShaffer88/SeanPak
+          ref: 6cacee45e5ad1bfe4b32296620fe6bd34f017c80   # pinned; bump on purpose when SeanPak changes
+          path: .seanpak
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build SeanPak
+        shell: bash
+        working-directory: .seanpak
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Pack with SeanPak
+        shell: bash
+        run: |
+          SP=.seanpak/target/x86_64-pc-windows-msvc/release/seanpak.exe
+          "$SP" validate seanpak.json
+          "$SP" pack seanpak.json dist/files --out-dir dist-seanpak --json
+          "$SP" verify dist-seanpak/*-Setup.exe --json
+
+      - name: Install, upgrade, launch and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baseVersion = '0.27.0'
+          $version = (Get-Content seanpak.json -Raw | ConvertFrom-Json).version
+          if ($version -ne '0.28.0') { throw "Unexpected candidate version $version" }
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
+              throw 'Use a GitHub-hosted Windows runner for this test.'
+          }
+          $lab = Join-Path $env:RUNNER_TEMP "snipit-lifecycle-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          if (Test-Path -LiteralPath $lab) { throw "Lab already exists: $lab" }
+          New-Item -ItemType Directory -Path $lab | Out-Null
+          $dest = Join-Path $lab 'installed'
+          $oldSetup = Join-Path $lab "Snipit-v$baseVersion-x64-Setup.exe"
+          $newName = "Snipit-v$version-x64-Setup.exe"
+          $newSetup = (Resolve-Path "dist-seanpak/$newName").Path
+          $exe = Join-Path $dest 'Snipit.exe'
+          $receiptPath = Join-Path $dest 'seanpak-receipt.json'
+          $arpKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SeanPak-Snipit'
+          $keyboardKey = 'HKCU:\Control Panel\Keyboard'
+          $keyboardValue = 'PrintScreenKeyForSnippingEnabled'
+
+          function Run-Native($Program, [string[]]$Arguments) {
+              $output = & $Program @Arguments
+              if ($LASTEXITCODE -ne 0) { throw "$Program exited $LASTEXITCODE. Output: $($output -join ' ')" }
+              return ($output -join [Environment]::NewLine)
+          }
+
+          function Assert-Version($Expected) {
+              $actual = (Run-Native $exe @('--version')).Trim()
+              if ($actual -ne "Snipit $Expected") { throw "Unexpected CLI version: $actual" }
+              Write-Host $actual
+          }
+
+          function Read-PrintScreen {
+              Get-ItemPropertyValue -LiteralPath $keyboardKey -Name $keyboardValue -ErrorAction SilentlyContinue
+          }
+
+          if (Test-Path -LiteralPath $arpKey) { throw 'Runner already has a Snipit installation' }
+          if (Get-Process -Name Snipit,SharpSnip -ErrorAction SilentlyContinue) { throw 'Snipit or SharpSnip is running' }
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest "https://github.com/SeanShaffer88/Snipit/releases/download/v$baseVersion/Snipit-v$baseVersion-x64-Setup.exe" -OutFile $oldSetup
+          $oldSHA = (Get-FileHash -LiteralPath $oldSetup -Algorithm SHA256).Hash
+          if ($oldSHA -ne 'a7a9e2b5915c32c670480878ffd2bfd9ba66f161f70e3d6acfd1d6d86d5ca328') {
+              throw "Published baseline installer SHA-256 mismatch: $oldSHA"
+          }
+          $candidateHash = (Get-FileHash -LiteralPath $newSetup -Algorithm SHA256).Hash
+          if ((Get-Content dist-seanpak/SHA256SUMS.txt) -notcontains "$candidateHash  $newName") {
+              throw 'Candidate installer SHA-256 does not match its generated manifest'
+          }
+          Write-Host "Baseline installer SHA-256 $oldSHA"
+          Write-Host "Candidate installer SHA-256 $candidateHash"
+
+          try {
+              Write-Host (Run-Native $oldSetup @('--install','--to',$dest,'--json','--silent'))
+              $oldReceipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
+              if ($oldReceipt.app -ne 'Snipit' -or $oldReceipt.version -ne $baseVersion) { throw 'Wrong baseline receipt' }
+              Assert-Version $baseVersion
+              $profile = Join-Path $dest 'data'
+              New-Item -ItemType Directory -Path $profile | Out-Null
+              $settings = Join-Path $profile 'settings.json'
+              '{"ShowToasts":false,"ShowTrayIcon":false,"FixedWidth":735}' | Set-Content -LiteralPath $settings
+              $savedHash = (Get-FileHash -LiteralPath $settings).Hash
+
+              $install = Run-Native $newSetup @('--install','--to',$dest,'--json','--silent')
+              Write-Host $install
+              $update = $install | ConvertFrom-Json
+              if ($update.action -ne 'update' -or $update.previousVersion -ne $baseVersion) {
+                  throw 'SeanPak did not report an in-place upgrade from the released baseline'
+              }
+              $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
+              if ($receipt.app -ne 'Snipit' -or $receipt.version -ne $version -or
+                  $receipt.mode -ne 'upgrade' -or $receipt.previousVersion -ne $baseVersion) {
+                  throw 'Unexpected upgrade receipt'
+              }
+              Assert-Version $version
+              if ((Get-FileHash -LiteralPath $settings).Hash -ne $savedHash) { throw 'Upgrade changed portable settings bytes' }
+
+              if (!(Test-Path -LiteralPath $arpKey)) { throw 'Missing installed app registration' }
+              $zip = (Resolve-Path "dist-seanpak/Snipit-v$version-x64-Portable.zip").Path
+              $zipHash = (Get-FileHash -LiteralPath $zip).Hash
+              if ((Get-Content dist-seanpak/SHA256SUMS.txt) -notcontains "$zipHash  Snipit-v$version-x64-Portable.zip") { throw 'Portable ZIP SHA-256 mismatch' }
+              Write-Host "Candidate portable ZIP SHA-256 $zipHash"
+              $portable = Join-Path $lab 'portable'
+              Expand-Archive -LiteralPath $zip -DestinationPath $portable
+              New-Item -ItemType Directory -Path (Join-Path $portable 'data') | Out-Null
+              $installedSettings = $settings
+              $settings = Join-Path $portable 'data/settings.json'
+              Copy-Item -LiteralPath $installedSettings -Destination $settings
+              $exe = Join-Path $portable 'Snipit.exe'
+              Assert-Version $version
+              $prior = Read-PrintScreen
+              $process = Start-Process -FilePath $exe -WindowStyle Hidden -PassThru
+              try {
+                  $ready = $false
+                  for ($attempt = 0; $attempt -lt 50; $attempt++) {
+                      if ($process.HasExited) { throw "Snipit startup exited $($process.ExitCode)" }
+                      Start-Sleep -Milliseconds 200
+                      try { $prefs = Get-Content -LiteralPath $settings -Raw | ConvertFrom-Json }
+                      catch [System.IO.IOException] { continue }
+                      if ($prefs.PrintScreenPriorRecorded -eq $true -and (Read-PrintScreen) -eq 0) {
+                          if ($prefs.FixedWidth -ne 735 -or $prefs.ShowTrayIcon -ne $false -or $prefs.ShowToasts -ne $false) {
+                              throw 'Startup did not preserve the portable preferences'
+                          }
+                          $ready = $true
+                          break
+                      }
+                  }
+                  if (!$ready) { throw 'Snipit did not load the portable profile and apply its Print Screen setting' }
+                  Write-Host 'Snipit startup loaded retained portable settings'
+              } finally {
+                  if (!$process.HasExited) { Stop-Process -Id $process.Id -Force; $process.WaitForExit() }
+                  Write-Host (Run-Native $exe @('--restore-printscreen'))
+                  if ((Read-PrintScreen) -ne $prior) { throw 'Print Screen setting was not restored after startup smoke' }
+              }
+
+              $settings = $installedSettings
+              $afterStartup = (Get-FileHash -LiteralPath $settings).Hash
+              Write-Host (Run-Native $newSetup @('--uninstall','--to',$dest,'--json','--silent'))
+              $ownedFiles = @($receipt.files | ForEach-Object { $_.path }) + @('Snipit.exe','Uninstall.exe','seanpak-receipt.json')
+              foreach ($relative in $ownedFiles) {
+                  if ($relative -and (Test-Path -LiteralPath (Join-Path $dest $relative))) { throw "Uninstall left $relative" }
+              }
+              if (Test-Path -LiteralPath $arpKey) { throw 'Uninstall left the Add/Remove Programs entry' }
+              if ((Get-FileHash -LiteralPath $settings).Hash -ne $afterStartup) { throw 'Uninstall changed or removed portable settings' }
+              Write-Host 'Verified baseline install, in-place upgrade, portable-profile startup, Print Screen recovery and non-purge uninstall.'
+          } finally {
+              if (Test-Path -LiteralPath $receiptPath) {
+                  & $newSetup --uninstall --to $dest --json --silent
+                  Write-Host "Lifecycle cleanup exit: $LASTEXITCODE"
+              }
+          }
