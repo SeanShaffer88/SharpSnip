@@ -222,3 +222,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.25.7 manual rows (deferred by owner)
 - [ ] README renders the new Uninstalling section.
+
+## v0.25.8 manual rows (deferred by owner)
+- [ ] `Snipit.exe --version` prints the same version as the installer.
