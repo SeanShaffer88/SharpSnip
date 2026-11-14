@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.7] - 2026-11-14
+
+### Changed
+- **Docs: uninstalling.** The README now says to exit Snipit (or run `Snipit.exe --restore-printscreen` if it was killed) before uninstalling, because the SeanPak installer has no uninstall hook that could hand the Print Screen key back. The roadmap records the missing SeanPak feature. I looked at using the installer's registry writes instead and rejected it: it would change Print Screen behaviour at install time for everyone.
+
 ## [0.25.6] - 2026-11-14
 
 ### Security

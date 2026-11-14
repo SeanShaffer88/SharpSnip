@@ -219,3 +219,6 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.25.6 manual rows (deferred by owner)
 - [ ] Next release tag: the Release workflow resolves every pinned action, builds SeanPak at the pinned commit, and attaches the three assets.
+
+## v0.25.7 manual rows (deferred by owner)
+- [ ] README renders the new Uninstalling section.
