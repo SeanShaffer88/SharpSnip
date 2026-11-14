@@ -9,6 +9,8 @@ Offline only. No telemetry, no accounts, no network code.
 
 > **Status v0.25.1.** Workflow trust hash is now keyed per user. v0.25.0: Region capture can combine several areas into one image (press A after each). v0.18.0 added a Cut out tool; the editor has a Cut out tool that removes a strip and joins the sides. v0.17.0 added an Effects… dialog for Frame, Shadow, Torn and Wave sizes. v0.16.0 renamed SharpSnip to Snipit. Earlier releases introduced the movable capture mode bar, colour picker, and Frame, Shadow, Torn and Wave editor effects. See [CHANGELOG.md](CHANGELOG.md) for version history and [AUDIT.md](AUDIT.md) for verification status.
 
+**Windows field test (v0.16.0).** Sean tested the installer and portable build, verified the live UI and Print Screen behavior, and confirmed that SharpSnip settings carried over and uninstall cleaned up the installed build. [Full test results](CHANGELOG.md#windows-field-verification)
+
 ## Features
 
 | Mode | What it does |
