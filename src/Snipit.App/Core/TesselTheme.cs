@@ -13,7 +13,7 @@ namespace Snipit;
 /// TesselGUI revision 3 (Carmine, standard v2.0.0) applied to a window: values
 /// copied from the design standard's docs/tokens.json — background #1B1B1D,
 /// surface #1F1F22, raised #232326, selected #2A2A2F, foreground #E6E3E1, muted
-/// #89868A, edge #43434A, and the one Carmine accent #960018 carrying
+/// #A3A0A4 (standard: #89868A, raised for WCAG AA), edge #43434A, and the one Carmine accent #960018 carrying
 /// selection and the action family, with a light tint #E8939F for focus rings and check marks (the deep accent is only ~1.9:1 on the dark surfaces, below WCAG 3:1), (hover #A81226, pressed #7E0014), danger
 /// #E8939F; Segoe UI, 13px labels, 1px edges carry the structure.
 /// The OS title bar is not themed (that needs WindowChrome; out of scope here).
@@ -27,7 +27,8 @@ internal static class TesselTheme
     public static readonly Brush Raised = B("#232326");
     public static readonly Brush Selected = B("#2A2A2F");
     public static readonly Brush Foreground = B("#E6E3E1");
-    public static readonly Brush Muted = B("#89868A");
+    // Lightened from the standard's #89868A (about 4.3:1 on raised surfaces) to #A3A0A4 (about 5.6:1) so small muted text meets WCAG AA 4.5:1.
+    public static readonly Brush Muted = B("#A3A0A4");
     public static readonly Brush Edge = B("#43434A");
     public static readonly Brush Focus = B("#E8939F");
     public static readonly Brush Selection = B("#960018");

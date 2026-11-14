@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.25.4] - 2026-11-14
+
+### Fixed
+- **Muted text now meets WCAG AA.** The muted grey (#89868A, about 4.3:1 on the toolbar) used for key hints, labels and status text is lightened to #A3A0A4 (about 5.6:1) in the editor and the themed windows. This departs from the TesselGUI token value on purpose.
+- Core: `WcagContrast`, with self-tests asserting the foreground and muted tokens pass 4.5:1 on every dark surface. 7 new checks (506 total).
+
 ## [0.25.3] - 2026-11-14
 
 ### Fixed
