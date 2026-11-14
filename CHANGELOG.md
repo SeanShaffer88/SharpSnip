@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.26.0] - 2026-11-14
+
+### Added
+- **Connector tool** in the editor (key `L`). Drag to draw a right-angle line with a dot at each end, bending along the longer drag axis; a near-flat drag stays straight. Uses the current colour and thickness. Undo/redo work like any other annotation.
+- `ConnectorRoute` in Snipit.Core holds the routing, with 5 new checks.
+
+### Changed
+- Editor window is 40 px wider (min 1140) to fit the extra tool.
+
 ## [0.25.8] - 2026-11-14
 
 ### Fixed

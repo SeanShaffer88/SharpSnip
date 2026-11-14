@@ -227,3 +227,8 @@ Real runs on Windows only, saved to `docs/screenshots/`:
 
 ## v0.25.8 manual rows (deferred by owner)
 - [ ] `Snipit.exe --version` prints the same version as the installer.
+
+## v0.26.0 manual rows (deferred by owner)
+- [ ] Draw right/down, left/up, and near-axis connectors. Check Undo, Redo, and toolbar fit at minimum width.
+- [ ] Draw a short connector with a thick stroke. Its overlapping endpoints stay filled. A click or drag under 4 pixels adds no annotation.
+- [ ] Switch away from the editor while dragging to interrupt mouse capture. The draft disappears and the next drag produces one undoable connector.

@@ -2,7 +2,7 @@
 
 Goal: eventually cover the full feature list Sean supplied (screen capture, recording, annotation, AI/smart tools, library, sharing, utilities).
 
-**Status through v0.25.8.** ✅ Implemented · 🔜 Planned · ❓ Needs a design or scope decision · ⛔ Outside the offline scope unless approved.
+**Status through v0.26.0.** ✅ Implemented · 🔜 Planned · ❓ Needs a design or scope decision · ⛔ Outside the offline scope unless approved.
 
 Implementation status comes from the source and release history. The Windows field test covered the v0.16.0 x64 installer and portable build, live UI and Print Screen behavior, SharpSnip settings carryover, and uninstall cleanup. See [Windows field verification](../CHANGELOG.md#windows-field-verification), [AUDIT.md](../AUDIT.md), and [TEST-PLAN.md](TEST-PLAN.md).
 
@@ -41,7 +41,7 @@ Blueprint v2 shipped in v0.1 with element, region, window and full-screen captur
 |---|---|
 | Arrows, shapes, text, pen, highlighter, pixelation, crop | ✅ |
 | Numbered step markers, callouts, stamps | ✅ Step markers in v0.7, callouts and stamps in v0.25 |
-| Lines and connectors | 🔜 |
+| Lines and connectors | ✅ Connector in v0.26.0 draws a right-angle elbow with endpoint dots. Near-axis drags draw a straight connector. 🔜 Standalone line tool. |
 | Spotlight and magnify annotations | ✅ Spotlight in v0.22, magnify in v0.23 |
 | Manual redaction | ✅ Selective pixelation. 🔜 Dedicated manual redaction workflow. |
 | Rotate, flip, grayscale, invert | ✅ v0.5.0 |
